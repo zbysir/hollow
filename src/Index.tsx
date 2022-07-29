@@ -1,6 +1,7 @@
 import Header from "./Header";
 import Home from "./Home";
 import BlogDetail from "./Detail";
+import Footer from "./Footer";
 
 interface Props {
     page: 'home' | 'blog-detail'
@@ -31,10 +32,11 @@ export default function Index(props: Props) {
             return props.page
         })()
     }
+
+    <Footer name={props.me}></Footer>
     <div>
         {props.time}
     </div>
-
 
     </body>
     </html>
