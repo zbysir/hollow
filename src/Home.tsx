@@ -8,7 +8,7 @@ interface Blog {
 export default function Home(props) {
     return <Container>
         <div className="prose">
-            <h2> 最新 Blogs </h2>
+            <h3> 最新 Blogs </h3>
             <ul className="list-disc list-inside">
                 {
                     props.blogs.map(i => (

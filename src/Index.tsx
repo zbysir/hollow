@@ -34,6 +34,8 @@ export default function Index(props: Props) {
     <div>
         {props.time}
     </div>
+
+
     </body>
     </html>
 }
