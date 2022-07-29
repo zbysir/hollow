@@ -77,7 +77,7 @@ func main() {
 		body := v.Render()
 
 		name := x["name"].(string)
-		distFile := filepath.Join("dist", name+".html")
+		distFile := filepath.Join("docs", name+".html")
 		dir := filepath.Dir(distFile)
 		_ = os.MkdirAll(dir, os.ModePerm)
 

@@ -16,6 +16,7 @@ export default function Index(props: Props) {
         <meta charSet="UTF-8"/>
         <title>{props.title || 'UnTitled'}</title>
         <link href="/tailwind.css" rel="stylesheet"/>
+        <link href="/blog/tailwind.css" rel="stylesheet"/>
     </head>
     <body>
     <Header name={props.me}></Header>
