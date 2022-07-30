@@ -1,4 +1,5 @@
-import Container from "./component/Container";
+import Container from "../component/Container";
+import Link from "../component/Link";
 
 interface Blog {
     link: string
@@ -161,7 +162,7 @@ export default function Home(props) {
             <ul className="list-disc list-inside">
                 {
                     props.blogs.map(i => (
-                        <li><a href={'./blogs/' + i.link}>{i.name}</a></li>
+                        <li><Link href={'/blogs/' + i.name}>{i.name}</Link></li>
                     ))
                 }
             </ul>

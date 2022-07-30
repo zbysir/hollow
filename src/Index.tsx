@@ -1,7 +1,7 @@
-import Header from "./Header";
-import Home from "./Home";
-import BlogDetail from "./Detail";
-import Footer from "./Footer";
+import Home from "./page/Home";
+import Header from "./particle/Header";
+import Footer from "./particle/Footer";
+import BlogDetail from "./page/BlogDetail";
 
 interface Props {
     page: 'home' | 'blog-detail'
