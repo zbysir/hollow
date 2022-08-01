@@ -10,6 +10,11 @@ let global = {
     me: "bysir",
 }
 
+let tags = []
+blog.forEach(i => {
+    tags = tags.concat(i.meta?.tags)
+})
+
 export let routerBase = ''
 
 export default {
@@ -32,6 +37,18 @@ export default {
                         content,
                     }
                 })
+            }
+        })),
+        {
+            name: 'tags',
+            component:()=> {
+                return Index({...global, page: 'tags', page_data: {blogs: blog}})
+            }
+        },
+        ...tags.map(t => ({
+            name: 'tags/' + t,
+            component:()=> {
+                return Index({...global, page: 'tags', page_data: {blogs: blog, selectedTag: t}})
             }
         }))
     ],

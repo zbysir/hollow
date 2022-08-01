@@ -2,9 +2,10 @@ import Home from "./page/Home";
 import Header from "./particle/Header";
 import Footer from "./particle/Footer";
 import BlogDetail from "./page/BlogDetail";
+import TagPage from "./page/TagPage";
 
 interface Props {
-    page: 'home' | 'blog-detail'
+    page: 'home' | 'blog-detail' | 'tags'
     title: string
     page_data: any
     me: string
@@ -28,6 +29,8 @@ export default function Index(props: Props) {
                     return <Home {...props.page_data}></Home>
                 case 'blog-detail':
                     return <BlogDetail {...props.page_data}></BlogDetail>
+                case 'tags':
+                    return <TagPage {...props.page_data}></TagPage>
             }
             return props.page
         })()

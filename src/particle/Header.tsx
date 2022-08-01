@@ -16,7 +16,7 @@ export default function Header(props) {
                     <nav
                         className="flex flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-gray-200">
                         <Link href="/" className="mr-5 font-medium leading-6 text-gray-600 hover:text-gray-900">Home</Link>
-                        {/*<a href="#_" className="mr-5 font-medium leading-6 text-gray-600 hover:text-gray-900">Blog</a>*/}
+                        <Link href="/tags" className="mr-5 font-medium leading-6 text-gray-600 hover:text-gray-900">Tag</Link>
                     </nav>
                 </div>
 
