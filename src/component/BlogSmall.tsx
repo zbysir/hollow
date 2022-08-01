@@ -5,10 +5,10 @@ export default function BlogSmall({blog: i}) {
 
     return <div className="flex flex-col items-start col-span-12 space-y-3 sm:col-span-6 xl:col-span-4">
         {
-            i.img ? <Link href={link} className="block">
+            i.meta?.img ? <Link href={link} className="block">
                 <img
                     className="object-cover w-full mb-2 overflow-hidden rounded-lg shadow-sm max-h-56"
-                    src="https://cdn.devdojo.com/images/may2021/fruit.jpg"/>
+                    src={i.meta?.img}/>
             </Link> : null
         }
 

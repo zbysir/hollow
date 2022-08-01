@@ -2,6 +2,7 @@ package bblog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/dop251/goja"
 	"github.com/russross/blackfriday/v2"
@@ -60,9 +61,8 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 }
 
 type Bblog struct {
-	x          *jsx.Jsx
-	configFile string
-	fs         fs.FS
+	x  *jsx.Jsx
+	fs fs.FS
 }
 
 type Option struct {
@@ -76,7 +76,7 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
-func NewBblog(configFile string, o Option) (*Bblog, error) {
+func NewBblog(o Option) (*Bblog, error) {
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
@@ -92,9 +92,8 @@ func NewBblog(configFile string, o Option) (*Bblog, error) {
 		o.Fs = StdFileSystem{}
 	}
 	b := &Bblog{
-		x:          x,
-		configFile: configFile,
-		fs:         o.Fs,
+		x:  x,
+		fs: o.Fs,
 	}
 
 	x.RegisterModule("db", map[string]interface{}{
@@ -104,8 +103,12 @@ func NewBblog(configFile string, o Option) (*Bblog, error) {
 	return b, nil
 }
 
-func (b *Bblog) Export(distPath string) error {
-	c, err := b.Load(b.configFile)
+type ExecOption struct {
+	Env map[string]interface{}
+}
+
+func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
+	c, err := b.Load(configFile, o)
 	if err != nil {
 		return err
 	}
@@ -126,10 +129,20 @@ func (b *Bblog) Export(distPath string) error {
 
 		err = ioutil.WriteFile(distFile, []byte(body), os.ModePerm)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
-		log.Printf("create: %v ", distFile)
+		log.Printf("create pages: %v ", distFile)
+	}
+
+	fe := fSExport{fs: b.fs}
+	for _, a := range c.Assets {
+		d := filepath.Dir(configFile)
+		err = fe.exportDir(filepath.Join(d, a), distPath)
+		if err != nil {
+			return err
+		}
+		log.Printf("copy assets: %v ", a)
 	}
 	return nil
 }
@@ -139,7 +152,7 @@ func (b *Bblog) Export(distPath string) error {
 //
 //}
 
-func (b *Bblog) Service(ctx context.Context, addr string, dev bool) error {
+func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, addr string, dev bool) error {
 	s, err := NewService(addr)
 	if err != nil {
 		return err
@@ -147,11 +160,11 @@ func (b *Bblog) Service(ctx context.Context, addr string, dev bool) error {
 	var c Config
 	var assetsHandler http.Handler
 	prepare := func() error {
-		c, err = b.Load(b.configFile)
+		c, err = b.Load(configFile, o)
 		if err != nil {
 			return err
 		}
-		base, _ := filepath.Split(b.configFile)
+		base, _ := filepath.Split(configFile)
 
 		var dirs MuitDir
 		for _, i := range c.Assets {
@@ -340,27 +353,14 @@ func exportGojaValue(i interface{}) interface{} {
 	return i
 }
 
-func (b *Bblog) Load(configFile string) (Config, error) {
-	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`require("%v").default`, configFile)), false)
+func (b *Bblog) Load(configFile string, eo ExecOption) (Config, error) {
+	envBs, _ := json.Marshal(eo.Env)
+	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
+
+	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), false)
 	if err != nil {
 		return Config{}, err
 	}
-
-	//log.Printf("v: %+v", exportGojaValue(v))
-	//o := v.(*goja.Object)
-	//
-	//opages := o.Get("pages").(*goja.Object)
-	//
-	//ps := make(Pages, 0)
-	//for _, index := range opages.Keys() {
-	//	p := opages.Get(index).(*goja.Object)
-	//
-	//	m := map[string]interface{}{}
-	//	for _, k := range p.Keys() {
-	//		m[k] = p.Get(k)
-	//	}
-	//	ps = append(ps, m)
-	//}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现
 	raw := exportGojaValue(v).(map[string]interface{})

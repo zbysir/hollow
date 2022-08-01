@@ -20,11 +20,10 @@ export default function Home(props) {
                     props.blogs.filter(i => i.meta?.featured).map(i => (<Blog blog={i}></Blog>))
                 }
 
-                <div class="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-16">
+                <div class="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-8">
                     {
                         props.blogs.map(i => <BlogSmall blog={i}></BlogSmall>)
                     }
-
                 </div>
             </div>
         </section>

@@ -14,21 +14,21 @@ export default function Header(props) {
                 className="text-indigo-600">.</span></span>
                     </Link>
                     <nav
-                        className="flex flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-gray-200">
-                        <Link href="/" className="mr-5 font-medium leading-6 text-gray-600 hover:text-gray-900">Home</Link>
-                        <Link href="/tags" className="mr-5 font-medium leading-6 text-gray-600 hover:text-gray-900">Tag</Link>
+                        className="flex space-x-4 flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-gray-200">
+                        <Link href="/" className="font-medium leading-6 text-gray-600 hover:text-gray-900">Home</Link>
+                        <Link href="/tags" className="font-medium leading-6 text-gray-600 hover:text-gray-900">Tag</Link>
                     </nav>
                 </div>
 
-                <div className="inline-flex items-center ml-5 space-x-6 lg:justify-end">
+                <div className="inline-flex items-center space-x-6 lg:justify-end">
                     {/*<a href="#"*/}
                     {/*   className="text-base font-medium leading-6 text-gray-600 whitespace-no-wrap transition duration-150 ease-in-out hover:text-gray-900">*/}
                     {/*  Sign in*/}
                     {/*</a>*/}
-                    <Link href="/"
-                       className="inline-flex items-center justify-center px-4 py-2 text-base font-medium leading-6 text-white whitespace-no-wrap bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">
-                        Sign up
-                    </Link>
+                    {/*<Link href="/"*/}
+                    {/*   className="inline-flex items-center justify-center px-4 py-2 text-base font-medium leading-6 text-white whitespace-no-wrap bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600">*/}
+                    {/*    Sign up*/}
+                    {/*</Link>*/}
                 </div>
             </div>
         </section>

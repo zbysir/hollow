@@ -33,7 +33,7 @@ export default function TagPage(props) {
             }
         </div>
 
-        <div className="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-16">
+        <div className="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-8">
             {
                 showBlogs.map(i => <BlogSmall blog={i}></BlogSmall>)
             }

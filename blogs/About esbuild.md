@@ -1,8 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./images/wordmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="./images/wordmark-light.svg">
-    <img alt="esbuild: An extremely fast JavaScript bundler" src="./images/wordmark-light.svg">
+    <img alt="esbuild: An extremely fast JavaScript bundler" src="https://github.com/evanw/esbuild/raw/master/images/wordmark-light.svg">
   </picture>
   <br>
   <a href="https://esbuild.github.io/">Website</a> |
@@ -15,14 +13,6 @@
 ## Why?
 
 Our current build tools for the web are 10-100x slower than they could be:
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./images/benchmark-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="./images/benchmark-light.svg">
-    <img alt="Bar chart with benchmark results" src="./images/benchmark-light.svg">
-  </picture>
-</p>
 
 The main goal of the esbuild bundler project is to bring about a new era of build tool performance, and create an easy-to-use modern bundler along the way.
 

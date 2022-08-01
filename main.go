@@ -5,12 +5,14 @@ import (
 )
 
 func main() {
-	b, err := bblog.NewBblog("./src/config.ts", bblog.Option{})
+	b, err := bblog.NewBblog(bblog.Option{})
 	if err != nil {
 		panic(err)
 	}
 
-	err = b.Export("docs")
+	err = b.Export("./src/config.ts", "docs", bblog.ExecOption{
+		Env: map[string]interface{}{"base": "/blog"},
+	})
 	if err != nil {
 		panic(err)
 	}

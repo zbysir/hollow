@@ -7,7 +7,8 @@ export default function Blog({blog: i}) {
         <div className="w-full md:w-1/2">
             {
                 i.meta?.img ? <Link href={link} className="block">
-                    <img className="object-cover w-full h-full rounded-lg max-h-64 sm:max-h-96"
+                    <img
+                        className="object-cover w-full h-full rounded-lg max-h-64 sm:max-h-96"
                          src={i.meta?.img}/>
                 </Link> : null
             }

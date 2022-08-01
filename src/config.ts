@@ -15,7 +15,8 @@ blog.forEach(i => {
     tags = tags.concat(i.meta?.tags)
 })
 
-export let routerBase = ''
+// @ts-ignore
+export let routerBase = process.env?.base || ''
 
 export default {
     pages: [
@@ -41,13 +42,13 @@ export default {
         })),
         {
             name: 'tags',
-            component:()=> {
+            component: () => {
                 return Index({...global, page: 'tags', page_data: {blogs: blog}})
             }
         },
         ...tags.map(t => ({
             name: 'tags/' + t,
-            component:()=> {
+            component: () => {
                 return Index({...global, page: 'tags', page_data: {blogs: blog, selectedTag: t}})
             }
         }))
