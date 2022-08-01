@@ -23,8 +23,15 @@ export default {
         ...blog.map(b => ({
             name: 'blogs/' + b.name,
             component: function () {
-                b.content = b.getContent()
-                return Index({...global, page: 'blog-detail', page_data: b})
+                let content = b.getContent()
+                // 不能这样写，因为在 golang 中没有对应的 content 字段，不能赋值成功
+                // b.content = content
+                return Index({
+                    ...global, page: 'blog-detail', page_data: {
+                        ...b,
+                        content,
+                    }
+                })
             }
         }))
     ],

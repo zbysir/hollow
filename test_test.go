@@ -7,12 +7,12 @@ import (
 )
 
 func TestService(t *testing.T) {
-	b, err := bblog.NewBblog("./src/config.ts")
+	b, err := bblog.NewBblog("./src/config.ts", bblog.Option{})
 	if err != nil {
 		panic(err)
 	}
 
-	err = b.Service(context.Background(), ":8080", true)
+	err = b.Service(context.Background(), ":8083", true)
 	if err != nil {
 		panic(err)
 	}

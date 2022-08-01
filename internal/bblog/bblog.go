@@ -6,12 +6,15 @@ import (
 	"github.com/dop251/goja"
 	"github.com/russross/blackfriday/v2"
 	jsx "github.com/zbysir/gojsx"
+	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -19,28 +22,61 @@ type Page map[string]interface{}
 type Pages []Page
 
 func (p Page) GetName() string {
+	switch t := p["name"].(type) {
+	case goja.Value:
+		return t.Export().(string)
+	}
 	return p["name"].(string)
 }
-func (p Page) GetComponent() jsx.VDom {
-	var v jsx.VDom
-	switch t := p["component"].(type) {
+func tryToVDom(i interface{}) jsx.VDom {
+	switch t := i.(type) {
 	case map[string]interface{}:
-		// for: component: Index(props)
-		v = t
-	case func(goja.FunctionCall) goja.Value:
-		// for: component: () => Index(props)
-		v = t(goja.FunctionCall{}).Export().(map[string]interface{})
+		return t
 	}
 
-	return v
+	return jsx.VDom{}
+}
+
+func (p Page) GetComponent() (jsx.VDom, error) {
+	var v jsx.VDom
+	switch t := p["component"].(type) {
+	case *goja.Object:
+		c, ok := goja.AssertFunction(t)
+		if ok {
+			// for: component: () => Index(props)
+			val, err := c(nil)
+			if err != nil {
+				return v, err
+			}
+			v = tryToVDom(val.Export())
+		} else {
+			// for: component: Index(props)
+			v = tryToVDom(t.Export())
+		}
+		return v, nil
+	}
+
+	return v, fmt.Errorf("uncased value type: %T", p["component"])
 }
 
 type Bblog struct {
 	x          *jsx.Jsx
 	configFile string
+	fs         fs.FS
 }
 
-func NewBblog(configFile string) (*Bblog, error) {
+type Option struct {
+	Fs fs.FS
+}
+
+type StdFileSystem struct {
+}
+
+func (f StdFileSystem) Open(name string) (fs.File, error) {
+	return os.Open(name)
+}
+
+func NewBblog(configFile string, o Option) (*Bblog, error) {
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
@@ -52,9 +88,13 @@ func NewBblog(configFile string) (*Bblog, error) {
 		panic(err)
 	}
 
+	if o.Fs == nil {
+		o.Fs = StdFileSystem{}
+	}
 	b := &Bblog{
 		x:          x,
 		configFile: configFile,
+		fs:         o.Fs,
 	}
 
 	x.RegisterModule("db", map[string]interface{}{
@@ -71,7 +111,10 @@ func (b *Bblog) Export(distPath string) error {
 	}
 
 	for _, p := range c.Pages {
-		var v = p.GetComponent()
+		var v, err = p.GetComponent()
+		if err != nil {
+			return err
+		}
 		body := v.Render()
 		name := p.GetName()
 		distFile := filepath.Join(distPath, "index.html")
@@ -138,7 +181,12 @@ func (b *Bblog) Service(ctx context.Context, addr string, dev bool) error {
 		//log.Printf("req: %v", reqPath)
 		for _, p := range c.Pages {
 			if reqPath == p.GetName() {
-				x := p.GetComponent().Render()
+				component, err := p.GetComponent()
+				if err != nil {
+					writer.Write([]byte(err.Error()))
+					return
+				}
+				x := component.Render()
 				writer.Write([]byte(x))
 				return
 			}
@@ -165,29 +213,83 @@ func (m MuitDir) Open(name string) (http.File, error) {
 	return nil, fs.ErrNotExist
 }
 
+var supportExt = map[string]bool{
+	".md":   true,
+	".html": true,
+}
+
+type Blog struct {
+	Name       string                 `json:"name"`
+	GetContent interface{}            `json:"getContent"`
+	Meta       map[string]interface{} `json:"meta"`
+	Ext        string                 `json:"ext"`
+}
+
+type BlogLoader interface {
+	Load(body []byte) *Blog
+}
+
+type MDBlogLoader struct {
+	fs fs.FS
+}
+
+func (m *MDBlogLoader) Load(path string) (Blog, bool) {
+	_, name := filepath.Split(path)
+
+	ext := filepath.Ext(path)
+	if supportExt[ext] {
+		name = strings.TrimSuffix(name, ext)
+	} else {
+		return Blog{}, false
+	}
+
+	return Blog{
+		Name: name,
+		GetContent: func() string {
+			//log.Printf("getContent %v", path)
+			source, err := fs.ReadFile(m.fs, path)
+			if err != nil {
+				panic(err)
+			}
+			source = blackfriday.Run(source)
+			return string(source)
+		},
+		Meta: nil,
+		Ext:  ext,
+	}, true
+}
+
 // pp path
 func (b *Bblog) getSource(pp string) interface{} {
-	var blogs []map[string]interface{}
-	err := filepath.WalkDir(pp, func(path string, d fs.DirEntry, err error) error {
+	var blogs []Blog
+	err := fs.WalkDir(b.fs, pp, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return nil
 		}
 
-		_, name := filepath.Split(path)
+		loader := MDBlogLoader{fs: b.fs}
 
-		blogs = append(blogs, map[string]interface{}{
-			"name": name,
-			"getContent": func() string {
-				//log.Printf("getContent %v", path)
-				source, err := os.ReadFile(path)
-				if err != nil {
+		blog, ok := loader.Load(path)
+		if !ok {
+			return nil
+		}
+		// read meta
+		metaFileName := path + ".yaml"
+		bs, err := fs.ReadFile(b.fs, metaFileName)
+		if err != nil {
+			return fmt.Errorf("read meta file error: %w", err)
+		}
+		var m = map[string]interface{}{}
+		err = yaml.Unmarshal(bs, &m)
+		if err != nil {
+			return fmt.Errorf("unmarshal meta file error: %w", err)
+		}
+		blog.Meta = m
 
-					panic(err)
-				}
-				source = blackfriday.Run(source)
-				return string(source)
-			},
-		})
+		blogs = append(blogs, blog)
 
 		return nil
 	})
@@ -205,13 +307,63 @@ type Config struct {
 }
 type Assets []string
 
+func exportGojaValueToString(i interface{}) string {
+	switch t := i.(type) {
+	case goja.Value:
+		return t.String()
+	}
+
+	return fmt.Sprintf("%T can't to string", i)
+}
+
+// 和 goja 自己的 export 不一样的是，不会尝试导出单个变量为 golang 基础类型，而是保留 goja.Value，只是展开 Object
+func exportGojaValue(i interface{}) interface{} {
+	switch t := i.(type) {
+	case *goja.Object:
+		switch t.ExportType() {
+		case reflect.TypeOf(map[string]interface{}{}):
+			m := map[string]interface{}{}
+			for _, k := range t.Keys() {
+				m[k] = exportGojaValue(t.Get(k))
+			}
+			return m
+		case reflect.TypeOf([]interface{}{}):
+			arr := make([]interface{}, len(t.Keys()))
+			for _, k := range t.Keys() {
+				index, _ := strconv.ParseInt(k, 10, 64)
+				arr[index] = exportGojaValue(t.Get(k))
+			}
+			return arr
+		}
+	}
+
+	return i
+}
+
 func (b *Bblog) Load(configFile string) (Config, error) {
-	v, err := b.x.RunJs(configFile, []byte(fmt.Sprintf(`require("%v").default`, configFile)), false)
+	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`require("%v").default`, configFile)), false)
 	if err != nil {
 		return Config{}, err
 	}
 
-	raw := v.Export().(map[string]interface{})
+	//log.Printf("v: %+v", exportGojaValue(v))
+	//o := v.(*goja.Object)
+	//
+	//opages := o.Get("pages").(*goja.Object)
+	//
+	//ps := make(Pages, 0)
+	//for _, index := range opages.Keys() {
+	//	p := opages.Get(index).(*goja.Object)
+	//
+	//	m := map[string]interface{}{}
+	//	for _, k := range p.Keys() {
+	//		m[k] = p.Get(k)
+	//	}
+	//	ps = append(ps, m)
+	//}
+
+	// 直接 export 会导致 function 无法捕获 panic，不好实现
+	raw := exportGojaValue(v).(map[string]interface{})
 
 	pages := raw["pages"].([]interface{})
 	ps := make(Pages, len(pages))
@@ -221,7 +373,7 @@ func (b *Bblog) Load(configFile string) (Config, error) {
 	as := raw["assets"].([]interface{})
 	assets := make(Assets, len(as))
 	for k, v := range as {
-		assets[k] = v.(string)
+		assets[k] = exportGojaValueToString(v)
 	}
 
 	return Config{raw: raw, Pages: ps, Assets: assets}, nil

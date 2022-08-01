@@ -7,6 +7,6 @@ module.exports = {
   variants: {},
   plugins: [
     require('@tailwindcss/typography'),
-    // ...
+    require("daisyui")
   ],
 }
