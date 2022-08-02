@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// Service 本地运行的服务，用于实时预览
 type Service struct {
 	s  *http.Server
 	sm *http.ServeMux
