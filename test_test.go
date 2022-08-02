@@ -12,7 +12,7 @@ func TestService(t *testing.T) {
 		panic(err)
 	}
 
-	err = b.Service(context.Background(), "./src/config.ts", bblog.ExecOption{}, ":8083", true)
+	err = b.Service(context.Background(), "./template/default/config.ts", bblog.ExecOption{}, ":8083", true)
 	if err != nil {
 		panic(err)
 	}

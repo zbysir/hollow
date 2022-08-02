@@ -9,6 +9,7 @@ export default function TagPage(props) {
         tags = tags.concat(i.meta?.tags)
     })
 
+    // @ts-ignore
     tags = Array.from(new Set(tags))
     let showBlogs = blogs
 

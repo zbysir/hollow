@@ -16,6 +16,9 @@ blog.forEach(i => {
 })
 
 // @ts-ignore
+tags = Array.from(new Set(tags));
+
+// @ts-ignore
 export let routerBase = process.env?.base || ''
 
 export default {

@@ -1,22 +1,35 @@
 import Link from "./Link";
 
-export default function BlogSmall({blog: i}) {
-    let link = '/blogs/' + i.name
+export interface BlogI {
+    link: string
+    name: string
+    description: string
+    content: string
+    meta: {
+        featured?: boolean,
+        tags?: string[] | string
+        img?: string
+        date: string
+    }
+}
+
+export default function BlogSmall({blog}: { blog: BlogI }) {
+    let link = '/blogs/' + blog.name
 
     return <div className="flex flex-col items-start col-span-12 space-y-3 sm:col-span-6 xl:col-span-4">
         {
-            i.meta?.img ? <Link href={link} className="block">
+            blog.meta?.img ? <Link href={link} className="block">
                 <img
                     className="object-cover w-full mb-2 overflow-hidden rounded-lg shadow-sm max-h-56"
-                    src={i.meta?.img}/>
+                    src={blog.meta?.img}/>
             </Link> : null
         }
 
         <div className="flex space-x-3">
             {
                 (function () {
-                    let tags = i.meta?.tags
-                    if (!tags?.map) {
+                    let tags = blog.meta?.tags
+                    if (typeof tags === "string") {
                         tags = [tags]
                     }
 
@@ -31,9 +44,9 @@ export default function BlogSmall({blog: i}) {
                 })()}
         </div>
         <h2 className="text-lg font-bold sm:text-xl md:text-2xl">
-            <Link href={link}> {i.name}</Link></h2>
-        <p className="text-sm text-gray-500">{i.description}</p>
-        {/*<p className="pt-2 text-xs font-medium"><Link href={i.link} className="mr-1 underline">Mary*/}
+            <Link href={link}> {blog.name}</Link></h2>
+        <p className="text-sm text-gray-500">{blog.description}</p>
+        {/*<p className="pt-2 text-xs font-medium"><Link href={blog.link} className="mr-1 underline">Mary*/}
         {/*    Jane</Link> · <span className="mx-1">April 17, 2021</span> · <span*/}
         {/*    className="mx-1 text-gray-600">3 min. read</span></p>*/}
     </div>

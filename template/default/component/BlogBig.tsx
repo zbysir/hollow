@@ -1,15 +1,16 @@
 import Link from "./Link";
+import {BlogI} from "./BlogSmall";
 
-export default function Blog({blog: i}) {
-    let link = '/blogs/' + i.name
+export default function BlogBig({blog}: { blog: BlogI }) {
+    let link = '/blogs/' + blog.name
 
     return <div className="flex flex-col items-center sm:px-5 md:flex-row">
         <div className="w-full md:w-1/2">
             {
-                i.meta?.img ? <Link href={link} className="block">
+                blog.meta?.img ? <Link href={link} className="block">
                     <img
                         className="object-cover w-full h-full rounded-lg max-h-64 sm:max-h-96"
-                         src={i.meta?.img}/>
+                        src={blog.meta?.img}/>
                 </Link> : null
             }
 
@@ -28,9 +29,9 @@ export default function Blog({blog: i}) {
                     <span>Featured</span>
                 </div>
                 <h1 className="text-4xl font-bold leading-none lg:text-5xl xl:text-6xl">
-                    <Link href={link}>{i.name}</Link></h1>
+                    <Link href={link}>{blog.name}</Link></h1>
                 <p className="pt-2 text-sm font-medium"><span
-                    className="mx-1">{i.meta?.date}</span>
+                    className="mx-1">{blog.meta?.date}</span>
                 </p>
             </div>
         </div>

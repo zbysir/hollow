@@ -3,6 +3,7 @@ import Header from "./particle/Header";
 import Footer from "./particle/Footer";
 import BlogDetail from "./page/BlogDetail";
 import TagPage from "./page/TagPage";
+import {routerBase} from "./config";
 
 interface Props {
     page: 'home' | 'blog-detail' | 'tags'
@@ -17,9 +18,9 @@ export default function Index(props: Props) {
     <head>
         <meta charSet="UTF-8"/>
         <title>{props.title || 'UnTitled'}</title>
-        <link href="/tailwind.css" rel="stylesheet"/>
-        <link href="/blog/tailwind.css" rel="stylesheet"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes" />
+        <link href={routerBase + '/tailwind.css'} rel="stylesheet"/>
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes"/>
     </head>
     <body>
     <Header name={props.me}></Header>

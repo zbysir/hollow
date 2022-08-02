@@ -10,7 +10,7 @@ func main() {
 		panic(err)
 	}
 
-	err = b.Export("./src/config.ts", "docs", bblog.ExecOption{
+	err = b.Export("./template/default/config.ts", "docs", bblog.ExecOption{
 		Env: map[string]interface{}{"base": "/blog"},
 	})
 	if err != nil {
