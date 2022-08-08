@@ -1,5 +1,5 @@
 import {FileI} from "./FileEditor";
-import {MenuI} from "./Header";
+import {MenuI} from "./HeaderI";
 
 
 interface Props {
@@ -9,11 +9,11 @@ interface Props {
 }
 
 export function MenuVertical(props: Props) {
-    return <div className="flex flex-col">
+    return <div className="flex flex-col space-y-2">
         {
             props.menus.map(i => (
                 <span key={i.key}
-                    className="cursor-pointer	transform rotate-180"
+                    className="cursor-pointer transform rotate-180"
                     onClick={() => props.onMenuClick && props.onMenuClick(i)}
                     style={{writingMode: "vertical-rl"}}>{i.name}</span>
             ))

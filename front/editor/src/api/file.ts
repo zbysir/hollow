@@ -21,8 +21,11 @@ export const GetFile = (params: GetFileTreeParams) => axios.get<FileI>('/api/fil
 interface SaveFileParams {
     path: string
     bucket: string
-    body: string
+    body?: string
 }
 
 export const SaveFile = (params: SaveFileParams) =>
     axios.put<void>('/api/file', params);
+
+export const CreateDirectory = (params: SaveFileParams) =>
+    axios.put<void>('/api/directory', params);

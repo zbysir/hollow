@@ -1,4 +1,4 @@
-import {ChangeEventHandler} from "react";
+import React, {ChangeEventHandler, HTMLAttributes, useEffect, useRef} from "react";
 
 interface Props {
     type: string,
@@ -6,17 +6,27 @@ interface Props {
     label?: string,
     help?: string
     onChange?: ChangeEventHandler<HTMLInputElement>
-    value: string
+    value: string,
+    autoFocus?: boolean
+    className?: string
 }
 
-export default function Input(props: Props) {
-    return <div className="form-control w-full ">
+const Index: React.FC<Props> = (props: Props & React.HTMLAttributes<Props>) => {
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        if (props.autoFocus) {
+            inputRef.current?.focus()
+        }
+    })
+    return <div className="form-control w-full">
         {props.label ?
-            <label className="label">
+            <label className="label pl-0">
                 <span className="label-text">{props.label}</span>
             </label>
             : null}
         <input
+            ref={inputRef}
             value={props.value}
             type={props.type}
             placeholder={props.placeholder}
@@ -29,3 +39,4 @@ export default function Input(props: Props) {
             : null}
     </div>
 }
+export default Index

@@ -4,7 +4,6 @@ package bblog
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/docker/libkv/store"
 	"github.com/gin-gonic/gin"
@@ -133,6 +132,28 @@ func (a *Editor) Run(ctx context.Context) (err error) {
 		c.JSON(200, nil)
 	})
 
+	// 新建文件夹
+	api.PUT("/directory", func(c *gin.Context) {
+		var p fileModifyParams
+		err = c.BindJSON(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		fs, err := NewFsApi("test")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		err = fs.Mkdir(p.Path)
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		c.JSON(200, nil)
+	})
+
 	r.Run(":9090") // listen and serve on 0.0.0.0:8080
 	return nil
 }
@@ -143,6 +164,7 @@ type Handler struct {
 type File struct {
 	Name      string `json:"name"`
 	Path      string `json:"path"` // full path
+	DirPath   string `json:"dir_path"`
 	IsDir     bool   `json:"is_dir"`
 	CreatedAt int64  `json:"created_at"`
 	ModifyAt  int64  `json:"modify_at"`
@@ -176,6 +198,10 @@ func NewFsApi(bucket string) (*FsApi, error) {
 }
 
 func (f *FsApi) Mkdir(name string) (err error) {
+	status := f.fs.Mkdir(name, 0, nil)
+	if !status.Ok() {
+		return statusError(status)
+	}
 	return
 }
 
@@ -191,11 +217,11 @@ func (f *FsApi) RmFile(name string) (err error) {
 	return
 }
 
-func statusError(status fuse.Status) error {
+func statusError(status fuse.Status, msg ...string) error {
 	if status.Ok() {
 		return nil
 	}
-	return fmt.Errorf("%s", status.String())
+	return fmt.Errorf("%s %s", status.String(), msg)
 }
 
 func (f *FsApi) GetFile(path string) (fi *File, err error) {
@@ -212,10 +238,11 @@ func (f *FsApi) GetFile(path string) (fi *File, err error) {
 		return
 	}
 
-	_, name := filepath.Split(path)
+	dir, name := filepath.Split(path)
 	return &File{
 		Name:      name,
 		Path:      path,
+		DirPath:   dir,
 		IsDir:     a.Mode&fuse.S_IFDIR == fuse.S_IFDIR,
 		CreatedAt: int64(a.Ctime),
 		ModifyAt:  int64(a.Mtime),
@@ -241,13 +268,14 @@ func (f *FsApi) FileTree(base string, deep int) (ft FileTree, err error) {
 	_, ft.Name = path.Split(base)
 	ft.Path = base
 	ft.IsDir = true
+	ft.DirPath = base
 	if deep == 0 {
 		return
 	}
 	//f.fs.StatFs()
 	fds, status := f.fs.OpenDir(base, nil)
 	if !status.Ok() {
-		return ft, errors.New(status.String())
+		return ft, statusError(status, base)
 	}
 
 	//f.ns.OpenDir()
@@ -263,9 +291,13 @@ func (f *FsApi) FileTree(base string, deep int) (ft FileTree, err error) {
 		} else {
 			ft.Items = append(ft.Items, FileTree{
 				File: File{
-					Name:  fd.Name,
-					Path:  srcfp,
-					IsDir: false,
+					Name:      fd.Name,
+					Path:      srcfp,
+					DirPath:   base,
+					IsDir:     false,
+					CreatedAt: 0,
+					ModifyAt:  0,
+					Body:      "",
 				},
 				Items: nil,
 			})

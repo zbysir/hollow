@@ -11,7 +11,7 @@ interface Props {
     currFile?: FileI
 }
 
-export function Header(props: Props) {
+export function HeaderI(props: Props) {
     return <section className="flex w-full bg-gray-272C38 rounded-lg  p-2 justify-center">
         <div className="flex space-x-2 items-center">
             {

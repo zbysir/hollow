@@ -95,42 +95,51 @@ func (fs *FS) Open(name string, flags uint32, context *fuse.Context) (nodefs.Fil
 	return newFile(fs.kvStore, kv), fuse.OK
 }
 
-func (fs *FS) OpenDir(name string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
-	name = path.Join(fs.root, name)
-	logrus.Debugf("OpenDir: %v", name)
-	kvs, err := fs.kvStore.List(name)
+func (fs *FS) OpenDir(path string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
+	path = filepath.Join(fs.root, path)
+	logrus.Debugf("OpenDir: %v", path)
+	kvs, err := fs.kvStore.List(path)
 	if err != nil {
 		logrus.Error(err)
 		return nil, fuse.ENOENT
 	}
-
-	for _, kv := range kvs {
-		logrus.Debug(kv.Key)
+	if !strings.HasSuffix(path, "/") {
+		path = path + "/"
 	}
 
 	var entries []fuse.DirEntry
 	for _, kv := range kvs {
-		eName := kv.Key
+		fullPath := kv.Key
 
-		dir, fi := path.Split(eName)
-		if dir == name+"/" && fi == "" {
-			logrus.Debugf("skipping base %s", eName)
+		dir, fi := filepath.Split(fullPath)
+		if dir == path && fi == "" {
+			logrus.Debugf("skipping base %s", fullPath)
 			continue
 		}
-		if dir != name && filepath.Clean(dir) != name && fi != "" {
-			logrus.Debugf("skipping subtree %s %s", dir, eName)
+
+		rmDir := strings.TrimPrefix(fullPath, path)
+		rmDir = strings.TrimPrefix(rmDir, "/")
+		// 不允许有 /，除了只允许最后一个
+		// /src
+		// /src/jsx ok
+		// /src/js/ ok
+		// /src/js/x X
+		// src/js/
+		index := strings.Index(rmDir, "/")
+		if index != -1 && index != len(rmDir)-1 {
+			logrus.Debugf("skipping subtree %s %s", dir, fullPath)
 			continue
 		}
 
 		var mode uint32 = fuse.S_IFREG
-		if strings.HasSuffix(eName, "/") {
-			eName = strings.TrimPrefix(eName[:len(eName)-1], "/")
+		if strings.HasSuffix(rmDir, "/") {
+			fullPath = strings.TrimPrefix(rmDir, "/")
 			mode = fuse.S_IFDIR
 		} else {
-			eName = fi
+			fullPath = fi
 		}
 
-		entry := fuse.DirEntry{Name: eName, Mode: mode}
+		entry := fuse.DirEntry{Name: fullPath, Mode: mode}
 		entries = append(entries, entry)
 	}
 	return entries, fuse.OK

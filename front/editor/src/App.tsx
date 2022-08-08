@@ -1,8 +1,8 @@
-import FileBrowser, {FileTreeI} from "./component/FileBrowser";
+import FileBrowser, {FileTreeI, NewFileInfo} from "./component/FileBrowser";
 import {useEffect, useState} from "react";
-import {GetFile, GetFileTree, SaveFile} from "./api/file";
+import {CreateDirectory, GetFile, GetFileTree, SaveFile} from "./api/file";
 import FileEditor, {FileI} from "./component/FileEditor";
-import {Header, MenuI} from "./component/Header";
+import {HeaderI, MenuI} from "./component/HeaderI";
 import {MenuVertical} from "./component/MenuVertical";
 import Modal from "./component/Modal";
 import Input from "./component/Input";
@@ -10,7 +10,8 @@ import Input from "./component/Input";
 function App() {
     let [fileTree, setFileTree] = useState<FileTreeI>()
     let [currFile, setCurrFile] = useState<FileI>()
-    let [newFileModel, setNewFileModel] = useState(false)
+    // let [newFileModel, setNewFileModel] = useState(false)
+    let [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
     let [drawer, setDrawer] = useState(false)
     let [newFileName, setNewFileName] = useState('')
 
@@ -38,9 +39,8 @@ function App() {
         }
     }
 
-    const onNewFileClick = async () => {
-        setNewFileModel(true)
-        await SaveFile({path: "index.js", bucket: "", body: ""})
+    const onNewFileClick = async (e: NewFileInfo) => {
+        setNewFileInfo(e)
     }
 
     const switchDrawer = () => {
@@ -48,14 +48,23 @@ function App() {
     }
 
     const doNewFile = async () => {
-        await SaveFile({
-            path: newFileName,
-            bucket: "",
-            body: "",
-        })
+        const path = newFileInfo?.parentPath + "/" + newFileName
+        if (newFileInfo?.isDir) {
+            await CreateDirectory({
+                path: path,
+                bucket: "",
+                body: "",
+            })
+        } else {
+            await SaveFile({
+                path: path,
+                bucket: "",
+                body: "",
+            })
+        }
         await reloadFileTree()
         setNewFileName('')
-        setNewFileModel(false)
+        setNewFileInfo(undefined)
     }
 
     const headMenus: MenuI[] = [{
@@ -76,10 +85,13 @@ function App() {
     return (
         <div className="App" data-theme="dark">
             <div className="App-header flex-col h-screen space-y-2 bg-gray-1A1E2A">
-                <Header menus={headMenus} onMenuClick={onMenuClick} currFile={currFile}></Header>
+                <HeaderI menus={headMenus} onMenuClick={onMenuClick} currFile={currFile}></HeaderI>
                 <section className="flex-1 flex h-0 space-x-2">
                     <div className="w-6 ">
-                        <MenuVertical menus={[{key: "project", name: "Project"}]}
+                        <MenuVertical menus={[
+                            {key: "project", name: "Project"},
+                            {key: "theme", name: "Theme"},
+                        ]}
                                       onMenuClick={onMenuClick}></MenuVertical>
                     </div>
                     <div className="drawer drawer-mobile h-auto flex-1">
@@ -110,19 +122,24 @@ function App() {
             </div>
 
             <Modal
-                value={newFileModel}
+                value={!!newFileInfo}
                 confirmBtn={"OK"}
-                title={"New File"}
+                title={newFileInfo?.isDir ? "New Directory" : "New File"}
                 onClose={() => {
-                    setNewFileModel(false);
+                    setNewFileInfo(undefined);
                     setNewFileName('');
                 }}
                 onConfirm={doNewFile}
                 keyEnter={true}
             >
-                <Input type="text" value={newFileName} onChange={(e) => {
-                    setNewFileName(e.currentTarget.value)
-                }}/>
+
+                <Input
+                    label={newFileInfo?.parentPath ? `Create in '${newFileInfo?.parentPath}' directory` : ''}
+                    className="mt-3"
+                    autoFocus={true} type="text" value={newFileName}
+                    onChange={(e) => {
+                        setNewFileName(e.currentTarget.value)
+                    }}/>
             </Modal>
         </div>
     );

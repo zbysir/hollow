@@ -16,19 +16,18 @@ export default function Modal(props: Props) {
         if (event.code === 'Escape') {
             props.onClose()
         } else {
-            // console.log('xxxx', event.code)
         }
     }
 
     const [confirmLoading, setConfirmLoading] = useState(false)
 
     useEffect(() => {
-        window.addEventListener("keydown", escFunction,);
+        window.addEventListener("keydown", escFunction, true);
 
         return () => {
-            window.removeEventListener("keydown", escFunction,);
+            window.removeEventListener("keydown", escFunction, true);
         };
-    }, []);
+    });
 
     const onConfirm = async () => {
         if (props.onConfirm) {
@@ -55,7 +54,7 @@ export default function Modal(props: Props) {
             }
         }}>
             <div className="modal-box rounded-md">
-                <h3 className="font-bold text-lg">
+                <h3 className="font-bold text-lg ">
                     {props.title}
                 </h3>
                 <div className="py-4">{props.children}</div>

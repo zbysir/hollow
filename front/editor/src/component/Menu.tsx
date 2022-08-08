@@ -1,5 +1,5 @@
 import {FileI} from "./FileEditor";
-import {MenuI} from "./Header";
+import {MenuI} from "./HeaderI";
 
 
 interface Props {
@@ -14,7 +14,7 @@ export function Menu(props: Props) {
             props.menus.map(i => (
                 <span
                     key={i.key}
-                    className="cursor-pointer pl-2 "
+                    className="hover:bg-gray-700 cursor-pointer pl-3 py-0.5"
                     onClick={() => props.onMenuClick && props.onMenuClick(i)}
                 >{i.name}</span>
             ))

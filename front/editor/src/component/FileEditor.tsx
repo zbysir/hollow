@@ -8,6 +8,7 @@ import {loadLanguage, langNames, langs} from '@uiw/codemirror-extensions-langs';
 export interface FileI {
     name: string
     path: string
+    dir_path: string,
     is_dir: boolean
     created_at?: number
     modify_at?: number
