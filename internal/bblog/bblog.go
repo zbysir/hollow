@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Page map[string]interface{}
@@ -299,6 +300,13 @@ func (b *Bblog) getSource(pp string) interface{} {
 		err = yaml.Unmarshal(bs, &m)
 		if err != nil {
 			return fmt.Errorf("unmarshal meta file error: %w", err)
+		}
+		// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
+		for k, v := range m {
+			switch t := v.(type) {
+			case time.Time:
+				m[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+			}
 		}
 		blog.Meta = m
 

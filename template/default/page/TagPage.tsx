@@ -1,5 +1,6 @@
 import BlogSmall from "../component/BlogSmall";
 import Link from "../component/Link";
+import BlogXS from "../component/BlogXS";
 
 // selectedTag
 export default function TagPage(props) {
@@ -16,12 +17,31 @@ export default function TagPage(props) {
     if (props.selectedTag) {
         showBlogs = blogs.filter(i => i.meta?.tags?.find(i => i === props.selectedTag))
     } else {
-        showBlogs = []
+        // all
+        showBlogs = blogs
     }
 
+    let byTime = {}
+
+    showBlogs.forEach(i => {
+        let date = i.meta?.date || '2022';
+        let year = new Date(date).getFullYear()
+        if (byTime[year]) {
+            byTime[year].push(i)
+        } else {
+            byTime[year] = [i]
+        }
+    })
+    let byTimes = []
+    for (let byTimeKey in byTime) {
+        byTimes.push({
+            date: byTimeKey,
+            blogs: byTime[byTimeKey]
+        })
+    }
 
     return <div className="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-16 ">
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 pb-6">
             {
                 tags.map(i => (
                     <Link href={"/tags/" + i}>
@@ -34,9 +54,16 @@ export default function TagPage(props) {
             }
         </div>
 
-        <div className="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-8">
+        <div className="flex flex-col space-y-5">
             {
-                showBlogs.map(i => <BlogSmall blog={i}></BlogSmall>)
+                byTimes.map(i => (
+                    <>
+                        <h3 class="py-3 text-3xl font-bold">{i.date}</h3>
+                        <div className="flex flex-col space-y-4">
+                            {i.blogs.map(i => <BlogXS blog={i}></BlogXS>)}
+                        </div>
+                    </>
+                ))
             }
         </div>
     </div>

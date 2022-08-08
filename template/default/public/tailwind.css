@@ -2438,6 +2438,16 @@ html {
   }
 }
 
+.link-neutral {
+  --tw-text-opacity: 1;
+  color: hsl(var(--n) / var(--tw-text-opacity));
+}
+
+.link-neutral:hover {
+  --tw-text-opacity: 1;
+  color: hsl(var(--nf, var(--n)) / var(--tw-text-opacity));
+}
+
 .link:focus {
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -2637,14 +2647,6 @@ html {
   margin-bottom: 1.25rem;
 }
 
-.mr-5 {
-  margin-right: 1.25rem;
-}
-
-.ml-5 {
-  margin-left: 1.25rem;
-}
-
 .mb-4 {
   margin-bottom: 1rem;
 }
@@ -2721,6 +2723,22 @@ html {
   width: 2rem;
 }
 
+.w-12 {
+  width: 3rem;
+}
+
+.w-10 {
+  width: 2.5rem;
+}
+
+.w-20 {
+  width: 5rem;
+}
+
+.w-40 {
+  width: 10rem;
+}
+
 .max-w-6xl {
   max-width: 72rem;
 }
@@ -2769,8 +2787,8 @@ html {
        column-gap: 2rem;
 }
 
-.gap-y-16 {
-  row-gap: 4rem;
+.gap-y-8 {
+  row-gap: 2rem;
 }
 
 .space-y-3 > :not([hidden]) ~ :not([hidden]) {
@@ -2797,16 +2815,22 @@ html {
   margin-left: calc(1.25rem * calc(1 - var(--tw-space-x-reverse)));
 }
 
+.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 0;
+  margin-right: calc(1rem * var(--tw-space-x-reverse));
+  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
 .space-x-6 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
   margin-right: calc(1.5rem * var(--tw-space-x-reverse));
   margin-left: calc(1.5rem * calc(1 - var(--tw-space-x-reverse)));
 }
 
-.space-x-4 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-x-reverse: 0;
-  margin-right: calc(1rem * var(--tw-space-x-reverse));
-  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse));
 }
 
 .overflow-hidden {
@@ -2838,14 +2862,19 @@ html {
   background-color: rgb(236 72 153 / var(--tw-bg-opacity));
 }
 
-.bg-purple-500 {
+.bg-gray-500 {
   --tw-bg-opacity: 1;
-  background-color: rgb(168 85 247 / var(--tw-bg-opacity));
+  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
 }
 
 .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+
+.bg-purple-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(168 85 247 / var(--tw-bg-opacity));
 }
 
 .bg-indigo-600 {
@@ -2858,18 +2887,9 @@ html {
   background-color: rgb(249 250 251 / var(--tw-bg-opacity));
 }
 
-.bg-gray-500 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
-}
-
 .object-cover {
   -o-object-fit: cover;
      object-fit: cover;
-}
-
-.p-6 {
-  padding: 1.5rem;
 }
 
 .py-6 {
@@ -2897,6 +2917,11 @@ html {
   padding-right: 1.25rem;
 }
 
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
 .py-8 {
   padding-top: 2rem;
   padding-bottom: 2rem;
@@ -2922,14 +2947,29 @@ html {
   padding-bottom: 0.5rem;
 }
 
-.py-20 {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
-}
-
 .px-10 {
   padding-left: 2.5rem;
   padding-right: 2.5rem;
+}
+
+.px-1\.5 {
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+}
+
+.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
+.px-1 {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.py-0 {
+  padding-top: 0px;
+  padding-bottom: 0px;
 }
 
 .pl-2 {
@@ -2946,6 +2986,10 @@ html {
 
 .pb-10 {
   padding-bottom: 2.5rem;
+}
+
+.pb-6 {
+  padding-bottom: 1.5rem;
 }
 
 .text-xs {
@@ -2981,6 +3025,11 @@ html {
 .text-3xl {
   font-size: 1.875rem;
   line-height: 2.25rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
 }
 
 .font-medium {
@@ -3136,10 +3185,6 @@ html {
     grid-column: span 6 / span 6;
   }
 
-  .sm\:ml-4 {
-    margin-left: 1rem;
-  }
-
   .sm\:mt-0 {
     margin-top: 0px;
   }
@@ -3170,10 +3215,6 @@ html {
     margin-bottom: calc(2rem * var(--tw-space-y-reverse));
   }
 
-  .sm\:border-l {
-    border-left-width: 1px;
-  }
-
   .sm\:border-gray-200 {
     --tw-border-opacity: 1;
     border-color: rgb(229 231 235 / var(--tw-border-opacity));
@@ -3192,10 +3233,6 @@ html {
   .sm\:px-20 {
     padding-left: 5rem;
     padding-right: 5rem;
-  }
-
-  .sm\:pl-4 {
-    padding-left: 1rem;
   }
 
   .sm\:text-xl {
@@ -3269,6 +3306,11 @@ html {
     font-size: 1.5rem;
     line-height: 2rem;
   }
+
+  .md\:text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -3306,6 +3348,11 @@ html {
 
   .lg\:justify-center {
     justify-content: center;
+  }
+
+  .lg\:py-20 {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
   }
 
   .lg\:px-16 {

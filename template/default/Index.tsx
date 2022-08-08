@@ -4,9 +4,10 @@ import Footer from "./particle/Footer";
 import BlogDetail from "./page/BlogDetail";
 import TagPage from "./page/TagPage";
 import {routerBase} from "./config";
+import Friend from "./page/Friend";
 
 interface Props {
-    page: 'home' | 'blog-detail' | 'tags'
+    page: 'home' | 'blog-detail' | 'tags' | 'friend'
     title: string
     page_data: any
     me: string
@@ -33,6 +34,8 @@ export default function Index(props: Props) {
                     return <BlogDetail {...props.page_data}></BlogDetail>
                 case 'tags':
                     return <TagPage {...props.page_data}></TagPage>
+                case 'friend':
+                    return <Friend {...props.page_data}></Friend>
             }
             return props.page
         })()

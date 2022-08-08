@@ -10,6 +10,11 @@ let global = {
     me: "bysir",
 }
 
+let friendLinks = [{
+    url: "https://blog.ache.fun/",
+    name: "ache"
+}]
+
 let tags = []
 blog.forEach(i => {
     tags = tags.concat(i.meta?.tags)
@@ -54,7 +59,13 @@ export default {
             component: () => {
                 return Index({...global, page: 'tags', page_data: {blogs: blog, selectedTag: t}})
             }
-        }))
+        })),
+        {
+            name: 'friend',
+            component: () => {
+                return Index({...global, page: 'friend', page_data: {links: friendLinks}})
+            }
+        },
     ],
 
     // 将 public 文件下所有内容 copy 到 dist 下

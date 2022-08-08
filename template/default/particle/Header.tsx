@@ -17,6 +17,7 @@ export default function Header(props) {
                         className="flex space-x-4 flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-gray-200">
                         <Link href="/" className="font-medium leading-6 text-gray-600 hover:text-gray-900">Home</Link>
                         <Link href="/tags" className="font-medium leading-6 text-gray-600 hover:text-gray-900">Tag</Link>
+                        <Link href="/friend" className="font-medium leading-6 text-gray-600 hover:text-gray-900">Friend</Link>
                     </nav>
                 </div>
 
