@@ -1,3 +1,7 @@
+---
+tags: [Golang, Javascript]
+img: https://github.com/evanw/esbuild/raw/master/images/wordmark-light.svg
+---
 <p align="center">
   <picture>
     <img alt="esbuild: An extremely fast JavaScript bundler" src="https://github.com/evanw/esbuild/raw/master/images/wordmark-light.svg">

@@ -1,3 +1,10 @@
+---
+title: 使用 Golang 渲染 Tsx
+date: 2022-07-31
+tags: [Golang]
+featured: true
+img: "https://img.sj33.cn/uploads/allimg/201804/092JM448-0.jpg"
+---
 # gojsx
 
 Render React Jsx by Golang

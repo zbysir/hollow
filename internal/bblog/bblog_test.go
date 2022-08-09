@@ -9,9 +9,11 @@ func TestSource(t *testing.T) {
 	}
 
 	x := b.getSource("../../blogs")
-	bs := x.([]*Blog)
+	bs := x.([]Blog)
 	for _, b := range bs {
 		t.Logf("%+v", b)
+
+		t.Logf("content: %s", b.GetContent())
 	}
 }
 

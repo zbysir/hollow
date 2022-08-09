@@ -1,8 +1,10 @@
 package bblog
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/dop251/goja"
 	"github.com/russross/blackfriday/v2"
@@ -183,7 +185,7 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 
 	s.Handler("/", func(writer http.ResponseWriter, request *http.Request) {
 		if dev {
-			b.x.RefreshRegistry()
+			b.x.RefreshRegistry(nil)
 			err = prepare()
 			if err != nil {
 				writer.Write([]byte(err.Error()))
@@ -234,9 +236,10 @@ var supportExt = map[string]bool{
 
 type Blog struct {
 	Name       string                 `json:"name"`
-	GetContent interface{}            `json:"getContent"`
+	GetContent func() string          `json:"getContent"`
 	Meta       map[string]interface{} `json:"meta"`
 	Ext        string                 `json:"ext"`
+	Content    string                 `json:"content"`
 }
 
 type BlogLoader interface {
@@ -247,30 +250,44 @@ type MDBlogLoader struct {
 	fs fs.FS
 }
 
-func (m *MDBlogLoader) Load(path string) (Blog, bool) {
+func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 	_, name := filepath.Split(path)
 
 	ext := filepath.Ext(path)
 	if supportExt[ext] {
 		name = strings.TrimSuffix(name, ext)
 	} else {
-		return Blog{}, false
+		return Blog{}, false, nil
+	}
+
+	// 读取 metadata
+	body, err := fs.ReadFile(m.fs, path)
+	if err != nil {
+		return Blog{}, false, err
+	}
+
+	var meta = map[string]interface{}{}
+	if bytes.HasPrefix(body, []byte("---\n")) {
+		bbs := bytes.SplitN(body, []byte("---"), 3)
+		if len(bbs) > 2 {
+			metaByte := bbs[1]
+			err = yaml.Unmarshal(metaByte, &meta)
+			if err != nil {
+				return Blog{}, false, fmt.Errorf("parse file metadata error: %w", err)
+			}
+
+			body = bbs[2]
+		}
 	}
 
 	return Blog{
 		Name: name,
 		GetContent: func() string {
-			//log.Printf("getContent %v", path)
-			source, err := fs.ReadFile(m.fs, path)
-			if err != nil {
-				panic(err)
-			}
-			source = blackfriday.Run(source)
-			return string(source)
+			return string(blackfriday.Run(body))
 		},
-		Meta: nil,
+		Meta: meta,
 		Ext:  ext,
-	}, true
+	}, true, nil
 }
 
 // pp path
@@ -286,7 +303,7 @@ func (b *Bblog) getSource(pp string) interface{} {
 
 		loader := MDBlogLoader{fs: b.fs}
 
-		blog, ok := loader.Load(path)
+		blog, ok, _ := loader.Load(path)
 		if !ok {
 			return nil
 		}
@@ -294,21 +311,29 @@ func (b *Bblog) getSource(pp string) interface{} {
 		metaFileName := path + ".yaml"
 		bs, err := fs.ReadFile(b.fs, metaFileName)
 		if err != nil {
-			return fmt.Errorf("read meta file error: %w", err)
-		}
-		var m = map[string]interface{}{}
-		err = yaml.Unmarshal(bs, &m)
-		if err != nil {
-			return fmt.Errorf("unmarshal meta file error: %w", err)
+			if !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("read meta file error: %w", err)
+			}
+			err = nil
+		} else {
+			var m = map[string]interface{}{}
+			err = yaml.Unmarshal(bs, &m)
+			if err != nil {
+				return fmt.Errorf("unmarshal meta file error: %w", err)
+			}
+
+			for k, v := range m {
+				blog.Meta[k] = v
+			}
+
 		}
 		// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
-		for k, v := range m {
+		for k, v := range blog.Meta {
 			switch t := v.(type) {
 			case time.Time:
-				m[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+				blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 			}
 		}
-		blog.Meta = m
 
 		blogs = append(blogs, blog)
 

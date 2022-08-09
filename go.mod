@@ -5,10 +5,11 @@ go 1.18
 require (
 	github.com/docker/libkv v0.2.1
 	github.com/dop251/goja v0.0.0-20220727084619-a070957bbee3
+	github.com/gin-gonic/gin v1.8.1
 	github.com/hanwen/go-fuse v1.0.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/zbysir/gojsx v0.0.9
+	github.com/zbysir/gojsx v0.0.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -18,7 +19,6 @@ require (
 	github.com/dop251/goja_nodejs v0.0.0-20220712185256-8cad205bf387 // indirect
 	github.com/evanw/esbuild v0.14.51 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.8.1 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
