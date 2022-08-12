@@ -6,12 +6,19 @@ interface Props {
     onClose: () => void
     onConfirm?: () => void
     closeBtn?: string,
+    closeBtnWarn?: boolean,
     confirmBtn?: string,
+    confirmBtnWarn?: boolean,
     children: ReactNode,
     keyEnter?: boolean
 }
 
 export default function Modal(props: Props) {
+    const [show, setShow] = useState(false)
+    // defer for animate
+    useEffect(() => {
+        setShow(props.value)
+    }, [props.value])
     const escFunction = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
             props.onClose()
@@ -42,7 +49,7 @@ export default function Modal(props: Props) {
 
     return <>
         <input type="checkbox"
-               className="modal-toggle" checked={props.value}
+               className="modal-toggle" checked={show}
                onChange={() => {
                }}/>
         <div className="modal" onKeyUpCapture={(e) => {
@@ -61,11 +68,16 @@ export default function Modal(props: Props) {
                 <div className="modal-action mt-3">
                     {
                         props.confirmBtn ?
-                            <label className={"btn btn-sm " + (confirmLoading ? 'loading' : '')}
+                            <label className={"btn btn-sm"
+                                + (confirmLoading ? ' loading' : '')
+                                + (props.confirmBtnWarn ? ' btn-warning' : '')
+                            }
                                    onClick={onConfirm}>{props.confirmBtn}</label> :
                             null
                     }
-                    <label className={'btn btn-sm'}
+                    <label className={'btn btn-sm'
+                        + (props.closeBtnWarn ? ' btn-warning' : '')
+                    }
                            onClick={props.onClose}>{props.closeBtn || 'Cancel'}</label>
                 </div>
             </div>

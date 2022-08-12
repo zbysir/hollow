@@ -24,8 +24,39 @@ interface SaveFileParams {
     body?: string
 }
 
+interface UploadFilesParams {
+    path: string
+    files: File[]
+}
+
+interface DeleteFileParams {
+    path: string
+    is_dir: boolean
+}
+
 export const SaveFile = (params: SaveFileParams) =>
     axios.put<void>('/api/file', params);
 
+export const DeleteFile = (params: DeleteFileParams) =>
+    axios.delete<void>('/api/file', {
+        params
+    });
+
 export const CreateDirectory = (params: SaveFileParams) =>
     axios.put<void>('/api/directory', params);
+
+export const UploadFiles = (params: UploadFilesParams) => {
+    const forms = new FormData()
+    const configs = {
+        headers: {'Content-Type': 'multipart/form-data'}
+    };
+    params.files.forEach(i => {
+        // @ts-ignore
+        console.log('i.path', i.path)
+        // @ts-ignore
+        forms.append('file', i, i.path)
+    })
+    forms.append("path", params.path)
+
+    return axios.put<void>('/api/file/upload', forms, configs);
+}

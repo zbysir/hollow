@@ -1,19 +1,18 @@
-import FileBrowser, {FileTreeI, NewFileInfo} from "./component/FileBrowser";
-import {useEffect, useState} from "react";
-import {CreateDirectory, GetFile, GetFileTree, SaveFile} from "./api/file";
+import FileBrowser, {FileTreeI} from "./component/FileBrowser";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {CreateDirectory, DeleteFile, GetFile, GetFileTree, SaveFile, UploadFiles} from "./api/file";
 import FileEditor, {FileI} from "./component/FileEditor";
-import {HeaderI, MenuI} from "./component/HeaderI";
+import {Header, MenuI} from "./component/Header";
 import {MenuVertical} from "./component/MenuVertical";
-import Modal from "./component/Modal";
-import Input from "./component/Input";
+import Confirm from "./component/Confirm";
+import NewFileModal, {NewFileInfo} from "./particle/NewFileModal";
+
 
 function App() {
-    let [fileTree, setFileTree] = useState<FileTreeI>()
-    let [currFile, setCurrFile] = useState<FileI>()
-    // let [newFileModel, setNewFileModel] = useState(false)
-    let [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
-    let [drawer, setDrawer] = useState(false)
-    let [newFileName, setNewFileName] = useState('')
+    const [fileTree, setFileTree] = useState<FileTreeI>()
+    const [currFile, setCurrFile] = useState<FileI>()
+    const [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
+    const [drawer, setDrawer] = useState(false)
 
     const reloadFileTree = async () => {
         const ft = await GetFileTree({path: "", bucket: ""})
@@ -39,32 +38,65 @@ function App() {
         }
     }
 
-    const onNewFileClick = async (e: NewFileInfo) => {
-        setNewFileInfo(e)
+    const onFileMenu = async (m: MenuI, f: FileTreeI) => {
+        switch (m.key) {
+            case 'new file':
+                setNewFileInfo({
+                    isDir: false,
+                    parentPath: f.dir_path,
+                })
+                break
+            case 'new directory':
+                setNewFileInfo({
+                    isDir: true,
+                    parentPath: f.dir_path,
+                })
+                break
+            case 'delete':
+                const r = await Confirm({
+                    title: "Delete",
+                    children: (f.is_dir ? (<span>delete directory '{f.path}'？</span>) :
+                        <span>delete file '{f.path}'？</span>)
+                })
+                if (r.ok) {
+                    await DeleteFile({path: f.path, is_dir: f.is_dir})
+                    await reloadFileTree()
+                }
+        }
     }
 
     const switchDrawer = () => {
         setDrawer(!drawer)
     }
 
-    const doNewFile = async () => {
-        const path = newFileInfo?.parentPath + "/" + newFileName
-        if (newFileInfo?.isDir) {
-            await CreateDirectory({
-                path: path,
-                bucket: "",
-                body: "",
+    const doNewFile = async (newFileName: string, uploadFiles: File[]) => {
+        if (uploadFiles.length !== 0) {
+            await UploadFiles({
+                files: uploadFiles,
+                path: newFileInfo?.parentPath!,
             })
         } else {
-            await SaveFile({
-                path: path,
-                bucket: "",
-                body: "",
-            })
+            const path = newFileInfo?.parentPath + "/" + newFileName
+            if (newFileInfo?.isDir) {
+                await CreateDirectory({
+                    path: path,
+                    bucket: "",
+                    body: "",
+                })
+            } else {
+                await SaveFile({
+                    path: path,
+                    bucket: "",
+                    body: "",
+                })
+            }
         }
+
         await reloadFileTree()
-        setNewFileName('')
         setNewFileInfo(undefined)
+    }
+    const onCloseNewFile = () => {
+        setNewFileInfo(undefined);
     }
 
     const headMenus: MenuI[] = [{
@@ -72,7 +104,7 @@ function App() {
         name: "File"
     }]
 
-    const onMenuClick = (m: MenuI) => {
+    const onLeftMenu = (m: MenuI) => {
         switch (m.key) {
             case 'file':
                 break
@@ -82,17 +114,18 @@ function App() {
         }
     }
 
+    // @ts-ignore
     return (
         <div className="App" data-theme="dark">
             <div className="App-header flex-col h-screen space-y-2 bg-gray-1A1E2A">
-                <HeaderI menus={headMenus} onMenuClick={onMenuClick} currFile={currFile}></HeaderI>
+                <Header menus={headMenus} onMenuClick={onLeftMenu} currFile={currFile}></Header>
                 <section className="flex-1 flex h-0 space-x-2">
                     <div className="w-6 ">
                         <MenuVertical menus={[
                             {key: "project", name: "Project"},
                             {key: "theme", name: "Theme"},
                         ]}
-                                      onMenuClick={onMenuClick}></MenuVertical>
+                                      onMenuClick={onLeftMenu}></MenuVertical>
                     </div>
                     <div className="drawer drawer-mobile h-auto flex-1">
                         <input
@@ -113,7 +146,7 @@ function App() {
                                     tree={mock}
                                     currFile={currFile}
                                     onFileClick={onFileClick}
-                                    onNewFileClick={onNewFileClick}
+                                    onMenu={onFileMenu}
                                 ></FileBrowser>
                             </div>
                         </div>
@@ -121,26 +154,12 @@ function App() {
                 </section>
             </div>
 
-            <Modal
-                value={!!newFileInfo}
-                confirmBtn={"OK"}
-                title={newFileInfo?.isDir ? "New Directory" : "New File"}
-                onClose={() => {
-                    setNewFileInfo(undefined);
-                    setNewFileName('');
-                }}
+            {/* New file Modal */}
+            <NewFileModal
+                onClose={onCloseNewFile}
                 onConfirm={doNewFile}
-                keyEnter={true}
-            >
-
-                <Input
-                    label={newFileInfo?.parentPath ? `Create in '${newFileInfo?.parentPath}' directory` : ''}
-                    className="mt-3"
-                    autoFocus={true} type="text" value={newFileName}
-                    onChange={(e) => {
-                        setNewFileName(e.currentTarget.value)
-                    }}/>
-            </Modal>
+                newFileInfo={newFileInfo}
+            ></NewFileModal>
         </div>
     );
 }

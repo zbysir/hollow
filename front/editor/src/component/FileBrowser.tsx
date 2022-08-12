@@ -4,7 +4,7 @@ import {MouseEvent, useEffect, useRef, useState} from "react";
 import {MenuVertical} from "./MenuVertical";
 import ReactDOM from "react-dom/client";
 import {Menu} from "./Menu";
-import {MenuI} from "./HeaderI";
+import {MenuI} from "./Header";
 import {DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon} from "../icon/Index";
 
 export interface FileTreeI extends FileI {
@@ -26,30 +26,15 @@ function FileTree(props: Props) {
     })
 
 
-    const doNewFile = (currFile?: FileTreeI) => {
-        props.onNewFileClick && props.onNewFileClick({isDir: false, parentPath: currFile?.dir_path!})
-    }
-
-    const doNewDir = (currFile?: FileTreeI) => {
-        props.onNewFileClick && props.onNewFileClick({isDir: true, parentPath: currFile?.dir_path!})
-    }
-
     const onContextMenuClick = (m: MenuI, target: FileTreeI) => {
-        switch (m.key) {
-            case 'new file':
-                doNewFile(target)
-                break
-            case 'new directory':
-                doNewDir(target)
-                break
-        }
+        props.onMenu && props.onMenu(m, target)
     }
 
     const handleContextMenu = (e: MouseEvent<HTMLDivElement>) => {
         e.preventDefault()
-        const dom = document.createElement('div');
         menuDom.current?.remove()
 
+        const dom = document.createElement('div');
         const m = <div
             className="bg-gray-272C38 border border-gray-600 rounded-sm text-sm text-white py-1" style={
             {position: "fixed", left: e.clientX + "px", top: e.clientY + "px", minWidth: '140px', zIndex: 1000}
@@ -95,15 +80,10 @@ function FileTree(props: Props) {
 }
 
 
-export interface NewFileInfo {
-    isDir: boolean,
-    parentPath: string
-}
-
 interface Props {
     tree?: FileTreeI
     onFileClick?: (f: FileI) => void
-    onNewFileClick?: (f: NewFileInfo) => void
+    onMenu?: (m: MenuI, f: FileTreeI) => void
     currFile?: FileTreeI
     modifiedFile?: Object
 }

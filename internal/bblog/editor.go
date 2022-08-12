@@ -4,12 +4,15 @@ package bblog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/libkv/store"
 	"github.com/gin-gonic/gin"
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/zbysir/blog/internal/fs"
+	"github.com/zbysir/blog/internal/pkg/log"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -22,6 +25,11 @@ type Editor struct {
 type fileTreeParams struct {
 	Bucket string `form:"bucket"`
 	Path   string `form:"path"`
+}
+
+type deleteFileParams struct {
+	IsDir bool   `form:"is_dir"`
+	Path  string `form:"path"`
 }
 
 type fileModifyParams struct {
@@ -132,6 +140,100 @@ func (a *Editor) Run(ctx context.Context) (err error) {
 		c.JSON(200, nil)
 	})
 
+	// 写入文件
+	api.PUT("/file/upload", func(c *gin.Context) {
+		var p fileTreeParams
+		err = c.Bind(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		fm, err := c.MultipartForm()
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		//for _, f := range fm.File {
+		//	for _, f := range f {
+		//		log.Infof("files %+v", f)
+		//
+		//	}
+		//}
+
+		fs, err := NewFsApi("test")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		var allFileName []string
+		for _, f := range fm.File {
+			for _, f := range f {
+				ff, err := f.Open()
+				if err != nil {
+					c.Error(err)
+					return
+				}
+				body, err := ioutil.ReadAll(ff)
+				if err != nil {
+					c.Error(err)
+					return
+				}
+
+				_, kv, err := mime.ParseMediaType(f.Header["Content-Disposition"][0])
+				if err != nil {
+					c.Error(err)
+					return
+				}
+
+				fname := kv["filename"]
+				if fname == "" {
+					fname = f.Filename
+				}
+				fname = strings.TrimPrefix(fname, "/")
+				fullPath := filepath.Join(p.Path, fname)
+				allFileName = append(allFileName, fullPath)
+				log.Infof("fullPath %+v", fullPath)
+				err = fs.WriteFile(fullPath, string(body))
+				if err != nil {
+					c.AbortWithError(400, err)
+					return
+				}
+			}
+		}
+		c.JSON(200, allFileName)
+	})
+
+	// 删除文件
+	api.DELETE("/file", func(c *gin.Context) {
+		var p deleteFileParams
+		err = c.Bind(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		fs, err := NewFsApi("test")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		if p.IsDir {
+			err = fs.RmDir(p.Path)
+			if err != nil {
+				c.AbortWithError(400, err)
+				return
+			}
+		} else {
+			err = fs.RmFile(p.Path)
+			if err != nil {
+				c.AbortWithError(400, err)
+				return
+			}
+		}
+		c.JSON(200, nil)
+	})
+
 	// 新建文件夹
 	api.PUT("/directory", func(c *gin.Context) {
 		var p fileModifyParams
@@ -206,6 +308,10 @@ func (f *FsApi) Mkdir(name string) (err error) {
 }
 
 func (f *FsApi) RmDir(name string) (err error) {
+	status := f.fs.Rmdir(name, nil)
+	if !status.Ok() {
+		return statusError(status)
+	}
 	return
 }
 
@@ -252,6 +358,19 @@ func (f *FsApi) GetFile(path string) (fi *File, err error) {
 
 // WriteFile 写文件，如果文件存在则会被覆盖
 func (f *FsApi) WriteFile(path string, content string) (err error) {
+	dir, filename := filepath.Split(path)
+	if filename == "" {
+		return errors.New("filename can't be empty")
+	}
+
+	log.Infof("dddd %+v %v", dir, filename)
+	if dir != "" {
+		status := f.fs.Mkdir(dir, 0, nil)
+		if !status.Ok() {
+			return statusError(status)
+		}
+	}
+
 	nf, status := f.fs.Create(path, 0, 0, nil)
 	if !status.Ok() {
 		return statusError(status)
@@ -302,6 +421,32 @@ func (f *FsApi) FileTree(base string, deep int) (ft FileTree, err error) {
 				Items: nil,
 			})
 		}
+	}
+
+	return ft, nil
+}
+
+func (f *FsApi) FileList(base string) (ft FileTree, err error) {
+	fds, status := f.fs.List(base, nil)
+	if !status.Ok() {
+		return ft, statusError(status, base)
+	}
+
+	//f.ns.OpenDir()
+	for _, fd := range fds {
+		srcfp := path.Join(base, fd.Name)
+		ft.Items = append(ft.Items, FileTree{
+			File: File{
+				Name:      fd.Name,
+				Path:      srcfp,
+				DirPath:   base,
+				IsDir:     fd.Mode&fuse.S_IFDIR == fuse.S_IFDIR,
+				CreatedAt: 0,
+				ModifyAt:  0,
+				Body:      "",
+			},
+			Items: nil,
+		})
 	}
 
 	return ft, nil

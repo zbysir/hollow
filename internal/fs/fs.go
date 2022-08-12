@@ -145,6 +145,33 @@ func (fs *FS) OpenDir(path string, context *fuse.Context) ([]fuse.DirEntry, fuse
 	return entries, fuse.OK
 }
 
+func (fs *FS) List(path string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
+	path = filepath.Join(fs.root, path)
+	logrus.Debugf("OpenDir: %v", path)
+	kvs, err := fs.kvStore.List(path)
+	if err != nil {
+		logrus.Error(err)
+		return nil, fuse.ENOENT
+	}
+	if !strings.HasSuffix(path, "/") {
+		path = path + "/"
+	}
+
+	var entries []fuse.DirEntry
+	for _, kv := range kvs {
+		fullPath := kv.Key
+		var mode uint32 = fuse.S_IFREG
+		if strings.HasSuffix(fullPath, "/") {
+			fullPath = strings.TrimPrefix(fullPath, "/")
+			mode = fuse.S_IFDIR
+		}
+
+		entry := fuse.DirEntry{Name: fullPath, Mode: mode}
+		entries = append(entries, entry)
+	}
+	return entries, fuse.OK
+}
+
 func (fs *FS) StatFs(name string) *fuse.StatfsOut {
 	name = path.Join(fs.root, name)
 	logrus.Debugf("StatFs: %s", name)
@@ -193,6 +220,12 @@ func (fs *FS) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Stat
 }
 
 func (fs *FS) Mkdir(name string, mode uint32, context *fuse.Context) fuse.Status {
+	if name == "" {
+		return fuse.ENOENT
+	}
+	if name == "/" {
+		return fuse.OK
+	}
 	name = path.Join(fs.root, name)
 	logrus.Debugf("Mkdir: %s", name)
 	if err := fs.kvStore.Put(name+"/", nil, nil); err != nil {

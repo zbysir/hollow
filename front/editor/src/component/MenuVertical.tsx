@@ -1,5 +1,5 @@
 import {FileI} from "./FileEditor";
-import {MenuI} from "./HeaderI";
+import {MenuI} from "./Header";
 
 
 interface Props {

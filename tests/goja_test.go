@@ -10,11 +10,11 @@ type Student struct {
 	Age  int
 }
 
-func TestGetSet(t *testing.T) {
+func TestGetterSetter(t *testing.T) {
 	vm := goja.New()
 
 	//o := vm.ToValue(Student{Name: "1"}).ToObject(vm)
-
+	// https://github.com/dop251/goja/issues/279
 	o := vm.NewObject()
 
 	err := o.DefineAccessorProperty("Age", vm.ToValue(func(call goja.FunctionCall) goja.Value {

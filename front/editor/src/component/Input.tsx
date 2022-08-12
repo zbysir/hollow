@@ -11,12 +11,15 @@ interface Props {
     className?: string
 }
 
-const Index: React.FC<Props> = (props: Props & React.HTMLAttributes<Props>) => {
+const Index: React.FC<Props> = (props: Props) => {
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (props.autoFocus) {
-            inputRef.current?.focus()
+            setTimeout(() => {
+                // wait animate
+                inputRef.current?.focus()
+            }, 10)
         }
     })
     return <div className="form-control w-full">

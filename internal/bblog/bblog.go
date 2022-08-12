@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"github.com/dop251/goja"
 	"github.com/russross/blackfriday/v2"
+	"github.com/zbysir/blog/internal/pkg/log"
 	jsx "github.com/zbysir/gojsx"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,6 +32,7 @@ func (p Page) GetName() string {
 	}
 	return p["name"].(string)
 }
+
 func tryToVDom(i interface{}) jsx.VDom {
 	switch t := i.(type) {
 	case map[string]interface{}:
@@ -111,6 +112,7 @@ type ExecOption struct {
 }
 
 func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
+	start := time.Now()
 	c, err := b.Load(configFile, o)
 	if err != nil {
 		return err
@@ -135,7 +137,7 @@ func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
 			return err
 		}
 
-		log.Printf("create pages: %v ", distFile)
+		log.Infof("create pages: %v ", distFile)
 	}
 
 	fe := fSExport{fs: b.fs}
@@ -145,15 +147,12 @@ func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("copy assets: %v ", a)
+		log.Infof("copy assets: %v ", a)
 	}
+
+	log.Infof("Done in %v", time.Now().Sub(start))
 	return nil
 }
-
-//var memoCache = map[string]interface{}{}
-//func useMemo[T](key string, t T,dep ...interface{})(a T){
-//
-//}
 
 func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, addr string, dev bool) error {
 	s, err := NewService(addr)
