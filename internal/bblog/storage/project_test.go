@@ -27,7 +27,7 @@ func TestNewProject(t *testing.T) {
 
 	err = p.SetSetting(1, &ProjectSetting{
 		GitRemote: "https://github.com/zbysir/zbysir.github.io.git",
-		GitToken:  "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",
+		GitToken:  "x",
 		ThemeId:   0,
 	})
 	if err != nil {

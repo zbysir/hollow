@@ -9,7 +9,7 @@ import (
 )
 
 func TestExport(t *testing.T) {
-	d, err := db.NewKvDb("")
+	d, err := db.NewKvDb("./editor/database")
 	if err != nil {
 		t.Fatal(err)
 	}

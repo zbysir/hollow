@@ -9,19 +9,20 @@ export interface BlogI {
         featured?: boolean,
         tags?: string[] | string
         img?: string
-        date: string
+        date?: string
+        title?: string
     }
 }
 
 export default function BlogSmall({blog}: { blog: BlogI }) {
     let link = '/blogs/' + blog.name
-  let name = blog.meta?.title || blog.name
+    let name = blog.meta?.title || blog.name
 
     return <div className="flex flex-col items-start col-span-12 space-y-3 sm:col-span-6 xl:col-span-4">
         {
-            blog.meta?.img ? <Link href={link} className="block">
+            blog.meta?.img ? <Link href={link} className="block w-full">
                 <img
-                    className="object-cover w-full mb-2 overflow-hidden rounded-lg shadow-sm max-h-56"
+                    className="object-cover w-full mb-2 overflow-hidden rounded-lg shadow-md h-40"
                     src={blog.meta?.img}/>
             </Link> : null
         }
@@ -34,7 +35,7 @@ export default function BlogSmall({blog}: { blog: BlogI }) {
                         tags = [tags]
                     }
 
-                    return tags.map(i => (
+                    return tags?.map(i => (
                         <Link href={"/tags/" + i}>
                             <div
                                 className="bg-gray-500 items-center px-3 py-1.5 leading-none rounded-full text-xs font-medium text-white ">

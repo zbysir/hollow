@@ -3,7 +3,7 @@ import Index from "./Index"
 // @ts-ignore
 import db from "db"
 
-let blog = db.getSource('./blogs');
+let blog = db.loadBlog('./blogs');
 
 let global = {
     title: "bysir 的博客",
@@ -23,6 +23,7 @@ blog.forEach(i => {
 // @ts-ignore
 tags = Array.from(new Set(tags));
 
+console.log('process.env', process.env)
 // @ts-ignore
 export let routerBase = process.env?.base || ''
 

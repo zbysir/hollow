@@ -210,11 +210,12 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 		if err != nil {
 			return err
 		}
+		d := filepath.Dir(configFile)
 
 		var dirs MuitDir
 		for _, i := range c.Assets {
 			dirs = append(dirs, &DirFs{
-				prefix: i,
+				prefix: filepath.Join(d, i),
 				fs:     http.FS(b.themeFs),
 			})
 		}
@@ -265,6 +266,7 @@ func (m MuitDir) Open(name string) (http.File, error) {
 	for _, i := range m {
 		f, err := i.Open(name)
 		if err != nil {
+			log.Infof("xxxxxx", err)
 			continue
 		}
 

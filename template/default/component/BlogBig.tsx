@@ -5,18 +5,18 @@ export default function BlogBig({blog}: { blog: BlogI }) {
     let link = '/blogs/' + blog.name
 
     return <div className="flex flex-col items-center sm:px-5 md:flex-row">
-        <div className="w-full md:w-1/2">
+        <div className="w-full md:w-96">
             {
                 blog.meta?.img ? <Link href={link} className="block">
                     <img
-                        className="object-cover w-full h-full rounded-lg max-h-64 sm:max-h-96"
+                        className="object-cover w-full h-full rounded-lg max-h-64 shadow-md sm:max-h-96"
                         src={blog.meta?.img}/>
                 </Link> : null
             }
 
         </div>
         <div
-            className="flex flex-col items-start justify-center w-full h-full py-6 mb-6 md:mb-0 md:w-1/2">
+            className="flex flex-col items-start justify-center w-full h-full py-6 mb-6 md:mb-0 flex-1">
             <div
                 className="flex flex-col items-start justify-center h-full space-y-3 transform md:pl-10 lg:pl-16 md:space-y-5">
                 <div

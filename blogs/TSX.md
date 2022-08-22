@@ -1,9 +1,9 @@
 ---
-title: 使用 Golang 渲染 Tsx
+title: TSX
 date: 2022-07-31
 tags: [Golang]
 featured: true
-img: "https://img.sj33.cn/uploads/allimg/201804/092JM448-0.jpg"
+img: "https://marketplace.canva.cn/2SWjI/MAEuBy2SWjI/1/tl/canva-MAEuBy2SWjI.jpg"
 ---
 # gojsx
 

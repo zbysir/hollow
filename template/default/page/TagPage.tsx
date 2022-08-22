@@ -40,8 +40,8 @@ export default function TagPage(props) {
         })
     }
 
-    return <div className="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-16 ">
-        <div className="flex space-x-3 pb-6">
+    return <div className="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-8 ">
+        <div className="flex space-x-3 justify-center	">
             {
                 tags.map(i => (
                     <Link href={"/tags/" + i}>
@@ -57,14 +57,15 @@ export default function TagPage(props) {
         <div className="flex flex-col space-y-5">
             {
                 byTimes.map(i => (
-                    <>
+                    <div>
                         <h3 class="py-3 text-3xl font-bold">{i.date}</h3>
                         <div className="flex flex-col space-y-4">
                             {i.blogs.map(i => <BlogXS blog={i}></BlogXS>)}
                         </div>
-                    </>
+                    </div>
                 ))
             }
+          
         </div>
     </div>
 }

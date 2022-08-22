@@ -12,7 +12,7 @@ export default function Home(props: { blogs: BlogI[] }) {
                     props.blogs.filter(i => i.meta?.featured).map(i => (<BlogBig blog={i}></BlogBig>))
                 }
 
-                <div class="flex grid grid-cols-12 pb-10 sm:px-5 gap-x-8 gap-y-8">
+                <div class="flex grid grid-cols-12 pb-10 sm:px-5 md:gap-x-8 gap-y-8">
                     {
                         props.blogs.map(i => <BlogSmall blog={i}></BlogSmall>)
                     }
