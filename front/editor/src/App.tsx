@@ -1,42 +1,55 @@
 import FileBrowser, {FileTreeI} from "./component/FileBrowser";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {CreateDirectory, DeleteFile, GetFile, GetFileTree, SaveFile, UploadFiles} from "./api/file";
+import {useEffect, useState} from "react";
+import {CreateDirectory, DeleteFile, GetFile, GetFileTree, Publish, SaveFile, UploadFiles} from "./api/file";
 import FileEditor, {FileI} from "./component/FileEditor";
 import {Header, MenuI} from "./component/Header";
 import {MenuVertical} from "./component/MenuVertical";
 import Confirm from "./component/Confirm";
 import NewFileModal, {NewFileInfo} from "./particle/NewFileModal";
-
+import PublishModal from "./particle/PublishModal";
+import Ws from "./util/ws";
 
 function App() {
-    const [fileTree, setFileTree] = useState<FileTreeI>()
+    const [pid, setPid] = useState(1)
+    const [workspace, setWorkspace] = useState<'project' | 'theme'>('project')
+    const [fileTreeProject, setFileTreeProject] = useState<FileTreeI>()
+    const [fileTreeTheme, setFileTreeTheme] = useState<FileTreeI>()
     const [currFile, setCurrFile] = useState<FileI>()
     const [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
+    const [ws, setWs] = useState<any>(null)
+    const [showPublishModal, setShowPublishModal] = useState(false)
     const [drawer, setDrawer] = useState(false)
+    const bucket = workspace
 
     const reloadFileTree = async () => {
-        const ft = await GetFileTree({path: "", bucket: ""})
-        // ft.data.items!.push(...ft.data.items!)
-        // ft.data.items!.push(...ft.data.items!)
-        setFileTree(ft.data)
+        const ft = await GetFileTree({project_id: pid, path: "", bucket: 'project'})
+        setFileTreeProject(ft.data)
+        {
+            const ft = await GetFileTree({project_id: pid, path: "", bucket: 'theme'})
+            setFileTreeTheme(ft.data)
+        }
     }
     useEffect(() => {
         (reloadFileTree)();
     }, [])
-    let mock = fileTree
 
     const onFileChange = async (body: string) => {
-        await SaveFile({path: currFile?.path!, bucket: "", body: body})
+        await SaveFile({project_id: pid, path: currFile?.path!, bucket: bucket, body: body})
     }
 
     const onFileClick = async (f: FileI) => {
         setCurrFile(f)
 
         if (!f.is_dir) {
-            const nf = await GetFile({path: f.path, bucket: ""})
+            const nf = await GetFile({project_id: pid, path: f.path, bucket: bucket})
             setCurrFile(nf.data)
         }
     }
+
+
+    useEffect(() => {
+        setWs(new Ws())
+    }, [])
 
     const onFileMenu = async (m: MenuI, f: FileTreeI) => {
         switch (m.key) {
@@ -59,7 +72,7 @@ function App() {
                         <span>delete file '{f.path}'？</span>)
                 })
                 if (r.ok) {
-                    await DeleteFile({path: f.path, is_dir: f.is_dir})
+                    await DeleteFile({project_id: pid, path: f.path, is_dir: f.is_dir, bucket: bucket})
                     await reloadFileTree()
                 }
         }
@@ -72,21 +85,25 @@ function App() {
     const doNewFile = async (newFileName: string, uploadFiles: File[]) => {
         if (uploadFiles.length !== 0) {
             await UploadFiles({
+                project_id: pid,
                 files: uploadFiles,
                 path: newFileInfo?.parentPath!,
+                bucket: bucket,
             })
         } else {
             const path = newFileInfo?.parentPath + "/" + newFileName
             if (newFileInfo?.isDir) {
                 await CreateDirectory({
+                    project_id: pid,
                     path: path,
-                    bucket: "",
+                    bucket: bucket,
                     body: "",
                 })
             } else {
                 await SaveFile({
+                    project_id: pid,
                     path: path,
-                    bucket: "",
+                    bucket: bucket,
                     body: "",
                 })
             }
@@ -104,12 +121,31 @@ function App() {
         name: "File"
     }]
 
-    const onLeftMenu = (m: MenuI) => {
+    const onLeftTab = (m: MenuI) => {
         switch (m.key) {
-            case 'file':
-                break
             case 'project':
+                setWorkspace("project")
                 switchDrawer()
+                break
+            case 'theme':
+                setWorkspace("theme")
+                break
+            case 'publish':
+                setShowPublishModal(true)
+                break
+        }
+    }
+
+    const doPublish = async () => {
+        await Publish({
+            project_id: pid,
+        })
+    }
+
+    const onTopMenu = (m: MenuI) => {
+        switch (m.key) {
+            case 'publish':
+                setShowPublishModal(true)
                 break
         }
     }
@@ -118,14 +154,16 @@ function App() {
     return (
         <div className="App" data-theme="dark">
             <div className="App-header flex-col h-screen space-y-2 bg-gray-1A1E2A">
-                <Header menus={headMenus} onMenuClick={onLeftMenu} currFile={currFile}></Header>
-                <section className="flex-1 flex h-0 space-x-2">
+                <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile}></Header>
+                <section className="flex-1 flex h-0 ">
                     <div className="w-6 ">
-                        <MenuVertical menus={[
-                            {key: "project", name: "Project"},
-                            {key: "theme", name: "Theme"},
-                        ]}
-                                      onMenuClick={onLeftMenu}></MenuVertical>
+                        <MenuVertical
+                            menus={[
+                                {key: "project", name: "Project"},
+                                {key: "theme", name: "Theme"},
+                            ]}
+                            activeKey={workspace}
+                            onMenuClick={onLeftTab}></MenuVertical>
                     </div>
                     <div className="drawer drawer-mobile h-auto flex-1">
                         <input
@@ -142,12 +180,26 @@ function App() {
                         <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
                             <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
                             <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto">
-                                <FileBrowser
-                                    tree={mock}
-                                    currFile={currFile}
-                                    onFileClick={onFileClick}
-                                    onMenu={onFileMenu}
-                                ></FileBrowser>
+                                <>
+                                    <div style={{display: workspace === 'project' ? '' : 'none'}}>
+                                        <FileBrowser
+                                            tree={fileTreeProject}
+                                            currFile={currFile}
+                                            onFileClick={onFileClick}
+                                            onMenu={onFileMenu}
+                                        ></FileBrowser>
+                                    </div>
+
+                                    <div style={{display: workspace === 'theme' ? '' : 'none'}}>
+                                        <FileBrowser
+                                            tree={fileTreeTheme}
+                                            currFile={currFile}
+                                            onFileClick={onFileClick}
+                                            onMenu={onFileMenu}
+                                        ></FileBrowser>
+                                    </div>
+                                </>
+
                             </div>
                         </div>
                     </div>
@@ -160,6 +212,15 @@ function App() {
                 onConfirm={doNewFile}
                 newFileInfo={newFileInfo}
             ></NewFileModal>
+            {/* Publish Modal */}
+            <PublishModal
+                onClose={() => {
+                    setShowPublishModal(false)
+                }}
+                show={showPublishModal}
+                onConfirm={doPublish}
+                ws={ws}
+            ></PublishModal>
         </div>
     );
 }

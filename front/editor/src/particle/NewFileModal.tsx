@@ -4,7 +4,7 @@ import {useDropzone} from "react-dropzone";
 import Input from "../component/Input";
 import Modal from "../component/Modal";
 
-interface ConfirmParams {
+interface Props {
     newFileInfo?: NewFileInfo
     onClose: ()=>void
     onConfirm: (filename: string, uploadFiles: File[])=> Promise<void>
@@ -16,7 +16,7 @@ export interface NewFileInfo {
 }
 
 // 弹出框
-export default function NewFileModal(p: ConfirmParams) {
+export default function NewFileModal(p: Props) {
     const [newFileName, setNewFileName] = useState('')
     const [uploadFiles, setUploadFiles] = useState<File[]>([])
 

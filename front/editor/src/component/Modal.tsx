@@ -1,14 +1,16 @@
 import React, {ReactFragment, ReactNode, useCallback, useEffect, useState} from "react";
 
 interface Props {
-    title: string,
+    title: string
+    className?: string,
     value: boolean
     onClose: () => void
     onConfirm?: () => void
-    closeBtn?: string,
-    closeBtnWarn?: boolean,
-    confirmBtn?: string,
-    confirmBtnWarn?: boolean,
+    closeBtn?: string
+    closeBtnWarn?: boolean
+    confirmBtn?: string
+    confirmBtnWarn?: boolean
+    confirmClassName?: string
     children: ReactNode,
     keyEnter?: boolean
 }
@@ -60,7 +62,7 @@ export default function Modal(props: Props) {
                 }
             }
         }}>
-            <div className="modal-box rounded-md">
+            <div className={"modal-box rounded-md " + props.className || ''}>
                 <h3 className="font-bold text-lg ">
                     {props.title}
                 </h3>
@@ -71,6 +73,7 @@ export default function Modal(props: Props) {
                             <label className={"btn btn-sm"
                                 + (confirmLoading ? ' loading' : '')
                                 + (props.confirmBtnWarn ? ' btn-warning' : '')
+                                + (props.confirmClassName ? ' ' + props.confirmClassName : '')
                             }
                                    onClick={onConfirm}>{props.confirmBtn}</label> :
                             null

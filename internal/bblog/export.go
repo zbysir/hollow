@@ -2,23 +2,25 @@ package bblog
 
 import (
 	"fmt"
+	"github.com/zbysir/blog/internal/pkg/log"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 )
 
+// fSExport 导出 fs 中的文件到本地
 type fSExport struct {
 	fs fs.FS
 }
 
 func (f *fSExport) exportFile(src, dst string) error {
 	var err error
-	var srcfd *os.File
+	var srcfd fs.File
 	var dstfd *os.File
 	var srcinfo os.FileInfo
 
-	if srcfd, err = os.Open(src); err != nil {
+	if srcfd, err = f.fs.Open(src); err != nil {
 		return err
 	}
 	defer srcfd.Close()
@@ -31,7 +33,7 @@ func (f *fSExport) exportFile(src, dst string) error {
 	if _, err = io.Copy(dstfd, srcfd); err != nil {
 		return err
 	}
-	if srcinfo, err = os.Stat(src); err != nil {
+	if srcinfo, err = fs.Stat(f.fs, src); err != nil {
 		return err
 	}
 	return os.Chmod(dst, srcinfo.Mode())
@@ -43,7 +45,7 @@ func (f *fSExport) exportDir(src string, dst string) error {
 	var srcinfo os.FileInfo
 
 	if srcinfo, err = fs.Stat(f.fs, src); err != nil {
-		return err
+		return fmt.Errorf("fs.State %s error: %w", src, err)
 	}
 
 	if err = os.MkdirAll(dst, srcinfo.Mode()); err != nil {
@@ -58,11 +60,11 @@ func (f *fSExport) exportDir(src string, dst string) error {
 
 		if fd.IsDir() {
 			if err = f.exportDir(srcfp, dstfp); err != nil {
-				fmt.Println(err)
+				log.Warnf("exportDir error: %s", err)
 			}
 		} else {
 			if err = f.exportFile(srcfp, dstfp); err != nil {
-				fmt.Println(err)
+				log.Warnf("exportFile error: %s", err)
 			}
 		}
 	}

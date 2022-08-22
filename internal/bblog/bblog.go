@@ -10,11 +10,13 @@ import (
 	"github.com/russross/blackfriday/v2"
 	"github.com/zbysir/blog/internal/pkg/log"
 	jsx "github.com/zbysir/gojsx"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -65,39 +67,51 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 }
 
 type Bblog struct {
-	x  *jsx.Jsx
-	fs fs.FS
+	x *jsx.Jsx
+	// 项目文件和主题文件可以独立，比如支持 project 在本地编写，主题通过 http 加载，用来做主题预览
+	projectFs fs.FS // 项目文件
+	themeFs   fs.FS // 主题文件
+	log       *zap.SugaredLogger
 }
 
 type Option struct {
-	Fs fs.FS
+	Fs      fs.FS
+	ThemeFs fs.FS
 }
 
 type StdFileSystem struct {
 }
 
 func (f StdFileSystem) Open(name string) (fs.File, error) {
+	//os.Stdout
 	return os.Open(name)
 }
 
 func NewBblog(o Option) (*Bblog, error) {
+	if o.Fs == nil {
+		//o.Fs = os.DirFS(".")
+		o.Fs = StdFileSystem{}
+	}
+	if o.ThemeFs == nil {
+		o.ThemeFs = o.Fs
+	}
+
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
-		SourceFs:    nil,
-		Debug:       true,
+		SourceFs:    o.ThemeFs,
+		Debug:       false,
 		Transformer: jsx.NewEsBuildTransform(false),
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	if o.Fs == nil {
-		o.Fs = StdFileSystem{}
-	}
 	b := &Bblog{
-		x:  x,
-		fs: o.Fs,
+		x:         x,
+		projectFs: o.Fs,
+		log:       log.StdLogger,
+		themeFs:   o.ThemeFs,
 	}
 
 	x.RegisterModule("db", map[string]interface{}{
@@ -109,6 +123,7 @@ func NewBblog(o Option) (*Bblog, error) {
 
 type ExecOption struct {
 	Env map[string]interface{}
+	Log *zap.SugaredLogger
 }
 
 func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
@@ -116,6 +131,10 @@ func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
 	c, err := b.Load(configFile, o)
 	if err != nil {
 		return err
+	}
+	l := b.log
+	if o.Log != nil {
+		l = o.Log
 	}
 
 	for _, p := range c.Pages {
@@ -130,28 +149,51 @@ func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
 			distFile = filepath.Join(distPath, name, "index.html")
 		}
 		dir := filepath.Dir(distFile)
-		_ = os.MkdirAll(dir, os.ModePerm)
+		_ = os.MkdirAll(dir, 0755)
 
-		err = ioutil.WriteFile(distFile, []byte(body), os.ModePerm)
+		err = ioutil.WriteFile(distFile, []byte(body), 0755)
 		if err != nil {
 			return err
 		}
 
-		log.Infof("create pages: %v ", distFile)
+		l.Infof("create pages: %v ", distFile)
 	}
 
-	fe := fSExport{fs: b.fs}
+	fe := fSExport{fs: b.themeFs}
 	for _, a := range c.Assets {
 		d := filepath.Dir(configFile)
-		err = fe.exportDir(filepath.Join(d, a), distPath)
+
+		srcDir := filepath.Join(d, a)
+		err = fe.exportDir(srcDir, distPath)
 		if err != nil {
 			return err
 		}
-		log.Infof("copy assets: %v ", a)
+		l.Infof("copy assets: %v ", a)
 	}
 
-	log.Infof("Done in %v", time.Now().Sub(start))
+	l.Infof("Done in %v", time.Now().Sub(start))
 	return nil
+}
+
+type DirFs struct {
+	prefix string
+	fs     http.FileSystem
+}
+
+func (d *DirFs) Open(name string) (http.File, error) {
+	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
+		return nil, errors.New("http: invalid character in file path")
+	}
+	dir := d.prefix
+	if dir == "" {
+		dir = "."
+	}
+	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
+	f, err := d.fs.Open(fullName)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, addr string, dev bool) error {
@@ -166,11 +208,13 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 		if err != nil {
 			return err
 		}
-		base, _ := filepath.Split(configFile)
 
 		var dirs MuitDir
 		for _, i := range c.Assets {
-			dirs = append(dirs, http.Dir(filepath.Join(base, i)))
+			dirs = append(dirs, &DirFs{
+				prefix: i,
+				fs:     http.FS(b.themeFs),
+			})
 		}
 		assetsHandler = http.FileServer(dirs)
 		return nil
@@ -206,14 +250,14 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 				return
 			}
 		}
-
 		assetsHandler.ServeHTTP(writer, request)
+
 	})
 
 	return s.Start(ctx)
 }
 
-type MuitDir []http.Dir
+type MuitDir []http.FileSystem
 
 func (m MuitDir) Open(name string) (http.File, error) {
 	for _, i := range m {
@@ -292,7 +336,7 @@ func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 // pp path
 func (b *Bblog) getSource(pp string) interface{} {
 	var blogs []Blog
-	err := fs.WalkDir(b.fs, pp, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(b.projectFs, pp, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -300,7 +344,7 @@ func (b *Bblog) getSource(pp string) interface{} {
 			return nil
 		}
 
-		loader := MDBlogLoader{fs: b.fs}
+		loader := MDBlogLoader{fs: b.projectFs}
 
 		blog, ok, _ := loader.Load(path)
 		if !ok {
@@ -308,7 +352,7 @@ func (b *Bblog) getSource(pp string) interface{} {
 		}
 		// read meta
 		metaFileName := path + ".yaml"
-		bs, err := fs.ReadFile(b.fs, metaFileName)
+		bs, err := fs.ReadFile(b.projectFs, metaFileName)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("read meta file error: %w", err)
@@ -339,7 +383,8 @@ func (b *Bblog) getSource(pp string) interface{} {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		log.Errorf("get source '%s' error: %v", pp, err)
+		return nil
 	}
 
 	return blogs

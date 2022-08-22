@@ -15,6 +15,7 @@ export interface BlogI {
 
 export default function BlogSmall({blog}: { blog: BlogI }) {
     let link = '/blogs/' + blog.name
+  let name = blog.meta?.title || blog.name
 
     return <div className="flex flex-col items-start col-span-12 space-y-3 sm:col-span-6 xl:col-span-4">
         {
@@ -44,7 +45,7 @@ export default function BlogSmall({blog}: { blog: BlogI }) {
                 })()}
         </div>
         <h2 className="text-lg font-bold sm:text-xl md:text-2xl">
-            <Link href={link}> {blog.name}</Link></h2>
+            <Link href={link}> {name}</Link></h2>
         <p className="text-sm text-gray-500">{blog.description}</p>
         {/*<p className="pt-2 text-xs font-medium"><Link href={blog.link} className="mr-1 underline">Mary*/}
         {/*    Jane</Link> · <span className="mx-1">April 17, 2021</span> · <span*/}

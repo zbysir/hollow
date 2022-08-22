@@ -14,9 +14,10 @@ export interface BlogI {
 }
 
 export default function BlogXS({blog}: { blog: BlogI }) {
-    let link = '/blogs/' + blog.name
+  let link = '/blogs/' + blog.name
+  let name = blog.meta?.title || blog.name
 
-    return <div className="flex items-start space-x-3">
+  return <div className="flex items-start space-x-3">
         {
             blog.meta?.img ? <Link href={link} className="block">
                 <img
@@ -26,7 +27,7 @@ export default function BlogXS({blog}: { blog: BlogI }) {
         }
         <div>
             <h2 className="font-bold text-xl">
-                <Link href={link}> {blog.name}</Link></h2>
+                <Link href={link}> {name}</Link></h2>
             <p className="text-sm text-gray-500">{blog.description}</p>
 
 

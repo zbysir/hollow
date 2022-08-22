@@ -1,6 +1,12 @@
 package bblog
 
-import "testing"
+import (
+	"fmt"
+	"github.com/zbysir/blog/internal/pkg/db"
+	"github.com/zbysir/blog/internal/pkg/dbfs"
+	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
+	"testing"
+)
 
 func TestSource(t *testing.T) {
 	b, err := NewBblog(Option{})
@@ -29,4 +35,42 @@ func TestLoad(t *testing.T) {
 	}
 
 	t.Logf("%+v", c)
+}
+
+func TestExportFs(t *testing.T) {
+	d, err := db.NewKvDb("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := d.Open(fmt.Sprintf("project_1"), "theme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsTheme, err := dbfs.NewDbFs(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	st2, err := d.Open(fmt.Sprintf("project_1"), "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, err := dbfs.NewDbFs(st2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := NewBblog(Option{
+		Fs:      stdfs.NewFs(fs),
+		ThemeFs: stdfs.NewFs(fsTheme),
+	})
+
+	err = b.Export("./config.ts", "docs", ExecOption{
+		Env: map[string]interface{}{"base": "/blog"},
+		//Out: &WsSink{hub: hub},
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
 }

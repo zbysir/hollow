@@ -5,10 +5,26 @@ import {MenuVertical} from "./MenuVertical";
 import ReactDOM from "react-dom/client";
 import {Menu} from "./Menu";
 import {MenuI} from "./Header";
-import {DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon} from "../icon/Index";
+import {DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon} from "../icon";
 
 export interface FileTreeI extends FileI {
     items?: FileTreeI[]
+    is_open?: boolean
+}
+
+function FileIcon({iconKey, size}: { iconKey: string, size: number }) {
+    const url = './icons/' + ({
+        dir: 'folder',
+        diropen: 'folder_open',
+        tsx: 'typescript',
+        ts: 'typescript',
+        md: 'markdown',
+        js: 'javascript',
+        jsx: 'javascript',
+        sh: 'powershell',
+        yml: 'yaml',
+    }[iconKey] || iconKey) + '.svg'
+    return <span style={{backgroundImage: `url("${url}")`, width: size + 'px', height: size + 'px'}}></span>
 }
 
 function FileTree(props: Props) {
@@ -32,6 +48,7 @@ function FileTree(props: Props) {
 
     const handleContextMenu = (e: MouseEvent<HTMLDivElement>) => {
         e.preventDefault()
+        e.stopPropagation()
         menuDom.current?.remove()
 
         const dom = document.createElement('div');
@@ -54,28 +71,58 @@ function FileTree(props: Props) {
         menuDom.current = dom
     }
 
+    let ext = 'default'
+    if (props.tree?.is_dir) {
+        ext = 'dir'
+        if (props.tree.is_open) {
+            ext = 'diropen'
+        }
+    } else {
+        const eindex = props.tree?.name.lastIndexOf(".")
+        if (eindex && eindex >= 0) {
+            ext = props.tree?.name.substr(eindex + 1)!
+        }
+    }
+    const icon = <FileIcon iconKey={ext} size={14}></FileIcon>
+
     return <div>
-        <div
-            onClick={() => {
-                props.onFileClick && props.onFileClick(props.tree!)
-            }}
-            className={
-                `px-1 cursor-pointer rounded-sm flex items-center
-                 ${(props.currFile?.path === props.tree?.path ? 'bg-gray-600' : '')}
+        {props.tree?.name === "" && props.tree?.path === "" ?
+            <div
+                className="min-h-8"
+                onContextMenu={handleContextMenu}
+            >
+                {
+                    props.tree?.items?.map(i => (
+                        <FileTree key={i.name} {...props} tree={i}></FileTree>
+                    ))
+                }
+            </div>
+            :
+            <>
+                <div
+                    onClick={() => {
+                        props.onFileClick && props.onFileClick(props.tree!)
+                    }}
+                    className={
+                        `px-1 cursor-pointer rounded-sm flex items-center text-gray-400 hover:text-current
+                 ${(props.currFile?.path === props.tree?.path ? 'bg-gray-600 text-current' : '')}
                  ${props.modifiedFile?.hasOwnProperty(props.tree?.path!) ? 'text-blue-600' : ''}
                  `}
-            onContextMenu={handleContextMenu}
-        >
-            {props.tree?.is_dir ? <FolderOpenIcon></FolderOpenIcon> : <DocumentTextIcon></DocumentTextIcon>}
-            <span className="ml-0.5">{props.tree?.name}</span>
-        </div>
-        <div className="pl-4">
-            {
-                props.tree?.items?.map(i => (
-                    <FileTree key={i.name} {...props} tree={i}></FileTree>
-                ))
-            }
-        </div>
+                    onContextMenu={handleContextMenu}
+                >
+                    {icon}
+                    <span className="ml-2 py-0.5">{props.tree?.name}</span>
+                </div>
+                <div className="pl-4">
+                    {
+                        props.tree?.items?.map(i => (
+                            <FileTree key={i.name} {...props} tree={i}></FileTree>
+                        ))
+                    }
+                </div>
+            </>
+        }
+
     </div>
 }
 

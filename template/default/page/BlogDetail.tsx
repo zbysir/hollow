@@ -8,6 +8,7 @@ interface Props {
 
 export default function BlogDetail(props: Props) {
     let tags = props.meta?.tags
+    let name = props.meta?.title || props.name
 
     return <Container>
         <div>
@@ -24,7 +25,7 @@ export default function BlogDetail(props: Props) {
         </div>
         <div>
             <div className="prose">
-                <h2> {props.name} </h2>
+                <h2> {name} </h2>
                 <div>
                     {props.content}
                 </div>

@@ -1,3 +1,4 @@
-/.cache/
+.cache/
 /.idea/
 node_modules/
+database/

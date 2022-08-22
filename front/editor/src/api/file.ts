@@ -2,11 +2,12 @@ import axios from 'axios'
 import {FileTreeI} from "../component/FileBrowser";
 import {FileI} from "../component/FileEditor";
 
-axios.defaults.baseURL = '//localhost:9090';
+axios.defaults.baseURL = '//localhost:9091';
 
 interface GetFileTreeParams {
     path: string
     bucket: string
+    project_id: number
 }
 
 export const GetFileTree = (params: GetFileTreeParams) => axios.get<FileTreeI>('/api/file/tree', {
@@ -18,20 +19,30 @@ export const GetFile = (params: GetFileTreeParams) => axios.get<FileI>('/api/fil
 });
 
 
+interface PublishParams {
+    project_id: number
+}
+export const Publish = (params: PublishParams) => axios.post<FileI>('/api/publish', params);
+
 interface SaveFileParams {
+    project_id: number
     path: string
     bucket: string
     body?: string
 }
 
 interface UploadFilesParams {
+    project_id: number
     path: string
     files: File[]
+    bucket: string
 }
 
 interface DeleteFileParams {
+    project_id: number
     path: string
     is_dir: boolean
+    bucket: string
 }
 
 export const SaveFile = (params: SaveFileParams) =>
@@ -57,6 +68,8 @@ export const UploadFiles = (params: UploadFilesParams) => {
         forms.append('file', i, i.path)
     })
     forms.append("path", params.path)
+    forms.append("bucket", params.bucket)
+    forms.append("project_id", params.project_id + '')
 
     return axios.put<void>('/api/file/upload', forms, configs);
 }
