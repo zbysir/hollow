@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"github.com/zbysir/blog/internal/bblog"
-	"github.com/zbysir/blog/internal/fusefs/stdfs"
+	"github.com/zbysir/blog/internal/pkg/db"
+	"github.com/zbysir/blog/internal/pkg/dbfs"
+	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
 	"testing"
 )
 
@@ -20,12 +22,23 @@ func TestService(t *testing.T) {
 }
 
 func TestServiceFs(t *testing.T) {
-	fa, err := bblog.NewFuseFs("./internal/bblog/db.db", "1.theme")
+	d, err := db.NewKvDb("./internal/bblog/editor/database")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	fProject, err := bblog.NewFuseFs("./internal/bblog/db.db", "1.project")
+	st, err := d.Open("project_1", "theme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fa, err := dbfs.NewDbFs(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stp, err := d.Open("project_1", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fProject, err := dbfs.NewDbFs(stp)
 	if err != nil {
 		t.Fatal(err)
 	}

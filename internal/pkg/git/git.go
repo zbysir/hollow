@@ -95,7 +95,7 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 		//}
 	}
 
-	re, err := r.Remote("origin")
+	err = r.DeleteRemote("origin")
 	if err != nil {
 		if err == git.ErrRemoteNotFound {
 
@@ -103,15 +103,13 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 			return err
 		}
 	}
-	if re == nil {
-		_, err = r.CreateRemote(&config.RemoteConfig{
-			Name:  "origin",
-			URLs:  []string{repo},
-			Fetch: nil,
-		})
-		if err != nil {
-			return fmt.Errorf("CreateRemote error: %w", err)
-		}
+	_, err = r.CreateRemote(&config.RemoteConfig{
+		Name:  "origin",
+		URLs:  []string{repo},
+		Fetch: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("CreateRemote error: %w", err)
 	}
 
 	_, err = wt.Add(".")
@@ -140,12 +138,11 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 		log: g.log,
 	}
 	name := plumbing.NewBranchReferenceName(branch)
-	g.log.Infof("git push %v", name)
+	g.log.Infof("git push %v %v", repo, name)
 	err = r.Push(&git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs: []config.RefSpec{
 			// refs/heads/*
-			//config.RefSpec(name),
 			config.RefSpec(fmt.Sprintf("%v:%v", h.Name(), name)),
 		},
 		Auth: &http.BasicAuth{

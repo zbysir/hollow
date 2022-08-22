@@ -16,9 +16,11 @@ func NewProject(db store.Store) *Project {
 }
 
 type ProjectSetting struct {
-	GitRemote string `json:"git_remote"` // remote for push
-	GitToken  string `json:"git_token"`  // token for push
-	ThemeId   int64  `json:"theme_id"`   // 使用哪一个主题
+	GitRemote string                 `json:"git_remote"` // remote for push
+	GitToken  string                 `json:"git_token"`  // token for push
+	GitBranch string                 `json:"git_branch"`
+	ThemeId   int64                  `json:"theme_id"` // 使用哪一个主题
+	Env       map[string]interface{} `json:"env"`
 }
 
 func (p *Project) GetSetting(pid int64) (ps *ProjectSetting, exist bool, err error) {

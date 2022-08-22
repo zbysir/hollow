@@ -14,7 +14,7 @@ func TestSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	x := b.getSource("../../blogs")
+	x := b.loadBlog("../../blogs")
 	bs := x.([]Blog)
 	for _, b := range bs {
 		t.Logf("%+v", b)
@@ -65,7 +65,7 @@ func TestExportFs(t *testing.T) {
 		ThemeFs: stdfs.NewFs(fsTheme),
 	})
 
-	err = b.Export("./config.ts", "docs", ExecOption{
+	err = b.Build("./config.ts", "docs", ExecOption{
 		Env: map[string]interface{}{"base": "/blog"},
 		//Out: &WsSink{hub: hub},
 	})

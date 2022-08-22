@@ -26,8 +26,8 @@ func TestNewProject(t *testing.T) {
 	t.Logf("%v %+v", exist, s)
 
 	err = p.SetSetting(1, &ProjectSetting{
-		GitRemote: "https://github.com/zbysir/2.git",
-		GitToken:  "xxx",
+		GitRemote: "https://github.com/zbysir/zbysir.github.io.git",
+		GitToken:  "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",
 		ThemeId:   0,
 	})
 	if err != nil {

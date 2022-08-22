@@ -115,7 +115,7 @@ func NewBblog(o Option) (*Bblog, error) {
 	}
 
 	x.RegisterModule("db", map[string]interface{}{
-		"getSource": b.getSource,
+		"loadBlog": b.loadBlog,
 	})
 
 	return b, nil
@@ -126,7 +126,8 @@ type ExecOption struct {
 	Log *zap.SugaredLogger
 }
 
-func (b *Bblog) Export(configFile string, distPath string, o ExecOption) error {
+// Build 生成静态源文件
+func (b *Bblog) Build(configFile string, distPath string, o ExecOption) error {
 	start := time.Now()
 	c, err := b.Load(configFile, o)
 	if err != nil {
@@ -196,6 +197,7 @@ func (d *DirFs) Open(name string) (http.File, error) {
 	return f, nil
 }
 
+// Service 运行一个渲染程序
 func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, addr string, dev bool) error {
 	s, err := NewService(addr)
 	if err != nil {
@@ -334,7 +336,7 @@ func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 }
 
 // pp path
-func (b *Bblog) getSource(pp string) interface{} {
+func (b *Bblog) loadBlog(pp string) interface{} {
 	var blogs []Blog
 	err := fs.WalkDir(b.projectFs, pp, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

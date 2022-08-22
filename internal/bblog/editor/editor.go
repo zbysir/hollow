@@ -361,8 +361,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			Name:          "",
 		})
 
-		err = b.Export("./config.ts", "docs", bblog.ExecOption{
-			Env: map[string]interface{}{"base": "/blog"},
+		err = b.Build("./config.ts", "docs", bblog.ExecOption{
+			Env: sett.Env,
 			Log: logWs.Named("[Bblog]"),
 		})
 		if err != nil {
@@ -371,7 +371,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 
 		g := git.NewGit(sett.GitToken, logWs.Named("[Git]"))
-		err = g.Push("docs", "https://github.com/zbysir/2.git", time.Now().String(), "docxx", true)
+		err = g.Push("docs", sett.GitRemote, time.Now().String(), "docs", true)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return
