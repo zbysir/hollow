@@ -1,5 +1,4 @@
-import ReactDOM from "react-dom/client";
-import {ReactNode, useCallback, useState} from "react";
+import {useCallback, useState} from "react";
 import {useDropzone} from "react-dropzone";
 import Input from "../component/Input";
 import Modal from "../component/Modal";
@@ -23,7 +22,7 @@ export default function NewFileModal(p: Props) {
     const onDrop = useCallback((acceptedFiles: File[]) => {
         setUploadFiles(acceptedFiles)
     }, [])
-    const {getRootProps, getInputProps, isDragActive} = useDropzone({onDrop, noClick: true, noKeyboard: true})
+    const {getRootProps, isDragActive} = useDropzone({onDrop, noClick: true, noKeyboard: true})
 
     const previewFile = (fs: File[]): string => {
         // @ts-ignore
@@ -71,7 +70,6 @@ export default function NewFileModal(p: Props) {
                         ) : (
                             <Input
                                 label={p.newFileInfo?.parentPath ? `Create in '${p.newFileInfo?.parentPath}' directory` : ''}
-                                className="mt-3"
                                 autoFocus={true}
                                 type="text"
                                 value={newFileName}
