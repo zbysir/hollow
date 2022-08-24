@@ -3,7 +3,7 @@ package bblog
 import (
 	"fmt"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
+	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"testing"
 )
 
@@ -36,7 +36,7 @@ func TestLoad(t *testing.T) {
 	t.Logf("%+v", c)
 }
 
-func TestExportFs(t *testing.T) {
+func TestBuildFromFs(t *testing.T) {
 	d, err := db.NewKvDb("./editor/database")
 	if err != nil {
 		t.Fatal(err)
@@ -45,23 +45,17 @@ func TestExportFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsTheme, err := fusefs.NewDbFs(st)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fsTheme := gobilly.NewDbFs(st)
 
 	st2, err := d.Open(fmt.Sprintf("project_1"), "project")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fs, err := fusefs.NewDbFs(st2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fs := gobilly.NewDbFs(st2)
 
 	b, err := NewBblog(Option{
-		Fs:      stdfs.NewFs(fs),
-		ThemeFs: stdfs.NewFs(fsTheme),
+		Fs:      gobilly.NewStdFs(fs),
+		ThemeFs: gobilly.NewStdFs(fsTheme),
 	})
 
 	err = b.Build("./config.ts", "docs", ExecOption{

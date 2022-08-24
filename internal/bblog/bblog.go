@@ -7,13 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dop251/goja"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/russross/blackfriday/v2"
 	"github.com/zbysir/blog/internal/pkg/log"
 	jsx "github.com/zbysir/gojsx"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -128,6 +129,10 @@ type ExecOption struct {
 
 // Build 生成静态源文件
 func (b *Bblog) Build(configFile string, distPath string, o ExecOption) error {
+	return b.BuildToFs(configFile, osfs.New(distPath), o)
+}
+
+func (b *Bblog) BuildToFs(configFile string, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
 	c, err := b.Load(configFile, o)
 	if err != nil {
@@ -145,14 +150,15 @@ func (b *Bblog) Build(configFile string, distPath string, o ExecOption) error {
 		}
 		body := v.Render()
 		name := p.GetName()
-		distFile := filepath.Join(distPath, "index.html")
+		distFile := "index.html"
 		if name != "" && name != "index" {
-			distFile = filepath.Join(distPath, name, "index.html")
+			distFile = filepath.Join(name, "index.html")
 		}
-		dir := filepath.Dir(distFile)
-		_ = os.MkdirAll(dir, 0755)
-
-		err = ioutil.WriteFile(distFile, []byte(body), 0755)
+		f, err := dst.Create(distFile)
+		if err != nil {
+			return err
+		}
+		_, err = f.Write([]byte(body))
 		if err != nil {
 			return err
 		}
@@ -160,12 +166,11 @@ func (b *Bblog) Build(configFile string, distPath string, o ExecOption) error {
 		l.Infof("create pages: %v ", distFile)
 	}
 
-	fe := fSExport{fs: b.themeFs}
 	for _, a := range c.Assets {
 		d := filepath.Dir(configFile)
 
 		srcDir := filepath.Join(d, a)
-		err = fe.exportDir(srcDir, distPath)
+		err = copyDir(srcDir, "", b.themeFs, dst)
 		if err != nil {
 			return err
 		}

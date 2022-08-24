@@ -2,8 +2,9 @@ package bblog
 
 import (
 	"fmt"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
+	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"testing"
 )
 
@@ -16,19 +17,12 @@ func TestExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsTheme, err := fusefs.NewDbFs(st)
+	fsTheme := gobilly.NewDbFs(st)
 	if err != nil {
 		t.Fatal(err)
 	}
-	//ft, err := fs.FileTree("./", -1)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
 
-	//t.Logf("%+v", ft)
-
-	e := fSExport{fs: stdfs.NewFs(fsTheme)}
-	err = e.exportDir("/", "../.cached")
+	err = copyDir("/", "", gobilly.NewStdFs(fsTheme), osfs.New("../.cached"))
 	if err != nil {
 		t.Fatal(err)
 	}
