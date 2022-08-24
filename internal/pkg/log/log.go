@@ -25,7 +25,7 @@ func Logger() *zap.SugaredLogger {
 }
 
 func init() {
-	SetDev(true)
+	SetDev(false)
 	StdLogger = New(Options{IsDev: false})
 }
 
@@ -66,6 +66,9 @@ func New(o Options) *zap.SugaredLogger {
 		})
 
 		config.OutputPaths = []string{"custom://"}
+	}
+	if !o.IsDev {
+		config.Level.SetLevel(zap.InfoLevel)
 	}
 
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder

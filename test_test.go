@@ -4,8 +4,7 @@ import (
 	"context"
 	"github.com/zbysir/blog/internal/bblog"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs"
-	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
+	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"testing"
 )
 
@@ -30,20 +29,14 @@ func TestServiceFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fa, err := dbfs.NewDbFs(st)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fa := gobilly.NewDbFs(st)
 	stp, err := d.Open("project_1", "project")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fProject, err := dbfs.NewDbFs(stp)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fProject := gobilly.NewDbFs(stp)
 
-	b, err := bblog.NewBblog(bblog.Option{ThemeFs: stdfs.NewFs(fa), Fs: stdfs.NewFs(fProject)})
+	b, err := bblog.NewBblog(bblog.Option{ThemeFs: gobilly.NewStdFs(fa), Fs: gobilly.NewStdFs(fProject)})
 	if err != nil {
 		panic(err)
 	}

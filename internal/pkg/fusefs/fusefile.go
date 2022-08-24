@@ -1,4 +1,4 @@
-package dbfs
+package fusefs
 
 import (
 	"bytes"

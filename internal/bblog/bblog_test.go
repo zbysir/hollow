@@ -3,7 +3,6 @@ package bblog
 import (
 	"fmt"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs"
 	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
 	"testing"
 )
@@ -38,7 +37,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestExportFs(t *testing.T) {
-	d, err := db.NewKvDb("")
+	d, err := db.NewKvDb("./editor/database")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +45,7 @@ func TestExportFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsTheme, err := dbfs.NewDbFs(st)
+	fsTheme, err := fusefs.NewDbFs(st)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func TestExportFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fs, err := dbfs.NewDbFs(st2)
+	fs, err := fusefs.NewDbFs(st2)
 	if err != nil {
 		t.Fatal(err)
 	}

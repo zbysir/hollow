@@ -10,10 +10,9 @@ import (
 	"github.com/zbysir/blog/internal/bblog"
 	"github.com/zbysir/blog/internal/bblog/storage"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs"
-	"github.com/zbysir/blog/internal/pkg/dbfs/easyfs"
-	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
+	"github.com/zbysir/blog/internal/pkg/easyfs"
 	"github.com/zbysir/blog/internal/pkg/git"
+	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"github.com/zbysir/blog/internal/pkg/log"
 	ws "github.com/zbysir/blog/internal/pkg/ws"
 	"io/ioutil"
@@ -103,12 +102,12 @@ var upgrader = websocket.Upgrader{
 }
 
 // 一个项目可以有多个 FS，比如存储源文件，比如存储主题
-func (a *Editor) projectFs(pid int64, bucket string) (dbfs.DbFs, error) {
+func (a *Editor) projectFs(pid int64, bucket string) (*gobilly.DbFs, error) {
 	st, err := a.db.Open(fmt.Sprintf("project_%v", pid), bucket)
 	if err != nil {
 		return nil, err
 	}
-	fs, err := dbfs.NewDbFs(st)
+	fs := gobilly.NewDbFs(st)
 	if err != nil {
 		return nil, fmt.Errorf("new fs error: %w", err)
 	}
@@ -148,7 +147,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		ft, err := easyfs.NewFs(fs).FileTree(p.Path, 10)
+		ft, err := easyfs.NewFs(gobilly.NewStdFs(fs)).FileTree(p.Path, 10)
 		c.JSON(200, ft)
 	})
 
@@ -165,13 +164,12 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.Error(err)
 			return
 		}
-
-		ft, err := easyfs.NewFs(fs).GetFile(p.Path)
+		f, err := easyfs.NewFs(gobilly.NewStdFs(fs)).GetFile(p.Path)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return
 		}
-		c.JSON(200, ft)
+		c.JSON(200, f)
 	})
 
 	// 写入文件
@@ -188,15 +186,42 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		err = easyfs.NewFs(fs).WriteFile(p.Path, p.Body)
+		f, err := fs.Open(p.Path)
 		if err != nil {
 			c.AbortWithError(400, err)
+			return
+		}
+		_, err = f.Write([]byte(p.Body))
+		if err != nil {
+			c.AbortWithError(500, err)
 			return
 		}
 		c.JSON(200, nil)
 	})
 
-	// 写入文件
+	// 新建文件
+	api.POST("/file", func(c *gin.Context) {
+		var p fileModifyParams
+		err = c.BindJSON(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		fs, err := a.projectFs(p.ProjectId, p.Bucket)
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		_, err = fs.Create(p.Path)
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		c.JSON(200, nil)
+	})
+
+	// 批量上传文件
 	api.PUT("/file/upload", func(c *gin.Context) {
 		var p fileTreeParams
 		err = c.Bind(&p)
@@ -249,9 +274,15 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 				fname = strings.TrimPrefix(fname, "/")
 				fullPath := filepath.Join(p.Path, fname)
 				allFileName = append(allFileName, fullPath)
-				err = easyfs.NewFs(fs).WriteFile(fullPath, string(body))
+
+				f, err := fs.Create(fullPath)
 				if err != nil {
 					c.AbortWithError(400, err)
+					return
+				}
+				_, err = f.Write(body)
+				if err != nil {
+					c.AbortWithError(500, err)
 					return
 				}
 			}
@@ -273,15 +304,14 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		easy := easyfs.NewFs(fs)
 		if p.IsDir {
-			err = easy.RmDir(p.Path)
+			err = fs.Remove(p.Path)
 			if err != nil {
 				c.AbortWithError(400, err)
 				return
 			}
 		} else {
-			err = easy.RmFile(p.Path)
+			err = fs.Remove(p.Path)
 			if err != nil {
 				c.AbortWithError(400, err)
 				return
@@ -291,7 +321,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 新建文件夹
-	api.PUT("/directory", func(c *gin.Context) {
+	api.POST("/directory", func(c *gin.Context) {
 		var p fileModifyParams
 		err = c.BindJSON(&p)
 		if err != nil {
@@ -304,7 +334,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		err = easyfs.NewFs(fs).Mkdir(p.Path)
+		err = fs.MkdirAll(p.Path, 0)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return
@@ -343,8 +373,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      stdfs.NewFs(fs),
-			ThemeFs: stdfs.NewFs(fsTheme),
+			Fs:      gobilly.NewStdFs(fs),
+			ThemeFs: gobilly.NewStdFs(fsTheme),
 		})
 		if err != nil {
 			c.Error(err)

@@ -1,4 +1,4 @@
-package dbfs
+package fusefs
 
 import (
 	"github.com/docker/libkv/store"

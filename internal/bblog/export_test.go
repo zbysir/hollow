@@ -3,7 +3,6 @@ package bblog
 import (
 	"fmt"
 	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/dbfs"
 	"github.com/zbysir/blog/internal/pkg/dbfs/stdfs"
 	"testing"
 )
@@ -17,7 +16,7 @@ func TestExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsTheme, err := dbfs.NewDbFs(st)
+	fsTheme, err := fusefs.NewDbFs(st)
 	if err != nil {
 		t.Fatal(err)
 	}

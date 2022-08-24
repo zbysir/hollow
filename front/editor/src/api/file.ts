@@ -45,8 +45,13 @@ interface DeleteFileParams {
     bucket: string
 }
 
+// 修改文件
 export const SaveFile = (params: SaveFileParams) =>
     axios.put<void>('/api/file', params);
+
+// 创建文件
+export const CreateFile = (params: SaveFileParams) =>
+    axios.post<void>('/api/file', params);
 
 export const DeleteFile = (params: DeleteFileParams) =>
     axios.delete<void>('/api/file', {
@@ -54,7 +59,7 @@ export const DeleteFile = (params: DeleteFileParams) =>
     });
 
 export const CreateDirectory = (params: SaveFileParams) =>
-    axios.put<void>('/api/directory', params);
+    axios.post<void>('/api/directory', params);
 
 export const UploadFiles = (params: UploadFilesParams) => {
     const forms = new FormData()

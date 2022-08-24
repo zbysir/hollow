@@ -5,6 +5,7 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
+	"os"
 	"path/filepath"
 )
 
@@ -23,9 +24,23 @@ func NewKvDb(dbDir string) (*KvDb, error) {
 }
 
 func (k *KvDb) Open(database, table string) (store.Store, error) {
-	kv, err := libkv.NewStore(store.BOLTDB, []string{filepath.Join(k.dbDir, fmt.Sprintf("%s.boltdb", database))}, &store.Config{Bucket: table})
+	filename := filepath.Join(k.dbDir, fmt.Sprintf("%s.boltdb", database))
+	dir, _ := filepath.Split(filename)
+	if dir == "" {
+		filename = "./" + filename
+	}
+	kv, err := libkv.NewStore(store.BOLTDB, []string{filename}, &store.Config{Bucket: table})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("libkv.NewStore error: %w [%v]", err, filename)
 	}
 	return kv, nil
+}
+
+func (k *KvDb) Clean(database string) error {
+	filename := filepath.Join(k.dbDir, fmt.Sprintf("%s.boltdb", database))
+	err := os.Remove(filename)
+	if err != nil {
+		return err
+	}
+	return nil
 }

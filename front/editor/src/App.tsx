@@ -1,6 +1,15 @@
 import FileBrowser, {FileTreeI} from "./component/FileBrowser";
 import {useEffect, useState} from "react";
-import {CreateDirectory, DeleteFile, GetFile, GetFileTree, Publish, SaveFile, UploadFiles} from "./api/file";
+import {
+    CreateDirectory,
+    CreateFile,
+    DeleteFile,
+    GetFile,
+    GetFileTree,
+    Publish,
+    SaveFile,
+    UploadFiles
+} from "./api/file";
 import FileEditor, {FileI} from "./component/FileEditor";
 import {Header, MenuI} from "./component/Header";
 import {MenuVertical} from "./component/MenuVertical";
@@ -100,7 +109,7 @@ function App() {
                     body: "",
                 })
             } else {
-                await SaveFile({
+                await CreateFile({
                     project_id: pid,
                     path: path,
                     bucket: bucket,

@@ -1,4 +1,4 @@
-package dbfs
+package fusefs
 
 import (
 	"github.com/hanwen/go-fuse/fuse"
