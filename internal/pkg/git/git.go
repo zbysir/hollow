@@ -2,10 +2,13 @@ package git
 
 import (
 	"fmt"
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/filesystem"
 	"go.uber.org/zap"
 	"io"
 	"time"
@@ -35,21 +38,26 @@ func NewGit(personalAccessTokens string, log *zap.SugaredLogger) *Git {
 }
 
 // Push 一个文件夹到 远端仓库
-func (g *Git) Push(dir string, repo string, commitMsg string, branch string, force bool) error {
+func (g *Git) Push(dst billy.Filesystem, repo string, commitMsg string, branch string, force bool) error {
 	start := time.Now()
-	r, err := git.PlainInit(dir, false)
+
+	dot, _ := dst.Chroot(".git")
+
+	s := filesystem.NewStorage(dot, cache.NewObjectLRUDefault())
+
+	r, err := git.Init(s, dst)
 	if err != nil {
 		if err == git.ErrRepositoryAlreadyExists {
 		} else {
 			return fmt.Errorf("PlainInit error: %w", err)
 		}
 	} else {
-		g.log.Infof("git init %v", dir)
+		g.log.Infof("git init %v", dst.Root())
 	}
 
 	if r == nil {
-		g.log.Infof("git open %v", dir)
-		r, err = git.PlainOpen(dir)
+		g.log.Infof("git open %v", dst.Root())
+		r, err = git.Open(s, dst)
 		if err != nil {
 			return fmt.Errorf("PlainOpen error: %w", err)
 		}
@@ -60,40 +68,6 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 		return fmt.Errorf("worktree error: %w", err)
 	}
 	g.log.Infof("git checkout %v", branch)
-
-	h, err := r.Head()
-	if err != nil {
-		if err == plumbing.ErrReferenceNotFound {
-			err = nil
-		} else {
-			return fmt.Errorf("head error: %w", err)
-		}
-	}
-	if h == nil || h.Name() != plumbing.NewBranchReferenceName(branch) {
-		//needCreateBranch := false
-		//_, err := r.Storer.Reference(plumbing.NewBranchReferenceName(branch))
-		//if err != nil {
-		//	if err == plumbing.ErrReferenceNotFound {
-		//		needCreateBranch = true
-		//		err = nil
-		//	} else {
-		//		return fmt.Errorf("reference error: %w", err)
-		//	}
-		//}
-		//
-		//if needCreateBranch {
-		//	err = wt.Checkout(&git.CheckoutOptions{
-		//		Hash:   plumbing.Hash{},
-		//		Branch: plumbing.NewBranchReferenceName(branch),
-		//		Create: true,
-		//		Force:  true,
-		//		Keep:   true,
-		//	})
-		//	if err != nil {
-		//		return fmt.Errorf("checkout error: %w", err)
-		//	}
-		//}
-	}
 
 	err = r.DeleteRemote("origin")
 	if err != nil {
@@ -119,7 +93,7 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 
 	g.log.Infof("git commit %v", commitMsg)
 	_, err = wt.Commit(commitMsg, &git.CommitOptions{
-		All:       true,
+		All:       false,
 		Author:    nil,
 		Committer: nil,
 		Parents:   nil,
@@ -129,11 +103,35 @@ func (g *Git) Push(dir string, repo string, commitMsg string, branch string, for
 		return fmt.Errorf("commit error: %w", err)
 	}
 
-	h, err = r.Head()
+	h, err := r.Head()
 	if err != nil {
 		return fmt.Errorf("head error: %w", err)
 	}
 
+	//ll, err := r.Log(&git.LogOptions{})
+	//ll.ForEach(func(commit *object.Commit) error {
+	//	stat, err := commit.Stats()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	for _, i := range stat {
+	//		log.Infof("commit %s: file %v: %v", commit.ID(), i.Name, i)
+	//	}
+	//	//fs, err := commit.Files()
+	//	//if err != nil {
+	//	//	return err
+	//	//}
+	//	//
+	//	//fs.ForEach(func(file *object.File) error {
+	//	//	ls, err := file.Lines()
+	//	//	if err != nil {
+	//	//		return err
+	//	//	}
+	//	//	log.Infof("commit %s: file %s: %v", commit.ID(), file.Name, ls)
+	//	//	return nil
+	//	//})
+	//	return nil
+	//})
 	var progress io.Writer = &logWrite{
 		log: g.log,
 	}
