@@ -46,7 +46,7 @@ func NewDbFs(store store.Store) *DbFs {
 
 func (d *DbFs) Create(filename string) (billy.File, error) {
 	// mkdir
-	dir, _ := filepath.Split(filename)
+	dir := filepath.Dir(filename)
 	err := d.MkdirAll(dir, 0)
 	if err != nil {
 		return nil, err
@@ -246,7 +246,7 @@ func (d *DbFs) MkdirAll(filename string, perm os.FileMode) error {
 		// 不存在则新建
 		if err == os.ErrNotExist {
 			if filename != "" {
-				dir, _ := filepath.Split(filename)
+				dir := filepath.Dir(filename)
 				// 新建上级
 				err = d.MkdirAll(dir, perm)
 				if err != nil {

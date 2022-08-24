@@ -25,7 +25,7 @@ func NewKvDb(dbDir string) (*KvDb, error) {
 
 func (k *KvDb) Open(database, table string) (store.Store, error) {
 	filename := filepath.Join(k.dbDir, fmt.Sprintf("%s.boltdb", database))
-	dir, _ := filepath.Split(filename)
+	dir := filepath.Dir(filename)
 	if dir == "" {
 		filename = "./" + filename
 	}
