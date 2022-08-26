@@ -10,9 +10,7 @@ func main() {
 		panic(err)
 	}
 
-	err = b.Build("./template/default/config.ts", "docs", bblog.ExecOption{
-		Env: map[string]interface{}{"base": "/blog"},
-	})
+	err = b.Build("docs", bblog.ExecOption{})
 	if err != nil {
 		panic(err)
 	}

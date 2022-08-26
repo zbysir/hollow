@@ -1,0 +1,18 @@
+theme: dark
+git:
+  token: "${GIT_TOKEN}"
+  repo: repo
+params:
+  base: ''
+  title: Bysir 的博客
+  logo: bysir
+  friend_links:
+    - url: https://blog.ache.fun/
+      name: ache
+  about:
+    - title: 关于博客
+      desc: 建立这个博客的目的是分享经验、记录灵感
+      contents:
+        - 并在很久以前就想自己搭建一个博客，记录下自己的东西，但一直没找到合适的系统来搭建博客，故[自己写了一个](https://github.com/zbysir/bblog)，继续学习。
+    - title: 关于我
+      desc:

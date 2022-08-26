@@ -25,18 +25,8 @@ type FileTree struct {
 	Items []FileTree `json:"items"`
 }
 
-type Fs struct {
-	fs stdFs.FS
-}
-
-func NewFs(fs stdFs.FS) *Fs {
-	return &Fs{
-		fs: fs,
-	}
-}
-
-func (f *Fs) GetFile(path string) (fi *File, err error) {
-	nf, err := f.fs.Open(path)
+func GetFile(fs stdFs.FS, path string) (fi *File, err error) {
+	nf, err := fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +52,7 @@ func (f *Fs) GetFile(path string) (fi *File, err error) {
 	}, nil
 }
 
-func (f *Fs) FileTree(base string, deep int) (ft FileTree, err error) {
+func GetFileTree(fs stdFs.FS, base string, deep int) (ft FileTree, err error) {
 	_, ft.Name = path.Split(base)
 	ft.Path = base
 	ft.IsDir = true
@@ -71,7 +61,7 @@ func (f *Fs) FileTree(base string, deep int) (ft FileTree, err error) {
 		return
 	}
 
-	fds, err := stdFs.ReadDir(f.fs, base)
+	fds, err := stdFs.ReadDir(fs, base)
 	if err != nil {
 		return ft, err
 	}
@@ -91,7 +81,7 @@ func (f *Fs) FileTree(base string, deep int) (ft FileTree, err error) {
 		srcfp := path.Join(base, fd.Name())
 
 		if fd.IsDir() {
-			ftw, err := f.FileTree(srcfp, deep-1)
+			ftw, err := GetFileTree(fs, srcfp, deep-1)
 			if err != nil {
 				return ft, err
 			}

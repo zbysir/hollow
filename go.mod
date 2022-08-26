@@ -6,6 +6,8 @@ require (
 	github.com/docker/libkv v0.2.1
 	github.com/dop251/goja v0.0.0-20220727084619-a070957bbee3
 	github.com/gin-gonic/gin v1.8.1
+	github.com/go-git/go-billy/v5 v5.3.1
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/hanwen/go-fuse v1.0.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -13,9 +15,9 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
-	github.com/zbysir/gojsx v0.0.13
+	github.com/thoas/go-funk v0.9.2
+	github.com/zbysir/gojsx v0.0.14
 	go.uber.org/zap v1.22.0
-	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -31,8 +33,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
@@ -58,7 +58,6 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/subosito/gotenv v1.3.0 // indirect
-	github.com/thoas/go-funk v0.9.2 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect

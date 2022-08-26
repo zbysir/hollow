@@ -1,19 +1,18 @@
 import Index from "./Index"
 
 // @ts-ignore
-import db from "db"
+import bblog from "bblog"
 
-let blog = db.loadBlog('./blogs');
+let blog = bblog.getBlog('./blogs');
+let params = bblog.getParams();
 
 let global = {
-    title: "bysir 的博客",
-    me: "bysir",
+    title: params.title,
+    logo: params.logo,
 }
 
-let friendLinks = [{
-    url: "https://blog.ache.fun/",
-    name: "ache"
-}]
+let friendLinks = params.friend_links
+let about = params.about
 
 let tags = []
 blog.forEach(i => {
@@ -23,9 +22,7 @@ blog.forEach(i => {
 // @ts-ignore
 tags = Array.from(new Set(tags));
 
-console.log('process.env', process.env)
-// @ts-ignore
-export let routerBase = process.env?.base || ''
+export let routerBase = params.base || ''
 
 export default {
     pages: [
@@ -65,6 +62,12 @@ export default {
             name: 'friend',
             component: () => {
                 return Index({...global, page: 'friend', page_data: {links: friendLinks}})
+            }
+        },
+        {
+            name: 'about',
+            component: () => {
+                return Index({...global, page: 'about', page_data: {about: about}})
             }
         },
     ],

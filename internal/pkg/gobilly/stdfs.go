@@ -3,6 +3,7 @@ package gobilly
 import (
 	"github.com/go-git/go-billy/v5"
 	"io/fs"
+	"os"
 )
 
 type StdFs struct {
@@ -34,6 +35,26 @@ type stdFile struct {
 	under billy.Filesystem
 }
 
+type dirEntry struct {
+	f os.FileInfo
+}
+
+func (d *dirEntry) Name() string {
+	return d.f.Name()
+}
+
+func (d *dirEntry) IsDir() bool {
+	return d.f.IsDir()
+}
+
+func (d *dirEntry) Type() fs.FileMode {
+	return d.f.Mode()
+}
+
+func (d *dirEntry) Info() (fs.FileInfo, error) {
+	return d.f, nil
+}
+
 func (s *stdFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	ds, err := s.under.ReadDir(s.path)
 	if err != nil {
@@ -41,7 +62,7 @@ func (s *stdFile) ReadDir(n int) ([]fs.DirEntry, error) {
 	}
 	de := make([]fs.DirEntry, len(ds))
 	for i, d := range ds {
-		de[i] = d.(*File)
+		de[i] = &dirEntry{d}
 	}
 	return de, nil
 }

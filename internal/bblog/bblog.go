@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/russross/blackfriday/v2"
+	"github.com/zbysir/blog/internal/pkg/easyfs"
 	"github.com/zbysir/blog/internal/pkg/log"
 	jsx "github.com/zbysir/gojsx"
 	"go.uber.org/zap"
@@ -84,7 +85,6 @@ type StdFileSystem struct {
 }
 
 func (f StdFileSystem) Open(name string) (fs.File, error) {
-	//os.Stdout
 	return os.Open(name)
 }
 
@@ -115,26 +115,36 @@ func NewBblog(o Option) (*Bblog, error) {
 		themeFs:   o.ThemeFs,
 	}
 
-	x.RegisterModule("db", map[string]interface{}{
-		"loadBlog": b.loadBlog,
+	x.RegisterModule("bblog", map[string]interface{}{
+		"getBlog":   b.getBlog,
+		"getParams": b.getParams,
+		"md":        b.md,
 	})
 
 	return b, nil
 }
 
 type ExecOption struct {
-	Env map[string]interface{}
 	Log *zap.SugaredLogger
+
+	// 开发环境每次都会读取最新的文件，而生成环境会缓存
+	IsDev bool
 }
 
 // Build 生成静态源文件
-func (b *Bblog) Build(configFile string, distPath string, o ExecOption) error {
-	return b.BuildToFs(configFile, osfs.New(distPath), o)
+func (b *Bblog) Build(distPath string, o ExecOption) error {
+	return b.BuildToFs(osfs.New(distPath), o)
 }
 
-func (b *Bblog) BuildToFs(configFile string, dst billy.Filesystem, o ExecOption) error {
+func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
-	c, err := b.Load(configFile, o)
+	conf, err := b.loadConfig()
+	if err != nil {
+		return err
+	}
+
+	configFile := filepath.Join(conf.Theme, "config.ts")
+	c, err := b.loadTheme(configFile, conf)
 	if err != nil {
 		return err
 	}
@@ -202,16 +212,52 @@ func (d *DirFs) Open(name string) (http.File, error) {
 	return f, nil
 }
 
+type Config struct {
+	Theme  string      `json:"theme" yaml:"theme"`
+	Git    *ConfigGit  `json:"git" yaml:"git"`
+	Params interface{} `json:"params" yaml:"params"`
+}
+
+type ConfigGit struct {
+	Repo  string `json:"repo" yaml:"repo"`
+	Token string `json:"token" yaml:"token"`
+}
+
+func (b *Bblog) loadConfig() (conf *Config, err error) {
+	f, err := easyfs.GetFile(b.projectFs, "config.yml")
+	if err != nil {
+		return nil, err
+	}
+
+	conf = &Config{}
+	err = yaml.Unmarshal([]byte(f.Body), conf)
+	if err != nil {
+		return nil, fmt.Errorf("loadConfig error: %w", err)
+	}
+
+	return
+}
+
 // Service 运行一个渲染程序
-func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, addr string, dev bool) error {
+func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 	s, err := NewService(addr)
 	if err != nil {
 		return err
 	}
-	var c Config
 	var assetsHandler http.Handler
+
+	var c ThemeConfig
 	prepare := func() error {
-		c, err = b.Load(configFile, o)
+		var conf *Config
+
+		conf, err = b.loadConfig()
+		if err != nil {
+			return err
+		}
+		themeDir := conf.Theme
+
+		configFile := filepath.Join(themeDir, "config.ts")
+		c, err = b.loadTheme(configFile, conf)
 		if err != nil {
 			return err
 		}
@@ -227,7 +273,7 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 		assetsHandler = http.FileServer(dirs)
 		return nil
 	}
-	if !dev {
+	if !o.IsDev {
 		err = prepare()
 		if err != nil {
 			return err
@@ -235,7 +281,7 @@ func (b *Bblog) Service(ctx context.Context, configFile string, o ExecOption, ad
 	}
 
 	s.Handler("/", func(writer http.ResponseWriter, request *http.Request) {
-		if dev {
+		if o.IsDev {
 			b.x.RefreshRegistry(nil)
 			err = prepare()
 			if err != nil {
@@ -271,7 +317,6 @@ func (m MuitDir) Open(name string) (http.File, error) {
 	for _, i := range m {
 		f, err := i.Open(name)
 		if err != nil {
-			log.Infof("xxxxxx", err)
 			continue
 		}
 
@@ -342,10 +387,10 @@ func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 	}, true, nil
 }
 
-// pp path
-func (b *Bblog) loadBlog(pp string) interface{} {
+// getBlog 返回 dir 目录下的所有博客
+func (b *Bblog) getBlog(dir string) []Blog {
 	var blogs []Blog
-	err := fs.WalkDir(b.projectFs, pp, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(b.projectFs, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -392,18 +437,33 @@ func (b *Bblog) loadBlog(pp string) interface{} {
 		return nil
 	})
 	if err != nil {
-		log.Errorf("get source '%s' error: %v", pp, err)
+		log.Errorf("get source '%s' error: %v", dir, err)
 		return nil
 	}
 
 	return blogs
 }
 
-type Config struct {
+// getParams config.yml 下的 params 字段
+func (b *Bblog) getParams() interface{} {
+	c, err := b.loadConfig()
+	if err != nil {
+		panic(err)
+	}
+	return c.Params
+}
+
+// getParams config.yml 下的 params 字段
+func (b *Bblog) md(str string) string {
+	return string(blackfriday.Run([]byte(str)))
+}
+
+type ThemeConfig struct {
 	raw    map[string]interface{}
 	Pages  Pages
 	Assets Assets
 }
+
 type Assets []string
 
 func exportGojaValueToString(i interface{}) string {
@@ -439,13 +499,15 @@ func exportGojaValue(i interface{}) interface{} {
 	return i
 }
 
-func (b *Bblog) Load(configFile string, eo ExecOption) (Config, error) {
-	envBs, _ := json.Marshal(eo.Env)
+func (b *Bblog) loadTheme(configFile string, c *Config) (ThemeConfig, error) {
+	envBs, _ := json.Marshal(nil)
 	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
 
+	// 添加 ./ 告知 module 加载项目文件而不是 node_module
+	configFile = "./" + filepath.Clean(configFile)
 	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), false)
 	if err != nil {
-		return Config{}, err
+		return ThemeConfig{}, err
 	}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现
@@ -462,5 +524,5 @@ func (b *Bblog) Load(configFile string, eo ExecOption) (Config, error) {
 		assets[k] = exportGojaValueToString(v)
 	}
 
-	return Config{raw: raw, Pages: ps, Assets: assets}, nil
+	return ThemeConfig{raw: raw, Pages: ps, Assets: assets}, nil
 }

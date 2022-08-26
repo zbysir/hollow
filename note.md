@@ -3,6 +3,9 @@
 - https://mambaui.com/components/article
 - https://daisyui.com/
 
+## Util
+- https://g6.antv.vision/zh/docs/manual/middle/layout/graph-layout: 关系图
+
 ## file system
 
 - https://github.com/cpuguy83/kvfs FUSE based filesystem for KV stores，可以照抄
@@ -19,3 +22,5 @@
 - http://kenjiendo.com/album/ 黑色，大字
 - https://vanschneider.com/ 字体 颜色
 - https://iconmoon.com/ 好看的纯文字排版
+
+![](./note/needle.tools.png)

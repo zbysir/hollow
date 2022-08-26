@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/blog/internal/bblog"
 	"github.com/zbysir/blog/internal/pkg/db"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
@@ -9,18 +10,24 @@ import (
 )
 
 func TestService(t *testing.T) {
-	b, err := bblog.NewBblog(bblog.Option{})
+	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
+	b, err := bblog.NewBblog(bblog.Option{
+		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
+		ThemeFs: themeFs,
+	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
-	err = b.Service(context.Background(), "./template/default/config.ts", bblog.ExecOption{}, ":8082", true)
+	addr := ":8082"
+	t.Logf("listening %v", addr)
+	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, addr)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 }
 
-func TestServiceFs(t *testing.T) {
+func TestServiceDbFs(t *testing.T) {
 	d, err := db.NewKvDb("./internal/bblog/editor/database")
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +48,7 @@ func TestServiceFs(t *testing.T) {
 		panic(err)
 	}
 
-	err = b.Service(context.Background(), "./config.ts", bblog.ExecOption{}, ":8083", true)
+	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, ":8083")
 	if err != nil {
 		panic(err)
 	}

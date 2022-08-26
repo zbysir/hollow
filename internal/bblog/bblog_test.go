@@ -13,8 +13,8 @@ func TestSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	x := b.loadBlog("../../blogs")
-	bs := x.([]Blog)
+	x := b.getBlog("../../blogs")
+	bs := x
 	for _, b := range bs {
 		t.Logf("%+v", b)
 
@@ -28,12 +28,16 @@ func TestLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := b.Load("./src/config.ts", ExecOption{})
+	c, err := b.loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	th, err := b.loadTheme("./src/config.ts", c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("%+v", c)
+	t.Logf("%+v", th)
 }
 
 func TestBuildFromFs(t *testing.T) {
@@ -58,8 +62,7 @@ func TestBuildFromFs(t *testing.T) {
 		ThemeFs: gobilly.NewStdFs(fsTheme),
 	})
 
-	err = b.Build("./config.ts", "docs", ExecOption{
-		Env: map[string]interface{}{"base": "/blog"},
+	err = b.Build("docs", ExecOption{
 		//Out: &WsSink{hub: hub},
 	})
 	if err != nil {
