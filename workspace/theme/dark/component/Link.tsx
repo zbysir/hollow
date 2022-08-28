@@ -1,8 +1,12 @@
-import {routerBase} from "../config";
+// @ts-ignore
+import bblog from "bblog"
 
-const base = routerBase;
-// const base = '';
+let params = bblog.getParams();
 
 export default function Link(props) {
-    return <a {...props} className={"text-gray-600 dark:text-white hover:text-gray-900 hover:dark:text-gray-200 "+ props.className} href={base + props.href}>{props.children}</a>
+    let base = params.base || ''
+
+    return <a {...props}
+              className={"text-gray-600 dark:text-white hover:text-gray-900 hover:dark:text-gray-200 " + props.className}
+              href={base + props.href}>{props.children}</a>
 }

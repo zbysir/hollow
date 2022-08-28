@@ -2,7 +2,7 @@ import BlogSmall from "../component/BlogSmall";
 import Link from "../component/Link";
 import BlogXS from "../component/BlogXS";
 
-// selectedTag
+// 显示所有博客的页面
 export default function TagPage(props) {
     let blogs = props.blogs || []
     let tags = []

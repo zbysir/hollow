@@ -3,38 +3,36 @@ import {BlogI} from "./BlogSmall";
 
 export default function BlogBig({blog}: { blog: BlogI }) {
     let link = '/blogs/' + blog.name
+    const name = blog.meta.title || blog.name
 
-    return <div className="flex flex-col items-center sm:px-5 md:flex-row">
-        <div className="w-full md:w-96">
-            {
-                blog.meta?.img ? <Link href={link} className="block">
-                    <img
-                        className="object-cover w-full h-full rounded-lg max-h-64 shadow-md sm:max-h-96"
-                        src={blog.meta?.img}/>
-                </Link> : null
-            }
-
-        </div>
-        <div
-            className="flex flex-col items-start justify-center w-full h-full py-6 mb-6 md:mb-0 flex-1">
-            <div
-                className="flex flex-col items-start justify-center h-full space-y-3 transform md:pl-10 lg:pl-16 md:space-y-5">
-                <div
-                    className="bg-pink-500 flex items-center pl-2 pr-3 py-1.5 leading-none rounded-full text-xs font-medium uppercase text-white inline-block">
-                    <svg className="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"
-                         xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                    </svg>
-                    <span>Featured</span>
-                </div>
-                <h1 className="text-4xl font-bold leading-none lg:text-5xl xl:text-6xl">
-                    <Link href={link}>{blog.name}</Link></h1>
-                <p className="pt-2 text-sm font-medium"><span
-                    className="mx-1">{blog.meta?.date}</span>
+    return <div className="relative group">
+        <div className="
+        relative
+    flex flex-col items-center w-full dark:text-gray-100 py-10 hover:shadow-md
+    bg-opacity-50
+    z-10
+    ">
+            <div>
+                <h1 className="text-4xl font-bold text-center leading-none lg:text-5xl xl:text-6xl">
+                    <Link href={link}>{name}</Link></h1>
+                <p className="pt-2 text-sm font-medium text-center">
+                    <span className="mx-1">{blog.meta?.date}</span>
                 </p>
             </div>
         </div>
+
+        <div className="w-full h-full absolute bg-gray-900 rounded-lg opacity-0 group-hover:opacity-40 transition-opacity	inset-0 z-0"
+             >
+            {
+
+                <img
+                    className="object-cover w-full h-full rounded-lg max-h-64 shadow-md sm:max-h-96"
+                    src={blog.meta?.img}/>
+
+            }
+
+        </div>
     </div>
+
 
 }

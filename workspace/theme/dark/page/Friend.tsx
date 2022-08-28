@@ -10,8 +10,13 @@ interface Props {
     links: FriendLink[]
 }
 
-export default function Friend(props: Props) {
-    let links = props.links
+// @ts-ignore
+import bblog from "bblog"
+let params = bblog.getParams();
+let friendLinks = params.friend_links
+
+export default function Friend() {
+    let links = friendLinks
 
     return <Container>
         <div className="px-5">

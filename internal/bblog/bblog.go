@@ -29,12 +29,12 @@ import (
 type Page map[string]interface{}
 type Pages []Page
 
-func (p Page) GetName() string {
-	switch t := p["name"].(type) {
+func (p Page) GetPath() string {
+	switch t := p["path"].(type) {
 	case goja.Value:
 		return t.Export().(string)
 	}
-	return p["name"].(string)
+	return p["path"].(string)
 }
 
 func tryToVDom(i interface{}) jsx.VDom {
@@ -159,7 +159,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 			return err
 		}
 		body := v.Render()
-		name := p.GetName()
+		name := p.GetPath()
 		distFile := "index.html"
 		if name != "" && name != "index" {
 			distFile = filepath.Join(name, "index.html")
@@ -256,7 +256,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		}
 		themeDir := conf.Theme
 
-		configFile := filepath.Join(themeDir, "config.ts")
+		configFile := filepath.Join(themeDir, "config")
 		c, err = b.loadTheme(configFile, conf)
 		if err != nil {
 			return err
@@ -293,7 +293,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		reqPath := strings.Trim(request.URL.Path, "/")
 		//log.Printf("req: %v", reqPath)
 		for _, p := range c.Pages {
-			if reqPath == p.GetName() {
+			if reqPath == p.GetPath() {
 				component, err := p.GetComponent()
 				if err != nil {
 					writer.Write([]byte(err.Error()))

@@ -1,40 +1,35 @@
-import BlogBig from "../component/BlogBig";
-import Hero from "../particle/Hero";
-import BlogSmall, {BlogI} from "../component/BlogSmall";
-
-// @ts-ignore
-import bblog from "bblog"
-
 interface About {
     title: any
     desc: any
-    contents: string[]
+    content: string
 }
 
 interface Props {
     about: About[]
 }
 
-export default function About(props: Props) {
+// @ts-ignore
+import bblog from "bblog"
+
+let params = bblog.getParams();
+
+export default function About() {
+    const about = params.about
     return <div>
         <section>
             <div
-                class="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-32 dark:text-white">
+                class="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-24 dark:text-white">
                 {
-                    props.about.map(i => (
+                    about.map(i => (
                         <div>
-                            <div className="flex  ">
+                            <div className="  ">
                                 <h2 className="text-6xl ">{i.title}</h2>
                             </div>
-                            <div className="flex   mt-16">
+                            <div className="  mt-8 md:mt-12">
                                 <p className="text-2xl text-gray-300">{i.desc}</p>
                             </div>
-                            <div className="flex  prose  dark:prose-invert mt-8">
-                                <div className="flex flex-col">
-                                    {i.contents?.map(i => (
-                                        bblog.md(i)
-                                    ))}
-                                </div>
+                            <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 mt-6 md:mt-8">
+                                {bblog.md(i.content)}
                             </div>
                         </div>
                     ))

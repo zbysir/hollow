@@ -1,6 +1,7 @@
 ---
 tags: [Golang, Javascript]
 img: https://github.com/evanw/esbuild/raw/master/images/wordmark-light.svg
+date: 2022-01-01
 ---
 <p align="center">
   <picture>
