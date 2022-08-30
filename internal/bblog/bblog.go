@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -387,8 +388,12 @@ func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 	}, true, nil
 }
 
+type getBlogOption struct {
+	Sort func(a, b interface{}) bool `json:"sort"`
+}
+
 // getBlog 返回 dir 目录下的所有博客
-func (b *Bblog) getBlog(dir string) []Blog {
+func (b *Bblog) getBlog(dir string, opt getBlogOption) []Blog {
 	var blogs []Blog
 	err := fs.WalkDir(b.projectFs, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -439,6 +444,12 @@ func (b *Bblog) getBlog(dir string) []Blog {
 	if err != nil {
 		log.Errorf("get source '%s' error: %v", dir, err)
 		return nil
+	}
+
+	if opt.Sort != nil {
+		sort.Slice(blogs, func(i, j int) bool {
+			return opt.Sort(blogs[i], blogs[j])
+		})
 	}
 
 	return blogs

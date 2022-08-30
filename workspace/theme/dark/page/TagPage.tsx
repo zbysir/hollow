@@ -12,7 +12,7 @@ export default function TagPage(props) {
 
     // @ts-ignore
     tags = Array.from(new Set(tags))
-    let showBlogs = blogs
+    let showBlogs
 
     if (props.selectedTag) {
         showBlogs = blogs.filter(i => i.meta?.tags?.find(i => i === props.selectedTag))
@@ -58,8 +58,8 @@ export default function TagPage(props) {
             {
                 byTimes.map(i => (
                     <div>
-                        <h3 class="py-3 text-3xl font-bold">{i.date}</h3>
-                        <div className="flex flex-col space-y-4">
+                        <h3 class="py-3 text-4xl xl:text-5xl font-bold dark:text-white text-center">{i.date}</h3>
+                        <div className="flex flex-col space-y-4 py-3">
                             {i.blogs.map(i => <BlogXS blog={i}></BlogXS>)}
                         </div>
                     </div>

@@ -1,26 +1,40 @@
 import Link from "../component/Link";
 
 export default function Header(props) {
+    const menus = [
+        {href: '/', name: 'Home'},
+        {href: '/tags', name: 'Tags'},
+        {href: '/about', name: 'About'},
+        {href: '/friend', name: 'Friends'},
+    ]
     return <div
     >
         {/* copy from https://devdojo.com/tails/v1/app#_ */}
-        <section className="w-full px-8 bg-white dark:bg-gray-900">
+        <section className="w-full bg-white dark:bg-gray-900 border-b border-gray-800">
             <div
-                className="container flex flex-col flex-wrap items-center justify-between py-5 mx-auto md:flex-row max-w-6xl">
+                className="container flex flex-col flex-wrap items-center mx-auto md:flex-row max-w-6xl px-5 py-1">
                 <div className="relative flex flex-col md:flex-row">
                     <Link href="/"
-                          className="flex items-center mb-5 font-medium lg:w-auto lg:items-center lg:justify-center md:mb-0">
+                          className="flex items-center my-2 md:my-0 font-medium lg:w-auto lg:items-center lg:justify-center ">
                         <span
                             className="mx-auto text-xl font-black leading-none text-gray-900 dark:text-gray-100 select-none"> {props.name}
                             <span className="text-indigo-600"> .</span>
                         </span>
                     </Link>
+                    <div className="md:py-3">
+                        <div className="md:pl-4 md:ml-8 md:border-l md:dark:border-gray-700 h-full"></div>
+                    </div>
                     <nav
-                        className="flex space-x-4 flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-gray-200 md:dark:border-gray-700">
-                        <Link href="/" className=" ">Home</Link>
-                        <Link href="/tags" className="">Tag</Link>
-                        <Link href="/about" className="">About</Link>
-                        <Link href="/friend" className="">Friend</Link>
+                        className="flex space-x-2 flex-wrap items-center text-lg
+                        tracking-wide
+                        md:border-gray-200
+                         font-medium
+                        ">
+                        {
+                            menus.map(i => (
+                                <Link href={i.href} className="p-2 transition duration-150 hover:dark:text-gray-200 ">{i.name}</Link>
+                            ))
+                        }
                     </nav>
                 </div>
 

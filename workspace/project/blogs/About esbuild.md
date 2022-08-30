@@ -2,6 +2,7 @@
 tags: [Golang, Javascript]
 img: https://github.com/evanw/esbuild/raw/master/images/wordmark-light.svg
 date: 2022-01-01
+desc: 一个更快的 JavaScript bundler
 ---
 <p align="center">
   <picture>

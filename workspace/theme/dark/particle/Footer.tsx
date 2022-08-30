@@ -1,7 +1,7 @@
 export default function Footer(props) {
     return <div
     >
-        <section class="text-gray-700 bg-white body-font">
+        <section class="text-gray-700 body-font">
             <div class="container flex flex-col items-center py-8 mx-auto max-w-6xl sm:flex-row">
                 {/*<a href="#_" class="text-xl font-black leading-none text-gray-900 select-none logo">{props.name}<span*/}
                 {/*    class="text-indigo-600">.</span></a>*/}

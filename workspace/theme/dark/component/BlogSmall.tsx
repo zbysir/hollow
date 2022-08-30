@@ -5,11 +5,12 @@ export interface BlogI {
     name: string
     description: string
     content: string
-    meta: {
+    meta?: {
         featured?: boolean,
         tags?: string[] | string
         img?: string
         date?: string
+        desc?: string
         title?: string
     }
 }

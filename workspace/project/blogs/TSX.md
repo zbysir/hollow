@@ -1,15 +1,16 @@
 ---
 title: 如何使用 Go 渲染 Jsx
 date: 2022-07-31
-tags: [Golang]
+tags: [Golang, Goja, Esbuild]
 featured: true
 img: "https://marketplace.canva.cn/2SWjI/MAEuBy2SWjI/1/tl/canva-MAEuBy2SWjI.jpg"
+desc: 让 Golang 也能使用 Jsx 这样好用的模板语法。
 ---
 # gojsx
 
 Render React Jsx by Golang
 
-使用 Go 渲染 Jsx。
+让 Golang 也能使用 Jsx 这样好用的模板语法。
 
 Jsx 优势：
 
@@ -75,4 +76,4 @@ babel 是十分慢的，相信开发过前端的朋友都深有体会，但我�
 
 不支持，由于库的复杂依赖关系，会出现意料之外的错误，也会导致加载变得很慢。
 
-如果你非要使用，尝试使用 webpack 将依赖打包成独立的 js 文件，然后引入它（待测试）。
+如果你非要使用，尝试使用 webpack 将依赖打包成独立的 js 文件，然后引入它（我只是说说）。
