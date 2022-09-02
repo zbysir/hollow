@@ -1,13 +1,13 @@
 theme: dark
 git:
   token: "${GIT_TOKEN}"
-  repo: repo
+  repo: https://github.com/zbysir/zbysir.github.io
 
 # params 字段的值可以在 js 中使用 bblog.GetParams() 获取
 params:
   base: ''
   title: Bysir 的博客
-  logo: bysir
+  logo: "[正在搭建] bysir"
   friend_links:
     - url: https://blog.ache.fun/
       name: ache
@@ -29,4 +29,4 @@ params:
         
         这还有一些项目是我做的 😉：
         
-        - [音乐舞台](https://github.com/zbysir/bgm-state)
+        - [音乐舞台](https://github.com/zbysir/bgm-stage)

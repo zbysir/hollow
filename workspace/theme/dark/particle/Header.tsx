@@ -7,6 +7,8 @@ export default function Header(props) {
         {href: '/about', name: 'About'},
         {href: '/friend', name: 'Friends'},
     ]
+
+    let thin = true
     return <div
     >
         {/* copy from https://devdojo.com/tails/v1/app#_ */}
@@ -17,7 +19,7 @@ export default function Header(props) {
                     <Link href="/"
                           className="flex items-center my-2 md:my-0 font-medium lg:w-auto lg:items-center lg:justify-center ">
                         <span
-                            className="mx-auto text-xl font-black leading-none text-gray-900 dark:text-gray-100 select-none"> {props.name}
+                            className={`mx-auto text-xl ${thin?'font-extralight':'font-black'} leading-none text-gray-900 dark:text-gray-100 select-none`}> {props.name}
                             <span className="text-indigo-600"> .</span>
                         </span>
                     </Link>
@@ -25,14 +27,13 @@ export default function Header(props) {
                         <div className="md:pl-4 md:ml-8 md:border-l md:dark:border-gray-700 h-full"></div>
                     </div>
                     <nav
-                        className="flex space-x-2 flex-wrap items-center text-lg
+                        className={`flex space-x-2 flex-wrap items-center text-lg
                         tracking-wide
                         md:border-gray-200
-                         font-medium
-                        ">
+                        ${thin?'font-extralight':'font-medium'}`}>
                         {
                             menus.map(i => (
-                                <Link href={i.href} className="p-2 transition duration-150 hover:dark:text-gray-200 ">{i.name}</Link>
+                                <Link href={i.href} className="p-2 transition duration-150 hover:dark:text-gray-200 text-white">{i.name}</Link>
                             ))
                         }
                     </nav>

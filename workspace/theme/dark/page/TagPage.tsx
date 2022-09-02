@@ -2,9 +2,17 @@ import BlogSmall from "../component/BlogSmall";
 import Link from "../component/Link";
 import BlogXS from "../component/BlogXS";
 
+// @ts-ignore
+import bblog from "bblog"
+import {sortBlog} from "../util";
+
+let blog = bblog.getBlog('./blogs', {
+    sort: sortBlog, page: 1, size: 20
+});
+
 // 显示所有博客的页面
 export default function TagPage(props) {
-    let blogs = props.blogs || []
+    let blogs = blog
     let tags = []
     blogs.forEach(i => {
         tags = tags.concat(i.meta?.tags)
@@ -41,12 +49,12 @@ export default function TagPage(props) {
     }
 
     return <div className="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-8 ">
-        <div className="flex space-x-3 justify-center	">
+        <div className="flex flex-wrap space-x-3 justify-center -mb-3">
             {
                 tags.map(i => (
-                    <Link href={"/tags/" + i}>
+                    <Link href={"/tags" + (i === props.selectedTag ? '' : ('/' + i))} className={"mb-3"}>
                         <div
-                            className={[i === props.selectedTag ? 'bg-purple-500' : 'bg-gray-500', "flex items-center px-3 py-1.5 leading-none rounded-full text-xs font-medium text-white inline-block"]}>
+                            className={[i === props.selectedTag ? 'bg-indigo-600' : 'bg-gray-500', "flex items-center px-3 py-1.5 leading-none rounded-full text-xs font-medium text-white inline-block"]}>
                             <span>{i}</span>
                         </div>
                     </Link>
@@ -65,7 +73,7 @@ export default function TagPage(props) {
                     </div>
                 ))
             }
-          
+
         </div>
     </div>
 }

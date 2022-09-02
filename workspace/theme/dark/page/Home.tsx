@@ -1,6 +1,4 @@
 import BlogBig from "../component/BlogBig";
-import Hero from "../particle/Hero";
-import BlogSmall, {BlogI} from "../component/BlogSmall";
 import Container from "../component/Container";
 
 // @ts-ignore
@@ -17,7 +15,7 @@ export default function Home() {
     return <div>
         <section>
             <Container>
-                <div>
+                <div className="space-y-4">
                     {
                         blogs.map(i => (<BlogBig blog={i}></BlogBig>))
                     }

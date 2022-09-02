@@ -50,7 +50,7 @@ export default {
             path: 'tags',
             component: () => {
                 return <Index {...global}>
-                    <TagPage blogs={blog}></TagPage>
+                    <TagPage></TagPage>
                 </Index>
             }
         },
@@ -58,7 +58,7 @@ export default {
             path: 'tags/' + t,
             component: () => {
                 return <Index {...global}>
-                    <TagPage blogs={blog} selectedTag={t}></TagPage>
+                    <TagPage selectedTag={t}></TagPage>
                 </Index>
             }
         })),

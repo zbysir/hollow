@@ -1,8 +1,16 @@
-# BBlog
+---
+title: 介绍下 BBlog 这个博客生成系统
+date: 2022-09-02
+tags: [Golang, Jsx, Blog]
+featured: true
+desc: 没有限制、规则，代码即所得。
+---
+
+https://github.com/zbysir/bblog
 
 ## Feature
 
-- 没有限制，没有规则，足够简单，一切皆 JS
+- 没有限制，没有规则，足够简单，代码即所得
 - 使用 本地文件 作为数据源生成静态文件 + 实时渲染
 - **启动 web 编辑器 在云端编辑你的文件，支持一键发布到 Git 仓库、支持实时渲染**
 

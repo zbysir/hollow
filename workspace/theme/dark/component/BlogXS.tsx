@@ -17,12 +17,12 @@ export default function BlogXS({blog}: { blog: BlogI }) {
         <div className="flex items-center space-x-4">
             <div className="w-1/2 text-right">
                 <h2 className="font-bold text-xl">
-                    <Link href={link}> {name}</Link>
+                    <Link href={link} className={"text-white"}> {name}</Link>
                 </h2>
 
             </div>
             <div className="w-1/2 flex flex-col space-y-1">
-                <p className="text-sm text-gray-500">{blog.meta.desc}</p>
+                <p className="text-sm "><Link href={link} className={"text-gray-500"}> {blog.meta.desc}</Link></p>
 
                 <div className="flex space-x-3">
                     {

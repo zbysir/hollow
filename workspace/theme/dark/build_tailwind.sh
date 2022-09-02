@@ -1,1 +1,1 @@
-npx tailwindcss -o ./public/tailwind.css --watch
+NODE_ENV=production npx tailwindcss -o ./public/tailwind.css --watch --minify

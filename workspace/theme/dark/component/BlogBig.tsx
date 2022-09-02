@@ -40,30 +40,37 @@ export default function BlogBig({blog}: { blog: BlogI }) {
     ">
             <div class="leading-relaxed">
                 <h1 className="text-4xl xl:text-5xl font-bold" style={{lineHeight: '1.2'}}>
-                    <Link href={link}>{name} <span
-                        className="dark:text-gray-400"> {blog.meta.desc ? (' - ' + blog.meta.desc) : ''}</span>
+                    <Link href={link} className={"text-white"}>
+                        {name}
+                        <span className="dark:text-gray-400"> {blog.meta.desc ? (' - ' + blog.meta.desc) : ''}</span>
                     </Link>
                 </h1>
                 <p className="pt-2 text-sm font-medium ">
                     {
                         blog.meta.featured ? <span>（置顶）</span> : null
                     }
-                    <span className="mx-1">{dateFormat(new Date(blog.meta?.date), "YYYY-mm-dd")}</span>
+                    <span className="mx-1">{dateFormat(new Date(blog.meta?.date), "mm-dd / YY")}</span>
                 </p>
             </div>
         </div>
 
         {/* bg img */}
-        <div
-            className="w-full h-full absolute bg-gray-800 rounded-lg opacity-0 group-hover:opacity-50 transition-opacity duration-500	 inset-0 z-0"
-        >
-            {
-                <img
-                    className="object-cover w-full h-full rounded-lg max-h-64 shadow-md sm:max-h-96"
-                    src={blog.meta?.img}/>
-            }
 
-        </div>
+        {
+            blog.meta?.img ? <div
+                className="w-full h-full absolute inset-0 z-0
+            bg-gray-800 rounded-lg
+            opacity-50 group-hover:opacity-50 md:opacity-0 transition-opacity duration-500"
+            >
+                {
+                    <img
+                        className="object-cover w-full h-full rounded-lg max-h-64 shadow-md sm:max-h-96"
+                        src={blog.meta?.img}/>
+                }
+
+            </div> : null
+        }
+
     </div>
 
 

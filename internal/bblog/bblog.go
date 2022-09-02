@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/russross/blackfriday/v2"
 	"github.com/zbysir/blog/internal/pkg/easyfs"
+	"github.com/zbysir/blog/internal/pkg/git"
 	"github.com/zbysir/blog/internal/pkg/log"
 	jsx "github.com/zbysir/gojsx"
 	"go.uber.org/zap"
@@ -144,7 +145,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 
-	configFile := filepath.Join(conf.Theme, "config.ts")
+	configFile := filepath.Join(conf.Theme, "config")
 	c, err := b.loadTheme(configFile, conf)
 	if err != nil {
 		return err
@@ -192,6 +193,34 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	return nil
 }
 
+func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
+	err := b.BuildToFs(dst, o)
+	if err != nil {
+		return err
+	}
+
+	conf, err := b.loadConfig()
+	if err != nil {
+		return err
+	}
+
+	l := b.log
+	if o.Log != nil {
+		l = o.Log
+	}
+	g := git.NewGit(conf.Git.Token, l)
+
+	branch := conf.Git.Branch
+	if branch == "" {
+		branch = "docs"
+	}
+	err = g.Push(dst, conf.Git.Repo, "bblog", branch, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type DirFs struct {
 	prefix string
 	fs     http.FileSystem
@@ -215,13 +244,14 @@ func (d *DirFs) Open(name string) (http.File, error) {
 
 type Config struct {
 	Theme  string      `json:"theme" yaml:"theme"`
-	Git    *ConfigGit  `json:"git" yaml:"git"`
+	Git    ConfigGit   `json:"git" yaml:"git"`
 	Params interface{} `json:"params" yaml:"params"`
 }
 
 type ConfigGit struct {
-	Repo  string `json:"repo" yaml:"repo"`
-	Token string `json:"token" yaml:"token"`
+	Repo   string `json:"repo" yaml:"repo"`
+	Token  string `json:"token" yaml:"token"`
+	Branch string `yaml:"branch"`
 }
 
 func (b *Bblog) loadConfig() (conf *Config, err error) {
@@ -230,8 +260,11 @@ func (b *Bblog) loadConfig() (conf *Config, err error) {
 		return nil, err
 	}
 
+	body := f.Body
+	body = os.ExpandEnv(body)
+
 	conf = &Config{}
-	err = yaml.Unmarshal([]byte(f.Body), conf)
+	err = yaml.Unmarshal([]byte(body), conf)
 	if err != nil {
 		return nil, fmt.Errorf("loadConfig error: %w", err)
 	}
