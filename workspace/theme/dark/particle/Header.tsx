@@ -23,7 +23,7 @@ export default function Header(props) {
                 mx-auto md:flex-row max-w-6xl px-5 py-1">
                 <div className="relative flex flex-col md:flex-row max-w-full">
                     <Link href="/"
-                          className="flex items-center pt-2 pb-1 md:my-0 font-medium lg:w-auto lg:items-center lg:justify-center ">
+                          className="flex items-center pt-2 pb-1 md:pb-2 md:my-0 font-medium md:items-center">
                         <span
                             className={`mx-auto text-xl ${thin?'font-extralight':'font-black'} leading-none text-gray-900 dark:text-gray-100 select-none`}> {props.name}
                             <span className="text-indigo-600"> .</span>

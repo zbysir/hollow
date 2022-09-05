@@ -1,0 +1,24 @@
+{
+  "name": "@bysir/hollow",
+  "version": "1.0.1",
+  "description": "",
+  "main": "",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zbysir/hollow.git"
+  },
+  "keywords": [
+    "hollow",
+    "blog"
+  ],
+  "author": "zbysir@qq.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zbysir/hollow/issues"
+  },
+  "homepage": "https://github.com/zbysir/hollow#readme"
+}

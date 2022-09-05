@@ -2,13 +2,18 @@ package gobilly
 
 import (
 	"github.com/go-git/go-billy/v5"
+	"io"
 	"io/fs"
 	"os"
 )
 
+// StdFs implement io/fs
 type StdFs struct {
 	under billy.Filesystem
 }
+
+var _ fs.FS = (*StdFs)(nil)
+var _ io.Seeker = (*stdFile)(nil)
 
 func NewStdFs(under billy.Filesystem) *StdFs {
 	return &StdFs{under: under}
@@ -33,6 +38,10 @@ type stdFile struct {
 	f     billy.File
 	path  string
 	under billy.Filesystem
+}
+
+func (s *stdFile) Seek(offset int64, whence int) (int64, error) {
+	return s.f.Seek(offset, whence)
 }
 
 type dirEntry struct {

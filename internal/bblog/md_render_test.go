@@ -1,6 +1,9 @@
 package bblog
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestMd(t *testing.T) {
 	s := renderMd([]byte(`## h2
@@ -11,4 +14,12 @@ func TestMd(t *testing.T) {
 `))
 
 	t.Logf("%s", s)
+}
+
+func TestJoin(t *testing.T) {
+	t.Logf("%+v", filepath.Join("pages/links.md", "../assets/img.png"))
+	r, _ := filepath.Rel("pages/links.md", "../assets/img.png")
+
+	t.Logf("%+v", r)
+	t.Logf("%+v", filepath.Base("pages/links.md"))
 }

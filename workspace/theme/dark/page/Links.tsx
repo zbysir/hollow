@@ -10,9 +10,8 @@ interface Props {
     links: FriendLink[]
 }
 
-// @ts-ignore
-import bblog from "bblog"
-let params = bblog.getConfig();
+import hollow from "@bysir/hollow"
+let params = hollow.getConfig();
 let friendLinks = params.friend_links
 
 export default function Links() {

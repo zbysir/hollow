@@ -5,8 +5,7 @@ git:
 
 # 将会 copy 到根目录
 assets:
-  - assets
-  - CNAME
+  - statics
 
 # theme_config 字段的值可以在 js 中使用 bblog.getConfig() 获取
 theme_config:

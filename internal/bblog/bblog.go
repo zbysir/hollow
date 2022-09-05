@@ -123,7 +123,7 @@ func NewBblog(o Option) (*Bblog, error) {
 		themeFs:   o.ThemeFs,
 	}
 
-	x.RegisterModule("bblog", map[string]interface{}{
+	x.RegisterModule("@bysir/hollow", map[string]interface{}{
 		"getBlogs":      b.getBlogs,
 		"getConfig":     b.getConfig,
 		"getBlogDetail": b.getBlogDetail,
@@ -189,7 +189,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		d := filepath.Dir(configFile)
 
 		srcDir := filepath.Join(d, a)
-		err = copyDir(srcDir, a, b.themeFs, dst)
+		err = copyDir(srcDir, "", b.themeFs, dst)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	}
 
 	for _, a := range conf.Assets {
-		err = copyDir(a, a, b.projectFs, dst)
+		err = copyDir(a, "", b.projectFs, dst)
 		if err != nil {
 			return err
 		}
@@ -251,7 +251,6 @@ func (d *DirFs) Open(name string) (http.File, error) {
 		dir = "."
 	}
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
-
 	fullName = strings.TrimPrefix(fullName, d.stripPrefix)
 
 	log.Infof("try open %v", fullName)
@@ -326,12 +325,8 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 				return fmt.Errorf("sub fs '%v' error: %w", i, err)
 			}
 
-			// 删除掉主题名字 dir，e.g. publish/1.js
-			rel, _ := filepath.Rel(themeDir, dir)
-
 			dirs = append(dirs, &DirFs{
-				stripPrefix: rel,
-				fs:          http.FS(sub),
+				fs: http.FS(sub),
 			})
 		}
 		for _, i := range conf.Assets {
@@ -341,8 +336,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
 			dirs = append(dirs, &DirFs{
-				stripPrefix: dir,
-				fs:          http.FS(sub),
+				fs: http.FS(sub),
 			})
 		}
 		//
@@ -430,18 +424,17 @@ type Blog struct {
 }
 
 type BlogLoader interface {
-	Load(body []byte) *Blog
+	Load(fs fs.FS, filePath string, withContent bool) (Blog, bool, error)
 }
 
 type MDBlogLoader struct {
-	fs               fs.FS
-	assetsUrlProcess func(string) string
+	assets Assets
 }
 
-func (m *MDBlogLoader) Load(path string, withContent bool) (Blog, bool, error) {
-	_, name := filepath.Split(path)
+func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, bool, error) {
+	dir, name := filepath.Split(filePath)
 
-	ext := filepath.Ext(path)
+	ext := filepath.Ext(filePath)
 	if supportExt[ext] {
 		name = strings.TrimSuffix(name, ext)
 	} else {
@@ -449,7 +442,7 @@ func (m *MDBlogLoader) Load(path string, withContent bool) (Blog, bool, error) {
 	}
 
 	// 读取 metadata
-	body, err := fs.ReadFile(m.fs, path)
+	body, err := fs.ReadFile(f, filePath)
 	if err != nil {
 		return Blog{}, false, err
 	}
@@ -476,7 +469,21 @@ func (m *MDBlogLoader) Load(path string, withContent bool) (Blog, bool, error) {
 		}
 	}
 
-	md := newMdRender(m.assetsUrlProcess)
+	md := newMdRender(func(s string) string {
+		p := filepath.Join(dir, s)
+
+		// 移除 assets 文件夹前缀
+		for _, a := range m.assets {
+			if strings.HasPrefix(p, a) {
+				p = strings.TrimPrefix(p, a)
+				break
+			}
+		}
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		return p
+	})
 
 	content := ""
 	if withContent {
@@ -499,10 +506,30 @@ func (m *MDBlogLoader) Load(path string, withContent bool) (Blog, bool, error) {
 type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
 }
+type BlogList struct {
+	Total int    `json:"total"`
+	List  []Blog `json:"list"`
+}
+
+func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
+	c, err := b.loadConfig()
+	if err != nil {
+		return nil, false
+	}
+	switch ext {
+	case ".md":
+		return &MDBlogLoader{
+			assets: c.Assets,
+		}, true
+	}
+	return nil, false
+}
 
 // getBlogs 返回 dir 目录下的所有博客
-func (b *Bblog) getBlogs(dir string, opt getBlogOption) []Blog {
+func (b *Bblog) getBlogs(dir string, opt getBlogOption) BlogList {
 	var blogs []Blog
+	var total int
+
 	err := fs.WalkDir(b.projectFs, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -510,13 +537,15 @@ func (b *Bblog) getBlogs(dir string, opt getBlogOption) []Blog {
 		if d.IsDir() {
 			return nil
 		}
+		ext := filepath.Ext(path)
+		loader, ok := b.getLoader(ext)
 
-		loader := MDBlogLoader{fs: b.projectFs, assetsUrlProcess: func(s string) string {
-			rel, _ := filepath.Rel(dir, filepath.Join(path, s))
-			return "/" + rel
-		}}
+		if !ok {
+			return nil
+		}
+		total++
 
-		blog, ok, err := loader.Load(path, false)
+		blog, ok, err := loader.Load(b.projectFs, path, false)
 		if err != nil {
 			log.Errorf("load blog (%v) file: %v", path, err)
 		}
@@ -557,7 +586,7 @@ func (b *Bblog) getBlogs(dir string, opt getBlogOption) []Blog {
 	})
 	if err != nil {
 		log.Errorf("get source '%s' error: %v", dir, err)
-		return nil
+		return BlogList{}
 	}
 
 	if opt.Sort != nil {
@@ -566,13 +595,20 @@ func (b *Bblog) getBlogs(dir string, opt getBlogOption) []Blog {
 		})
 	}
 
-	return blogs
+	return BlogList{
+		Total: 0,
+		List:  blogs,
+	}
 }
 
 // getBlogDetail 返回一个文件
 func (b *Bblog) getBlogDetail(path string) Blog {
-	loader := MDBlogLoader{fs: b.projectFs}
-	blog, ok, _ := loader.Load(path, true)
+	ext := filepath.Ext(path)
+	loader, ok := b.getLoader(ext)
+	if !ok {
+		return Blog{}
+	}
+	blog, ok, _ := loader.Load(b.projectFs, path, true)
 	if !ok {
 		return Blog{}
 	}

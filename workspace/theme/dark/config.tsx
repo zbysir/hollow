@@ -5,14 +5,12 @@ import BlogDetail from "./page/BlogDetail";
 import TagPage from "./page/TagPage";
 import About from "./page/About";
 
-// @ts-ignore
-import bblog from "bblog"
+import hollow, {getBlogs} from "@bysir/hollow"
 import MarkDown from "./page/Md";
 import {blogRoute} from "./utilx";
 import Gallery from "./page/Gallery";
-
-let blog = bblog.getBlogs('./blogs');
-let params = bblog.getConfig();
+let blog = getBlogs('./blogs');
+let params = hollow.getConfig();
 
 let global = {
     title: params.title,
@@ -22,7 +20,7 @@ let global = {
 }
 
 let tags = []
-blog.forEach(i => {
+blog.list.forEach(i => {
     tags = tags.concat(i.meta?.tags)
 })
 
@@ -39,7 +37,7 @@ export default {
                 </Index>
             },
         },
-        ...blog.map(b => {
+        ...blog.list.map(b => {
             return {
                 path: blogRoute(b),
                 component: () => {
@@ -95,5 +93,5 @@ export default {
     ],
 
     // 将 public 文件下所有内容 copy 到 dist 下
-    assets: ['public']
+    assets: ['statics']
 }

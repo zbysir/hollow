@@ -11,7 +11,7 @@ theme_config:
   base: ''
   title: Bysir 的博客
   logo: "bysir"
-  stack: Tailwindcss + <a href="https://github.com/zbysir/blog">BBlog</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
+  stack: Tailwindcss + <a href="https://github.com/zbysir/hollow">Hollow</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
   footer_links:
     - url: https://github.com/zbysir
       name: GitHub

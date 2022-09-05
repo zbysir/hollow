@@ -8,9 +8,8 @@ interface Props {
     about: About[]
 }
 
-// @ts-ignore
-import bblog from "bblog"
-let params = bblog.getConfig();
+import hollow from "@bysir/hollow"
+let params = hollow.getConfig();
 
 export default function About() {
     const about = params.about
@@ -36,7 +35,7 @@ export default function About() {
                                 prose dark:prose-invert
                                 max-w-none prose-p:my-1 prose-ul:my-1 prose-ul:list-outside
                                 mt-3 md:mt-4"
-                                dangerouslySetInnerHTML={{__html: bblog.md(i.content)}}>
+                                dangerouslySetInnerHTML={{__html: hollow.md(i.content)}}>
                             </div>
                         </div>
                     ))

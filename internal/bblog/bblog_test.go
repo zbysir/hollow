@@ -17,7 +17,7 @@ func TestSource(t *testing.T) {
 
 	x := b.getBlogs("../../blogs", getBlogOption{})
 	bs := x
-	for _, b := range bs {
+	for _, b := range bs.List {
 		t.Logf("%+v", b)
 
 		t.Logf("content: %s", b.GetContent())

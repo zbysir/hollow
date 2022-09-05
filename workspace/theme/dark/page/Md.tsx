@@ -4,13 +4,11 @@ interface Props {
     mdFilepath: string
 }
 
-// @ts-ignore
-import bblog from "bblog"
-import {BlogI} from "../component/BlogSmall";
+import hollow from "@bysir/hollow"
 
 // 用来渲染 markdown
 export default function MarkDown(props: Props) {
-    const blog: BlogI = bblog.getBlogDetail(props.mdFilepath)
+    const blog = hollow.getBlogDetail(props.mdFilepath)
 
     return <Container>
         <div className="prose dark:prose-invert"

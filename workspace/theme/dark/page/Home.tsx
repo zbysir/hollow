@@ -1,16 +1,15 @@
 import BlogBig from "../component/BlogBig";
 import Container from "../component/Container";
 
-// @ts-ignore
-import bblog from "bblog"
+import {getBlogs} from "@bysir/hollow"
 import {sortBlog} from "../utilx";
 
 export default function Home() {
-    const blogs = bblog.getBlogs('./blogs',
+    const blogs = getBlogs('./blogs',
         {
             sort: sortBlog, page: 1, size: 20
         }
-    );
+    ).list;
 
     return <section>
         <Container>

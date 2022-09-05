@@ -1,13 +1,13 @@
-import {BlogI} from "./d";
+import {Blog} from "@bysir/hollow";
 
-export function sortBlog(a: BlogI, b: BlogI) {
+export function sortBlog(a: Blog, b: Blog) {
     if (a.meta?.featured || b.meta?.featured) {
         return (a.meta?.featured ? 1 : 0) > (b.meta?.featured ? 1 : 0)
     }
     return new Date(a.meta.date) > new Date(b.meta.date)
 }
 
-export function blogRoute(b?: BlogI) {
+export function blogRoute(b?: Blog) {
     if (!b) {
         return '/blogs'
     }

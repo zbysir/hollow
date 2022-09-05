@@ -1,12 +1,10 @@
-import BlogSmall from "../component/BlogSmall";
 import Link from "../component/Link";
 import BlogXS from "../component/BlogXS";
 
-// @ts-ignore
-import bblog from "bblog"
+import hollow, {Blog} from "@bysir/hollow"
 import {sortBlog} from "../utilx";
 
-let blog = bblog.getBlogs('./blogs', {
+let blogs = hollow.getBlogs('./blogs', {
     sort: sortBlog, page: 1, size: 20
 });
 
@@ -16,24 +14,23 @@ interface Props {
 
 // 显示所有博客的页面
 export default function TagPage(props: Props) {
-    let blogs = blog
     let tags = []
-    blogs.forEach(i => {
+    blogs.list.forEach(i => {
         let items = i.meta?.tags;
-        if (items){
+        if (items) {
             tags = tags.concat(items)
         }
     })
 
     // @ts-ignore
     tags = Array.from(new Set(tags))
-    let showBlogs
+    let showBlogs: Blog[]
 
     if (props.selectedTag) {
-        showBlogs = blogs.filter(i => i.meta?.tags?.find(i => i === props.selectedTag))
+        showBlogs = blogs.list.filter(i => i.meta?.tags?.find(i => i === props.selectedTag))
     } else {
         // all
-        showBlogs = blogs
+        showBlogs = blogs.list
     }
 
     let byTime = {}

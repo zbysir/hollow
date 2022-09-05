@@ -11,10 +11,9 @@ interface Props {
     children?: any
 }
 
-// @ts-ignore
-import bblog from "bblog"
+import hollow from "@bysir/hollow"
 
-let params = bblog.getConfig();
+let params = hollow.getConfig();
 
 export default function Index(props: Props) {
     let routerBase = params.base || ''
@@ -24,8 +23,8 @@ export default function Index(props: Props) {
         <meta charSet="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{props.title || 'UnTitled'}</title>
-        <link href={routerBase + '/public/tailwind.css'} rel="stylesheet"/>
-        <link href={routerBase + '/public/prism.css'} rel="stylesheet"/>
+        <link href={routerBase + '/tailwind.css'} rel="stylesheet"/>
+        <link href={routerBase + '/prism/prism.css'} rel="stylesheet"/>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;900&amp;display=swap" rel="stylesheet"/>
     </head>
     <body className="
@@ -46,7 +45,7 @@ export default function Index(props: Props) {
         {props.time}
     </div>
 
-    <script src={routerBase + '/public/prism.js'}></script>
+    <script src={routerBase + '/prism/prism.js'}></script>
     </body>
     </html>
 }

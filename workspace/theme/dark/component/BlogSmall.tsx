@@ -1,7 +1,7 @@
 import Link from "./Link";
-import {BlogI} from "../d";
+import {Blog} from "@bysir/hollow";
 
-export default function BlogSmall({blog}: { blog: BlogI }) {
+export default function BlogSmall({blog}: { blog: Blog }) {
     let link = '/blogs/' + blog.name
     let name = blog.meta?.title || blog.name
 
@@ -34,7 +34,7 @@ export default function BlogSmall({blog}: { blog: BlogI }) {
         </div>
         <h2 className="text-lg font-bold sm:text-xl md:text-2xl">
             <Link href={link}> {name}</Link></h2>
-        <p className="text-sm text-gray-500">{blog.description}</p>
+        <p className="text-sm text-gray-500">{blog.meta?.desc}</p>
         {/*<p className="pt-2 text-xs font-medium"><Link href={blog.link} className="mr-1 underline">Mary*/}
         {/*    Jane</Link> · <span className="mx-1">April 17, 2021</span> · <span*/}
         {/*    className="mx-1 text-gray-600">3 min. read</span></p>*/}

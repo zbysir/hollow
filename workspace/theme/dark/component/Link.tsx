@@ -1,7 +1,6 @@
-// @ts-ignore
-import bblog from "bblog"
+import hollow from "@bysir/hollow"
 
-let params = bblog.getConfig();
+let params = hollow.getConfig();
 
 export default function Link(props) {
     let base = params.base || ''

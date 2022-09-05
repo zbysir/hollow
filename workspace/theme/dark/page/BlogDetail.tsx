@@ -4,7 +4,7 @@ import {dateFormat} from "../utilx";
 interface Props {
     name: string,
     content: string
-    meta: any
+    meta?: any
 }
 
 export default function BlogDetail(props: Props) {
