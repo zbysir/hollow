@@ -9,7 +9,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/russross/blackfriday/v2"
 	"github.com/zbysir/blog/internal/pkg/easyfs"
 	"github.com/zbysir/blog/internal/pkg/git"
 	"github.com/zbysir/blog/internal/pkg/log"
@@ -32,11 +31,19 @@ type Page map[string]interface{}
 type Pages []Page
 
 func (p Page) GetPath() string {
+	pa := ""
 	switch t := p["path"].(type) {
 	case goja.Value:
-		return t.Export().(string)
+		pa = t.Export().(string)
+	case string:
+		pa = p["path"].(string)
+	default:
+		pa = ""
 	}
-	return p["path"].(string)
+
+	// 删除前后的 /
+	pa = strings.Trim(pa, "/")
+	return pa
 }
 
 func tryToVDom(i interface{}) jsx.VDom {
@@ -74,7 +81,7 @@ type Bblog struct {
 	x *jsx.Jsx
 	// 项目文件和主题文件可以独立，比如支持 project 在本地编写，主题通过 http 加载，用来做主题预览
 	projectFs fs.FS // 项目文件
-	themeFs   fs.FS // 主题文件
+	themeFs   fs.FS // 多个主题，顶级是主题名字文件夹
 	log       *zap.SugaredLogger
 }
 
@@ -103,8 +110,7 @@ func NewBblog(o Option) (*Bblog, error) {
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
 		SourceFs:    o.ThemeFs,
-		Debug:       false,
-		Transformer: jsx.NewEsBuildTransform(false),
+		Debug:       true,
 	})
 	if err != nil {
 		panic(err)
@@ -118,9 +124,10 @@ func NewBblog(o Option) (*Bblog, error) {
 	}
 
 	x.RegisterModule("bblog", map[string]interface{}{
-		"getBlog":   b.getBlog,
-		"getParams": b.getParams,
-		"md":        b.md,
+		"getBlogs":      b.getBlogs,
+		"getConfig":     b.getConfig,
+		"getBlogDetail": b.getBlogDetail,
+		"md":            b.md,
 	})
 
 	return b, nil
@@ -146,7 +153,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	}
 
 	configFile := filepath.Join(conf.Theme, "config")
-	c, err := b.loadTheme(configFile, conf)
+	themeModule, err := b.loadTheme(configFile)
 	if err != nil {
 		return err
 	}
@@ -155,7 +162,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		l = o.Log
 	}
 
-	for _, p := range c.Pages {
+	for _, p := range themeModule.Pages {
 		var v, err = p.GetComponent()
 		if err != nil {
 			return err
@@ -178,11 +185,19 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		l.Infof("create pages: %v ", distFile)
 	}
 
-	for _, a := range c.Assets {
+	for _, a := range themeModule.Assets {
 		d := filepath.Dir(configFile)
 
 		srcDir := filepath.Join(d, a)
-		err = copyDir(srcDir, "", b.themeFs, dst)
+		err = copyDir(srcDir, a, b.themeFs, dst)
+		if err != nil {
+			return err
+		}
+		l.Infof("copy theme assets: %v ", a)
+	}
+
+	for _, a := range conf.Assets {
+		err = copyDir(a, a, b.projectFs, dst)
 		if err != nil {
 			return err
 		}
@@ -222,19 +237,24 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 }
 
 type DirFs struct {
-	prefix string
-	fs     http.FileSystem
+	appPrefix   string // 访问 url /1.txt 将会 访问 /prefix/1.txt 文件
+	stripPrefix string // 访问 url /prefix/1.txt 将会访问 /1.txt
+	fs          http.FileSystem
 }
 
 func (d *DirFs) Open(name string) (http.File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
 	}
-	dir := d.prefix
+	dir := d.appPrefix
 	if dir == "" {
 		dir = "."
 	}
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
+
+	fullName = strings.TrimPrefix(fullName, d.stripPrefix)
+
+	log.Infof("try open %v", fullName)
 	f, err := d.fs.Open(fullName)
 	if err != nil {
 		return nil, err
@@ -243,9 +263,10 @@ func (d *DirFs) Open(name string) (http.File, error) {
 }
 
 type Config struct {
-	Theme  string      `json:"theme" yaml:"theme"`
-	Git    ConfigGit   `json:"git" yaml:"git"`
-	Params interface{} `json:"params" yaml:"params"`
+	Theme       string      `json:"theme" yaml:"theme"`
+	Git         ConfigGit   `json:"git" yaml:"git"`
+	Assets      Assets      `json:"assets" yaml:"assets"`
+	ThemeConfig interface{} `json:"theme_config" yaml:"theme_config"`
 }
 
 type ConfigGit struct {
@@ -280,7 +301,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 	}
 	var assetsHandler http.Handler
 
-	var c ThemeConfig
+	var themeModule ThemeModule
 	prepare := func() error {
 		var conf *Config
 
@@ -291,19 +312,55 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		themeDir := conf.Theme
 
 		configFile := filepath.Join(themeDir, "config")
-		c, err = b.loadTheme(configFile, conf)
+		themeModule, err = b.loadTheme(configFile)
 		if err != nil {
 			return err
 		}
-		d := filepath.Dir(configFile)
-
+		configDir := filepath.Dir(configFile)
 		var dirs MuitDir
-		for _, i := range c.Assets {
+		for _, i := range themeModule.Assets {
+			// 得到相对 themeFs root 的路径，e.g. dark/publish
+			dir := filepath.Join(configDir, i)
+			sub, err := fs.Sub(b.themeFs, dir)
+			if err != nil {
+				return fmt.Errorf("sub fs '%v' error: %w", i, err)
+			}
+
+			// 删除掉主题名字 dir，e.g. publish/1.js
+			rel, _ := filepath.Rel(themeDir, dir)
+
 			dirs = append(dirs, &DirFs{
-				prefix: filepath.Join(d, i),
-				fs:     http.FS(b.themeFs),
+				stripPrefix: rel,
+				fs:          http.FS(sub),
 			})
 		}
+		for _, i := range conf.Assets {
+			dir := i
+			sub, err := fs.Sub(b.projectFs, dir)
+			if err != nil {
+				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
+			}
+			dirs = append(dirs, &DirFs{
+				stripPrefix: dir,
+				fs:          http.FS(sub),
+			})
+		}
+		//
+		//dirs = append(dirs, &DirFs{
+		//	appPrefix: filepath.Join(configDir),
+		//	fs:        http.FS(b.themeFs),
+		//})
+		//dirs = append(dirs, &DirFs{
+		//	appPrefix: "",
+		//	stripPrefix: "",
+		//	fs:        http.FS(b.projectFs),
+		//})
+
+		// for img import by md file
+		//dirs = append(dirs, &DirFs{
+		//	appPrefix: "",
+		//	fs:     http.FS(b.projectFs),
+		//})
 		assetsHandler = http.FileServer(dirs)
 		return nil
 	}
@@ -325,8 +382,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		}
 
 		reqPath := strings.Trim(request.URL.Path, "/")
-		//log.Printf("req: %v", reqPath)
-		for _, p := range c.Pages {
+		for _, p := range themeModule.Pages {
 			if reqPath == p.GetPath() {
 				component, err := p.GetComponent()
 				if err != nil {
@@ -378,10 +434,11 @@ type BlogLoader interface {
 }
 
 type MDBlogLoader struct {
-	fs fs.FS
+	fs               fs.FS
+	assetsUrlProcess func(string) string
 }
 
-func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
+func (m *MDBlogLoader) Load(path string, withContent bool) (Blog, bool, error) {
 	_, name := filepath.Split(path)
 
 	ext := filepath.Ext(path)
@@ -411,13 +468,31 @@ func (m *MDBlogLoader) Load(path string) (Blog, bool, error) {
 		}
 	}
 
+	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
+	for k, v := range meta {
+		switch t := v.(type) {
+		case time.Time:
+			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+		}
+	}
+
+	md := newMdRender(m.assetsUrlProcess)
+
+	content := ""
+	if withContent {
+		content = string(md.Render(body))
+	}
 	return Blog{
 		Name: name,
 		GetContent: func() string {
-			return string(blackfriday.Run(body))
+			if withContent {
+				return content
+			}
+			return string(md.Render(body))
 		},
-		Meta: meta,
-		Ext:  ext,
+		Meta:    meta,
+		Ext:     ext,
+		Content: content,
 	}, true, nil
 }
 
@@ -425,8 +500,8 @@ type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
 }
 
-// getBlog 返回 dir 目录下的所有博客
-func (b *Bblog) getBlog(dir string, opt getBlogOption) []Blog {
+// getBlogs 返回 dir 目录下的所有博客
+func (b *Bblog) getBlogs(dir string, opt getBlogOption) []Blog {
 	var blogs []Blog
 	err := fs.WalkDir(b.projectFs, dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -436,9 +511,15 @@ func (b *Bblog) getBlog(dir string, opt getBlogOption) []Blog {
 			return nil
 		}
 
-		loader := MDBlogLoader{fs: b.projectFs}
+		loader := MDBlogLoader{fs: b.projectFs, assetsUrlProcess: func(s string) string {
+			rel, _ := filepath.Rel(dir, filepath.Join(path, s))
+			return "/" + rel
+		}}
 
-		blog, ok, _ := loader.Load(path)
+		blog, ok, err := loader.Load(path, false)
+		if err != nil {
+			log.Errorf("load blog (%v) file: %v", path, err)
+		}
 		if !ok {
 			return nil
 		}
@@ -488,21 +569,41 @@ func (b *Bblog) getBlog(dir string, opt getBlogOption) []Blog {
 	return blogs
 }
 
-// getParams config.yml 下的 params 字段
-func (b *Bblog) getParams() interface{} {
+// getBlogDetail 返回一个文件
+func (b *Bblog) getBlogDetail(path string) Blog {
+	loader := MDBlogLoader{fs: b.projectFs}
+	blog, ok, _ := loader.Load(path, true)
+	if !ok {
+		return Blog{}
+	}
+
+	return blog
+}
+
+// getConfig config.yml 下的 theme_config 字段
+func (b *Bblog) getConfig() interface{} {
 	c, err := b.loadConfig()
 	if err != nil {
 		panic(err)
 	}
-	return c.Params
+	return c.ThemeConfig
 }
 
-// getParams config.yml 下的 params 字段
-func (b *Bblog) md(str string) string {
-	return string(blackfriday.Run([]byte(str)))
+type MdOptions struct {
+	Unwrap bool `json:"unwrap"`
 }
 
-type ThemeConfig struct {
+// getConfig config.yml 下的 params 字段
+func (b *Bblog) md(str string, options MdOptions) string {
+	s := string(renderMd([]byte(str)))
+	if options.Unwrap {
+		s = strings.TrimPrefix(s, "<p>")
+		s = strings.TrimSuffix(s, "</p>")
+	}
+	return s
+}
+
+type ThemeModule struct {
 	raw    map[string]interface{}
 	Pages  Pages
 	Assets Assets
@@ -543,7 +644,7 @@ func exportGojaValue(i interface{}) interface{} {
 	return i
 }
 
-func (b *Bblog) loadTheme(configFile string, c *Config) (ThemeConfig, error) {
+func (b *Bblog) loadTheme(configFile string) (ThemeModule, error) {
 	envBs, _ := json.Marshal(nil)
 	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
 
@@ -551,7 +652,7 @@ func (b *Bblog) loadTheme(configFile string, c *Config) (ThemeConfig, error) {
 	configFile = "./" + filepath.Clean(configFile)
 	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), false)
 	if err != nil {
-		return ThemeConfig{}, err
+		return ThemeModule{}, err
 	}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现
@@ -568,5 +669,5 @@ func (b *Bblog) loadTheme(configFile string, c *Config) (ThemeConfig, error) {
 		assets[k] = exportGojaValueToString(v)
 	}
 
-	return ThemeConfig{raw: raw, Pages: ps, Assets: assets}, nil
+	return ThemeModule{raw: raw, Pages: ps, Assets: assets}, nil
 }

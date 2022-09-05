@@ -12,20 +12,19 @@ interface Props {
 
 // @ts-ignore
 import bblog from "bblog"
-let params = bblog.getParams();
+let params = bblog.getConfig();
 let friendLinks = params.friend_links
 
-export default function Friend() {
+export default function Links() {
     let links = friendLinks
 
     return <Container>
-
-        <div className="px-5 text-white prose dark:prose-invert">
-            <ul className="flex space-y-3">
+        <div className="prose dark:prose-invert">
+            <ul className="">
                 {
                     links.map(i => (
                         <li>
-                            <a className="" href={i.url} target="_blank">{i.name}</a>
+                            <a href={i.url} target="_blank">{i.name}</a>
                         </li>
                     ))
                 }

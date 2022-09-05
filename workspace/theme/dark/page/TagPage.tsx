@@ -4,18 +4,25 @@ import BlogXS from "../component/BlogXS";
 
 // @ts-ignore
 import bblog from "bblog"
-import {sortBlog} from "../util";
+import {sortBlog} from "../utilx";
 
-let blog = bblog.getBlog('./blogs', {
+let blog = bblog.getBlogs('./blogs', {
     sort: sortBlog, page: 1, size: 20
 });
 
+interface Props {
+    selectedTag?: string
+}
+
 // 显示所有博客的页面
-export default function TagPage(props) {
+export default function TagPage(props: Props) {
     let blogs = blog
     let tags = []
     blogs.forEach(i => {
-        tags = tags.concat(i.meta?.tags)
+        let items = i.meta?.tags;
+        if (items){
+            tags = tags.concat(items)
+        }
     })
 
     // @ts-ignore
@@ -47,6 +54,9 @@ export default function TagPage(props) {
             blogs: byTime[byTimeKey]
         })
     }
+    byTimes.sort((a, b) => {
+        return b.date - a.date
+    })
 
     return <div className="w-full px-5 py-6 max-w-6xl mx-auto space-y-5 sm:py-8 md:py-12 sm:space-y-8 md:space-y-8 ">
         <div className="flex flex-wrap space-x-3 justify-center -mb-3">

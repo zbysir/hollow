@@ -5,35 +5,43 @@ export default function Header(props) {
         {href: '/', name: 'Home'},
         {href: '/tags', name: 'Tags'},
         {href: '/about', name: 'About'},
-        {href: '/friend', name: 'Friends'},
+        {href: '/links', name: 'Links'},
+        {href: '/gallery', name: 'Gallery'},
     ]
 
     let thin = true
     return <div
     >
         {/* copy from https://devdojo.com/tails/v1/app#_ */}
-        <section className="w-full bg-white dark:bg-gray-900 border-b border-gray-800">
+        <section className="w-full
+        dark:bg-gray-900 bg-white
+        border-b border-gray-200 dark:border-gray-800">
             <div
-                className="container flex flex-col flex-wrap items-center mx-auto md:flex-row max-w-6xl px-5 py-1">
-                <div className="relative flex flex-col md:flex-row">
+                className="
+                container flex flex-col flex-wrap items-center
+                justify-center
+                mx-auto md:flex-row max-w-6xl px-5 py-1">
+                <div className="relative flex flex-col md:flex-row max-w-full">
                     <Link href="/"
-                          className="flex items-center my-2 md:my-0 font-medium lg:w-auto lg:items-center lg:justify-center ">
+                          className="flex items-center pt-2 pb-1 md:my-0 font-medium lg:w-auto lg:items-center lg:justify-center ">
                         <span
                             className={`mx-auto text-xl ${thin?'font-extralight':'font-black'} leading-none text-gray-900 dark:text-gray-100 select-none`}> {props.name}
                             <span className="text-indigo-600"> .</span>
                         </span>
                     </Link>
                     <div className="md:py-3">
-                        <div className="md:pl-4 md:ml-8 md:border-l md:dark:border-gray-700 h-full"></div>
+                        <div className="md:pl-4 md:ml-4 md:border-l md:border-gray-200 md:dark:border-gray-700 h-full"></div>
                     </div>
                     <nav
-                        className={`flex space-x-2 flex-wrap items-center text-lg
+                        className={`flex space-x-2 overflow-x-auto items-center text-lg
                         tracking-wide
                         md:border-gray-200
                         ${thin?'font-extralight':'font-medium'}`}>
                         {
                             menus.map(i => (
-                                <Link href={i.href} className="p-2 transition duration-150 hover:dark:text-gray-200 text-white">{i.name}</Link>
+                                <Link href={i.href} className="p-2 transition duration-150
+                                hover:dark:text-gray-200
+                                hover:text-gray-800">{i.name}</Link>
                             ))
                         }
                     </nav>

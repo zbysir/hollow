@@ -6,12 +6,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/gorilla/websocket"
 	"github.com/zbysir/blog/internal/bblog"
 	"github.com/zbysir/blog/internal/bblog/storage"
 	"github.com/zbysir/blog/internal/pkg/db"
 	"github.com/zbysir/blog/internal/pkg/easyfs"
-	"github.com/zbysir/blog/internal/pkg/git"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"github.com/zbysir/blog/internal/pkg/log"
 	ws "github.com/zbysir/blog/internal/pkg/ws"
@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type Editor struct {
@@ -147,7 +146,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		ft, err := easyfs.NewFs(gobilly.NewStdFs(fs)).FileTree(p.Path, 10)
+		ft, err := easyfs.GetFileTree(gobilly.NewStdFs(fs), p.Path, 10)
 		c.JSON(200, ft)
 	})
 
@@ -164,7 +163,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.Error(err)
 			return
 		}
-		f, err := easyfs.NewFs(gobilly.NewStdFs(fs)).GetFile(p.Path)
+		f, err := easyfs.GetFile(gobilly.NewStdFs(fs), p.Path)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return
@@ -350,16 +349,6 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		sett, exist, err := a.project.GetSetting(p.ProjectId)
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
-		if !exist {
-			c.AbortWithError(400, fmt.Errorf("project [%d] setting is empty, please config it", p.ProjectId))
-			return
-		}
-
 		fsTheme, err := a.projectFs(p.ProjectId, "theme")
 		if err != nil {
 			c.AbortWithError(400, err)
@@ -390,18 +379,10 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			CallerSkip:    0,
 			Name:          "",
 		})
-
-		err = b.Build("./config.ts", "docs", bblog.ExecOption{
-			Env: sett.Env,
+		dst := memfs.New()
+		err = b.BuildAndPublish(dst, bblog.ExecOption{
 			Log: logWs.Named("[Bblog]"),
 		})
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
-
-		g := git.NewGit(sett.GitToken, logWs.Named("[Git]"))
-		err = g.Push("docs", sett.GitRemote, time.Now().String(), "docs", true)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return

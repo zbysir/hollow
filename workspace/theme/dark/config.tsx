@@ -3,18 +3,22 @@ import Index from "./Index"
 import Home from "./page/Home";
 import BlogDetail from "./page/BlogDetail";
 import TagPage from "./page/TagPage";
-import Friend from "./page/Friend";
 import About from "./page/About";
 
 // @ts-ignore
 import bblog from "bblog"
+import MarkDown from "./page/Md";
+import {blogRoute} from "./utilx";
+import Gallery from "./page/Gallery";
 
-let blog = bblog.getBlog('./blogs');
-let params = bblog.getParams();
+let blog = bblog.getBlogs('./blogs');
+let params = bblog.getConfig();
 
 let global = {
     title: params.title,
     logo: params.logo,
+    stack: params.stack,
+    footer_links: params.footer_links,
 }
 
 let tags = []
@@ -35,17 +39,19 @@ export default {
                 </Index>
             },
         },
-        ...blog.map(b => ({
-            path: 'blogs/' + b.name,
-            component: () => {
-                let content = b.getContent()
-                // 不能这样写，因为在 golang 中没有对应的 content 字段，不能赋值成功
-                // b.content = content
-                return <Index {...global}>
-                    <BlogDetail {...b} content={content}></BlogDetail>
-                </Index>
+        ...blog.map(b => {
+            return {
+                path: blogRoute(b),
+                component: () => {
+                    let content = b.getContent()
+                    // 不能这样写，因为在 golang 中没有对应的 content 字段，不能赋值成功
+                    // b.content = content
+                    return <Index {...global}>
+                        <BlogDetail {...b} content={content}></BlogDetail>
+                    </Index>
+                }
             }
-        })),
+        }),
         {
             path: 'tags',
             component: () => {
@@ -54,27 +60,35 @@ export default {
                 </Index>
             }
         },
-        ...tags.map(t => ({
-            path: 'tags/' + t,
+        ...tags.map(tag => ({
+            path: 'tags/' + tag,
             component: () => {
                 return <Index {...global}>
-                    <TagPage selectedTag={t}></TagPage>
+                    <TagPage selectedTag={tag}></TagPage>
                 </Index>
             }
         })),
-        {
-            path: 'friend',
-            component: () => {
-                return <Index{...global}>
-                    <Friend></Friend>
-                </Index>
-            }
-        },
         {
             path: 'about',
             component: () => {
                 return <Index {...global}>
                     <About></About>
+                </Index>
+            }
+        },
+        {
+            path: 'links',
+            component: () => {
+                return <Index {...global}>
+                    <MarkDown mdFilepath={params.links_page}></MarkDown>
+                </Index>
+            }
+        },
+        {
+            path: 'gallery',
+            component: () => {
+                return <Index {...global}>
+                    <Gallery></Gallery>
                 </Index>
             }
         },

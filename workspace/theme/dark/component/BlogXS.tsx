@@ -1,9 +1,10 @@
 import Link from "./Link";
-import {BlogI} from "./BlogSmall";
+import {blogRoute, dateFormat} from "../utilx";
+import {BlogI} from "../d";
 
 
 export default function BlogXS({blog}: { blog: BlogI }) {
-    let link = '/blogs/' + blog.name
+    let link = blogRoute(blog)
     let name = blog.meta?.title || blog.name
 
     return <div className="">
@@ -14,10 +15,13 @@ export default function BlogXS({blog}: { blog: BlogI }) {
         {/*            src={blog.meta?.img}/>*/}
         {/*    </Link> : null*/}
         {/*}*/}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
             <div className="w-1/2 text-right">
                 <h2 className="font-bold text-xl">
-                    <Link href={link} className={"text-white"}> {name}</Link>
+                    <Link href={link} className={""}>
+                        <p>{name}</p>
+                        <p className="mt-0.5 text-sm text-gray-500 ">{dateFormat(new Date(blog.meta?.date), "mm-dd")}</p>
+                    </Link>
                 </h2>
 
             </div>

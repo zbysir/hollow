@@ -1,4 +1,6 @@
 const colors = require('tailwindcss/colors')
+const defaultTheme = require('tailwindcss/defaultTheme')
+
 module.exports = {
   mode: 'jit',
   content: [
@@ -9,6 +11,10 @@ module.exports = {
     colors: {
       ...colors,
       gray: colors.neutral,
+    },
+    fontFamily: {
+      ...defaultTheme.fontFamily,
+      'noto': ['Noto Serif SC', 'serif'],
     }
   },
   variants: {},

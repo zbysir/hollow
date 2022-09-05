@@ -28,7 +28,7 @@ func TestService(t *testing.T) {
 	}
 }
 
-func TestBuild(t *testing.T) {
+func TestBuildAndPublish(t *testing.T) {
 	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
 	b, err := bblog.NewBblog(bblog.Option{
 		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
@@ -40,6 +40,25 @@ func TestBuild(t *testing.T) {
 
 	dst := memfs.New()
 	err = b.BuildAndPublish(dst, bblog.ExecOption{
+		Log:   nil,
+		IsDev: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func TestBuild(t *testing.T) {
+	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
+	b, err := bblog.NewBblog(bblog.Option{
+		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
+		ThemeFs: themeFs,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst := osfs.New("./dist")
+	err = b.BuildToFs(dst, bblog.ExecOption{
 		Log:   nil,
 		IsDev: false,
 	})

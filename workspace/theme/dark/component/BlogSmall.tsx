@@ -1,19 +1,5 @@
 import Link from "./Link";
-
-export interface BlogI {
-    link: string
-    name: string
-    description: string
-    content: string
-    meta?: {
-        featured?: boolean,
-        tags?: string[] | string
-        img?: string
-        date?: string
-        desc?: string
-        title?: string
-    }
-}
+import {BlogI} from "../d";
 
 export default function BlogSmall({blog}: { blog: BlogI }) {
     let link = '/blogs/' + blog.name

@@ -2,8 +2,10 @@ package bblog
 
 import (
 	"fmt"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/blog/internal/pkg/db"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
+	"path/filepath"
 	"testing"
 )
 
@@ -13,7 +15,7 @@ func TestSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	x := b.getBlog("../../blogs")
+	x := b.getBlogs("../../blogs", getBlogOption{})
 	bs := x
 	for _, b := range bs {
 		t.Logf("%+v", b)
@@ -23,7 +25,10 @@ func TestSource(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	b, err := NewBblog(Option{})
+	b, err := NewBblog(Option{
+		Fs:      gobilly.NewStdFs(osfs.New("../../workspace/project")),
+		ThemeFs: gobilly.NewStdFs(osfs.New("../../workspace/theme")),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +37,11 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	th, err := b.loadTheme("./src/config.ts", c)
+	themeDir := c.Theme
+
+	configFile := filepath.Join(themeDir, "config.tsx")
+
+	th, err := b.loadTheme(configFile)
 	if err != nil {
 		t.Fatal(err)
 	}
