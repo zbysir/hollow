@@ -50,7 +50,7 @@ export default {
 
 ## Editor
 
-bblog 支持运行一个 Web Editor，现在我们写 blog 不用再打开编辑器了。
+hollow 支持运行一个 Web Editor，现在我们写 blog 不用再打开编辑器了。
 
 Editor 使用场景：
 
@@ -61,9 +61,9 @@ Editor 使用场景：
 
 editor 不能做的：
 
-- 主题开发：由于 bblog 运行在服务端，不自带开发环境（如 node），所以需要要使用 webpack 等构建工具还是需要在本地执行，然后将构建产物上传到 bblog 中。
-  bblog 提供 `bblog build --remote` 命令来帮助这个流程流畅运行。
-  同时由于 bblog 的代码编辑器肯定没有你熟悉的代码编辑器好用，所以在主题开发阶段建议还是选择你趁手的编辑器，完成之后再上传到远端。
+- 主题开发：由于 hollow 运行在服务端，不自带开发环境（如 node），所以需要要使用 webpack 等构建工具还是需要在本地执行，然后将构建产物上传到 hollow 中。
+  hollow 提供 `hollow build --remote` 命令来帮助这个流程流畅运行。
+  同时由于 hollow 的代码编辑器肯定没有你熟悉的代码编辑器好用，所以在主题开发阶段建议还是选择你趁手的编辑器，完成之后再上传到远端。
 
 ## CLI
 
