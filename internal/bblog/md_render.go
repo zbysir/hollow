@@ -33,7 +33,7 @@ func (m *mdRender) RenderFooter(w io.Writer, ast *blackfriday.Node) {
 
 func newMdRender(assetsUrlProcess func(string) string) *mdRender {
 	r := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
-		Flags: blackfriday.CommonHTMLFlags | blackfriday.TOC,
+		Flags: blackfriday.CommonHTMLFlags,
 	})
 	return &mdRender{inner: r, assetsUrlProcess: assetsUrlProcess}
 }

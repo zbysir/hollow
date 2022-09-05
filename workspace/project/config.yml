@@ -3,9 +3,10 @@ git:
   token: "${GIT_TOKEN}"
   repo: https://github.com/zbysir/zbysir.github.io
 
-# 将会将 assets 文件夹发布
+# 将会 copy 到根目录
 assets:
   - assets
+  - CNAME
 
 # theme_config 字段的值可以在 js 中使用 bblog.getConfig() 获取
 theme_config:

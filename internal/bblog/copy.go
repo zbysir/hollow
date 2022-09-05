@@ -40,6 +40,9 @@ func copyDir(src string, dst string, srcFs fs.FS, dstFs billy.Filesystem) error 
 	if srcinfo, err = fs.Stat(srcFs, src); err != nil {
 		return fmt.Errorf("fs.State %s error: %w", src, err)
 	}
+	if !srcinfo.IsDir() {
+		return copyFile(src, dst, srcFs, dstFs)
+	}
 
 	if err = dstFs.MkdirAll(dst, srcinfo.Mode()); err != nil {
 		return err

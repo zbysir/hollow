@@ -47,6 +47,7 @@ func TestBuildAndPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestBuild(t *testing.T) {
 	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
 	b, err := bblog.NewBblog(bblog.Option{
