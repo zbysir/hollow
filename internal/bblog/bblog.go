@@ -147,7 +147,7 @@ func (b *Bblog) Build(distPath string, o ExecOption) error {
 
 func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
-	conf, err := b.loadConfig()
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 
-	conf, err := b.loadConfig()
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
@@ -264,6 +264,7 @@ func (d *DirFs) Open(name string) (http.File, error) {
 type Config struct {
 	Theme       string      `json:"theme" yaml:"theme"`
 	Git         ConfigGit   `json:"git" yaml:"git"`
+	Oss         ConfigOss   `json:"oss" yaml:"oss"`
 	Assets      Assets      `json:"assets" yaml:"assets"`
 	ThemeConfig interface{} `json:"theme_config" yaml:"theme_config"`
 }
@@ -274,7 +275,15 @@ type ConfigGit struct {
 	Branch string `yaml:"branch"`
 }
 
-func (b *Bblog) loadConfig() (conf *Config, err error) {
+type ConfigOss struct {
+	AccessKey string `yaml:"access_key"`
+	SecretKey string `yaml:"secret_key"`
+	//Zone      string `yaml:"zone"`
+	Bucket string `yaml:"bucket"`
+	Prefix string `yaml:"prefix"`
+}
+
+func (b *Bblog) LoadConfig() (conf *Config, err error) {
 	f, err := easyfs.GetFile(b.projectFs, "config.yml")
 	if err != nil {
 		return nil, err
@@ -286,7 +295,7 @@ func (b *Bblog) loadConfig() (conf *Config, err error) {
 	conf = &Config{}
 	err = yaml.Unmarshal([]byte(body), conf)
 	if err != nil {
-		return nil, fmt.Errorf("loadConfig error: %w", err)
+		return nil, fmt.Errorf("LoadConfig error: %w", err)
 	}
 
 	return
@@ -304,7 +313,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 	prepare := func() error {
 		var conf *Config
 
-		conf, err = b.loadConfig()
+		conf, err = b.LoadConfig()
 		if err != nil {
 			return err
 		}
@@ -512,7 +521,7 @@ type BlogList struct {
 }
 
 func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
-	c, err := b.loadConfig()
+	c, err := b.LoadConfig()
 	if err != nil {
 		return nil, false
 	}
@@ -618,7 +627,7 @@ func (b *Bblog) getBlogDetail(path string) Blog {
 
 // getConfig config.yml 下的 theme_config 字段
 func (b *Bblog) getConfig() interface{} {
-	c, err := b.loadConfig()
+	c, err := b.LoadConfig()
 	if err != nil {
 		panic(err)
 	}

@@ -3,6 +3,14 @@ git:
   token: "${GIT_TOKEN}"
   repo: https://github.com/zbysir/zbysir.github.io
 
+oss:
+  type: qiniu
+  access_key: "${QINIU_AK}"
+  secret_key: "${QINIU_SK}"
+  bucket: bysirblogout
+  prefix: blog
+  domain: http://blog-static.bysir.top
+
 # 将会 copy 到根目录
 assets:
   - statics
@@ -38,3 +46,27 @@ theme_config:
         
         - [音乐舞台](https://github.com/zbysir/bgm-stage)
   gallery:
+    - img: https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://dn-portal-files.qbox.me/sample1.jpg?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://dn-portal-files.qbox.me/sample1.jpg?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://dn-portal-files.qbox.me/sample1.jpg?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'
+    - img: https://dn-portal-files.qbox.me/sample1.jpg?imageView2/2/w/1200/q/75
+      date: 2021-12-25
+      desc: '手工圣诞树'

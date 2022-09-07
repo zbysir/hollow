@@ -6,7 +6,7 @@ export default function Header(props) {
         {href: '/tags', name: 'Tags'},
         {href: '/about', name: 'About'},
         {href: '/links', name: 'Links'},
-        {href: '/gallery', name: 'Gallery'},
+        // {href: '/gallery', name: 'Gallery'},
     ]
 
     let thin = true
