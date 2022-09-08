@@ -30,7 +30,7 @@ code {
 }
 
 .bg-gray-1A1E2A {
-    background-color: #1A1E2A;
+    background-color: #1A1E2A !important;
 }
 
 .App-link {

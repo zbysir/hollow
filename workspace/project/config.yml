@@ -20,7 +20,7 @@ theme_config:
   base: ''
   title: Bysir 的博客
   logo: "bysir"
-  stack: Tailwindcss + <a href="https://github.com/zbysir/blog">BBlog</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
+  stack: Tailwindcss + <a href="https://github.com/zbysir/hollow">Hollow</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
   footer_links:
     - url: https://github.com/zbysir
       name: GitHub
@@ -30,7 +30,7 @@ theme_config:
     - title: 关于博客
       desc: 建立这个博客的目的是分享经验、记录思维
       content: |
-        很久以前就想自己搭建一个博客，记录下自己的东西，但一直没找到合适的工具来搭建博客，故 [写了一个优先满足自己需求的工具](https://github.com/zbysir/bblog)，希望它能承载我所有灵感。
+        很久以前就想自己搭建一个博客，记录下自己的东西，但一直没找到合适的工具来搭建博客，故 [写了一个优先满足自己需求的工具](https://github.com/zbysir/hollow)，希望它能承载我所有灵感。
         
         我想在这里记录我灵感和想法，积少成多，连点成线。
     - title: 关于我

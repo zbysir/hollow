@@ -32,7 +32,6 @@ function App() {
     const [fileTreeTheme, setFileTreeTheme] = useState<FileTreeI>()
     const [currFile, setCurrFile] = useState<FileI>()
     const [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
-    const [ws, setWs] = useState<any>(null)
     const [showPublishModal, setShowPublishModal] = useState(false)
     const [drawer, setDrawer] = useState(false)
     const [fileStatus, setFileStatus] = useState<FileStatus>({modifiedFiles: []})
@@ -109,9 +108,7 @@ function App() {
     }
 
 
-    useEffect(() => {
-        setWs(new Ws())
-    }, [])
+
 
     const onFileMenu = async (m: MenuI, f: FileTreeI) => {
         switch (m.key) {
@@ -313,7 +310,6 @@ function App() {
                 }}
                 show={showPublishModal}
                 onConfirm={doPublish}
-                ws={ws}
             ></PublishModal>
         </div>
     );

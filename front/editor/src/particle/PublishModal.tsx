@@ -4,6 +4,8 @@ import {Terminal} from "xterm";
 import {FitAddon} from 'xterm-addon-fit';
 import {AttachAddon} from 'xterm-addon-attach';
 import "xterm/css/xterm.css"
+import {Publish} from "../api/file";
+import Ws from "../util/ws";
 
 interface Props {
     show: boolean,
@@ -11,7 +13,6 @@ interface Props {
     onConfirm?: () => Promise<void>
     onProgress?: (p: number) => void
     onFinish?: () => void
-    ws?: any
 }
 
 export interface NewFileInfo {
@@ -46,13 +47,25 @@ export default function PublishModal(props: Props) {
     const onConfirm = async () => {
         // 发布 API
         term?.clear()
-        props.onConfirm && await props.onConfirm()
+        // props.onConfirm && await props.onConfirm()
+        let xresolve: (v: unknown) => void
+        const r = await Publish({
+            project_id: 0,
+        })
+
+        const ws = new WebSocket("ws://localhost:9091/ws/" + r.data);
+        ws.onclose = function () {
+            xresolve(false)
+        }
+        const attachAddon = new AttachAddon(ws);
+        term?.loadAddon(attachAddon);
+
+        return new Promise((resolve, reject) => {
+            xresolve = resolve
+        })
     }
 
     useEffect(() => {
-        // if (boxRef.current?.childElementCount) {
-        //     return
-        // }
         let term = new Terminal({
             // cols: 100,
             convertEol: true,
@@ -62,8 +75,7 @@ export default function PublishModal(props: Props) {
         const fitAddon = new FitAddon();
         fitAddon.activate(term!)
         fitAddon.fit();
-        term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ')
-        // term.dispose()
+        term.write('Hello')
 
         if (boxRef.current) {
             console.log('init terminal')
@@ -78,18 +90,18 @@ export default function PublishModal(props: Props) {
         }
     }, [])
 
-    useEffect(() => {
-        // ws
-        props.ws?.Register((bs: string) => {
-            // console.log('xxxx', bs)
-            // term?.writeln(bs)
-        })
-        if (props.ws) {
-            const attachAddon = new AttachAddon(props.ws?.Row());
-            term?.loadAddon(attachAddon);
-        }
-
-    }, [props.ws])
+    // useEffect(() => {
+    //     // ws
+    //     props.ws?.Register((bs: string) => {
+    //         // console.log('xxxx', bs)
+    //         // term?.writeln(bs)
+    //     })
+    //     if (props.ws) {
+    //         const attachAddon = new AttachAddon(props.ws?.Row());
+    //         term?.loadAddon(attachAddon);
+    //     }
+    //
+    // }, [props.ws])
 
     const m2 = <Modal
         className="max-w-5xl"

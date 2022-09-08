@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"net/url"
 	"time"
 )
 
@@ -52,7 +51,7 @@ func (b *BuffSink) Close() error {
 
 type Options struct {
 	IsDev         bool
-	To            zap.Sink
+	To            zapcore.WriteSyncer
 	DisableCaller bool
 	CallerSkip    int
 	Name          string
@@ -60,27 +59,43 @@ type Options struct {
 
 func New(o Options) *zap.SugaredLogger {
 	config := zap.NewDevelopmentConfig()
-	if o.To != nil {
-		_ = zap.RegisterSink("custom", func(u *url.URL) (zap.Sink, error) {
-			return o.To, nil
-		})
-
-		config.OutputPaths = []string{"custom://"}
-	}
 	if !o.IsDev {
 		config.Level.SetLevel(zap.InfoLevel)
 	}
 
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.StampMilli)
+
 	var ops []zap.Option
 
-	config.DisableCaller = o.DisableCaller
-
+	ops = append(ops)
 	if o.CallerSkip != 0 {
 		ops = append(ops, zap.AddCallerSkip(o.CallerSkip))
 	}
-	logger, _ := config.Build(ops...)
+
+	sink := o.To
+	if sink == nil {
+		var err error
+		var closeOut func()
+		sink, closeOut, err = zap.Open(config.OutputPaths...)
+		if err != nil {
+			panic(err)
+
+		}
+		errSink, _, err := zap.Open(config.ErrorOutputPaths...)
+		if err != nil {
+			closeOut()
+			panic(err)
+
+		}
+
+		ops = append(ops, zap.ErrorOutput(errSink))
+	}
+	if !o.DisableCaller {
+		ops = append(ops, zap.AddCaller())
+	}
+	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), sink, config.Level), ops...)
+
 	sugar := logger.Sugar()
 	if o.Name != "" {
 		sugar = sugar.Named(o.Name)

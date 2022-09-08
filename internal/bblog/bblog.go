@@ -110,7 +110,7 @@ func NewBblog(o Option) (*Bblog, error) {
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
 		SourceFs:    o.ThemeFs,
-		Debug:       true,
+		Debug:       false,
 	})
 	if err != nil {
 		panic(err)
@@ -162,7 +162,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		l = o.Log
 	}
 
-	for _, p := range themeModule.Pages {
+	for i, p := range themeModule.Pages {
 		var v, err = p.GetComponent()
 		if err != nil {
 			return err
@@ -182,7 +182,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 			return err
 		}
 
-		l.Infof("create pages: %v ", distFile)
+		l.Infof("create pages [%d]: %v ", i, distFile)
 	}
 
 	for _, a := range themeModule.Assets {

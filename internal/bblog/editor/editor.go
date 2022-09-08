@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/gorilla/websocket"
+	"github.com/thoas/go-funk"
 	"github.com/zbysir/blog/internal/bblog"
 	"github.com/zbysir/blog/internal/pkg/easyfs"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Editor struct {
@@ -125,13 +127,14 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	r := gin.Default()
 	r.Use(Cors())
 
-	r.Any("/ws", func(c *gin.Context) {
+	r.Any("/ws/:key", func(c *gin.Context) {
+		key := c.Param("key")
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			c.Error(err)
 			return
 		}
-		a.hub.Add("", conn)
+		a.hub.Add(key, conn)
 	})
 
 	api := r.Group("/api", func(c *gin.Context) {})
@@ -367,6 +370,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.AbortWithError(400, err)
 			return
 		}
+		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
 			Fs:      gobilly.NewStdFs(fs),
@@ -377,23 +381,36 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		out := &WsSink{hub: a.hub}
+		start := time.Now()
 
-		logWs := log.New(log.Options{
-			IsDev:         false,
-			To:            out,
-			DisableCaller: true,
-			CallerSkip:    0,
-			Name:          "",
-		})
-		dst := memfs.New()
-		err = b.BuildAndPublish(dst, bblog.ExecOption{
-			Log: logWs.Named("[Bblog]"),
-		})
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
+		go func() {
+			defer func() {
+				a.hub.Close(key)
+			}()
+
+			out := &WsSink{hub: a.hub, key: key}
+			logWs := log.New(log.Options{
+				IsDev:         false,
+				To:            out,
+				DisableCaller: true,
+				CallerSkip:    0,
+				Name:          "",
+			})
+			holloLog := logWs.Named("[Hollow]")
+			holloLog.Infof("start publish")
+
+			dst := memfs.New()
+			err = b.BuildAndPublish(dst, bblog.ExecOption{
+				Log: logWs,
+			})
+			if err != nil {
+				holloLog.Errorf("publish fail: %v", err)
+				return
+			}
+			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+		}()
+
+		c.JSON(200, key)
 	})
 
 	err = r.Run(addr)
@@ -406,11 +423,12 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 // WsSink 将 log 写入到 WS
 type WsSink struct {
 	hub *ws.WsHub
+	key string
 }
 
 func (w *WsSink) Write(p []byte) (n int, err error) {
 	//p = append(p, []byte("\r\n")...)
-	err = w.hub.SendAll(p)
+	err = w.hub.Send(w.key, p)
 	if err != nil {
 		return 0, err
 	}

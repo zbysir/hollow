@@ -10,6 +10,7 @@ import (
 
 type WsHub struct {
 	conns map[string]*websocket.Conn
+	msg   map[string]string
 	l     sync.Mutex
 }
 
@@ -17,13 +18,17 @@ func NewHub() *WsHub {
 	return &WsHub{
 		conns: map[string]*websocket.Conn{},
 		l:     sync.Mutex{},
+		msg:   map[string]string{},
 	}
 }
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
+
 func (h *WsHub) Add(key string, conn *websocket.Conn) {
+	h.l.Lock()
+	defer h.l.Unlock()
 	if key == "" {
 		key = fmt.Sprintf("%v", rand.Int63())
 	}
@@ -32,9 +37,16 @@ func (h *WsHub) Add(key string, conn *websocket.Conn) {
 	}
 
 	h.conns[key] = conn
+
+	conn.WriteMessage(1, []byte(h.msg[key]))
 }
 
 func (h *WsHub) Send(key string, body []byte) error {
+	h.l.Lock()
+	defer h.l.Unlock()
+
+	h.msg[key] = h.msg[key] + string(body)
+
 	if o, ok := h.conns[key]; ok {
 		err := o.WriteMessage(1, body)
 		if err != nil {
@@ -42,6 +54,17 @@ func (h *WsHub) Send(key string, body []byte) error {
 		}
 	}
 
+	return nil
+}
+
+func (h *WsHub) Close(key string) error {
+	h.l.Lock()
+	defer h.l.Unlock()
+	if o, ok := h.conns[key]; ok {
+		o.Close()
+	}
+
+	delete(h.conns, key)
 	return nil
 }
 

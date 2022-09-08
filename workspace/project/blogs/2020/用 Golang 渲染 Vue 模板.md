@@ -4,6 +4,7 @@ slug: govue
 date: 2020-01-18
 tags: [Vue, Golang]
 ---
+
 ## Why not [Nuxt](https://nuxtjs.org/guide)
 大佬们进来一定会有一个疑问：为什么已经有vue-ssr了（如nuxt框架）还需要用go来渲染？vue-ssr提供的前后端同构、单页应用加上vue的数据绑定功能，能少写很多代码，它不香吗？
 

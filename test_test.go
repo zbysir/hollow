@@ -59,7 +59,7 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dst := osfs.New("./dist")
+	dst := memfs.New()
 	err = b.BuildToFs(dst, bblog.ExecOption{
 		Log:   nil,
 		IsDev: false,

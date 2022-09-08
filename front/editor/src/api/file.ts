@@ -22,7 +22,10 @@ export const GetFile = (params: GetFileTreeParams) => axios.get<FileI>('/api/fil
 interface PublishParams {
     project_id: number
 }
-export const Publish = (params: PublishParams) => axios.post<FileI>('/api/publish', params);
+interface PublishRsp {
+    key: string
+}
+export const Publish = (params: PublishParams) => axios.post<string>('/api/publish', params);
 
 interface SaveFileParams {
     project_id: number

@@ -1,4 +1,12 @@
-# Hollow
+---
+title: 介绍下 Hollow 这个静态博客生成器
+slug: hollow
+date: 2022-09-02
+tags: [Golang, Jsx, Blog]
+desc: 没有限制、规则，代码即所得。
+---
+
+https://github.com/zbysir/hollow
 
 Hollow 是一款快速、简洁静态博客生成器。目前只服务于自己，还未准备好给大家使用。
 

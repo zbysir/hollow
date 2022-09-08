@@ -85,7 +85,7 @@ export default function FileEditor(props: Props) {
         >
             <CodeMirror
                 ref={mirror}
-                autoFocus={true}
+                autoFocus={false}
                 value={props.file?.body}
                 // defaultValue={props.file?.body}
                 theme="dark"
