@@ -6,11 +6,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/gorilla/websocket"
 	"github.com/zbysir/blog/internal/bblog"
-	"github.com/zbysir/blog/internal/bblog/storage"
-	"github.com/zbysir/blog/internal/pkg/db"
 	"github.com/zbysir/blog/internal/pkg/easyfs"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"github.com/zbysir/blog/internal/pkg/log"
@@ -18,6 +17,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -25,13 +25,23 @@ import (
 type Editor struct {
 	hub *ws.WsHub
 	//dbDir   string
-	project *storage.Project
-	db      *db.KvDb
+	//project *storage.Project
+	//db               *db.KvDb
+	projectFsFactory FsFactory
+	themeFsFactory   FsFactory
 }
 
-func NewEditor(db *db.KvDb, project *storage.Project) *Editor {
+type FsFactory func(pid int64) (billy.Filesystem, error)
+
+func NewEditor(projectFsFactory FsFactory,
+	themeFsFactory FsFactory) *Editor {
 	hub := ws.NewHub()
-	return &Editor{hub: hub, db: db, project: project}
+	return &Editor{
+		hub: hub,
+		//db:               nil,
+		projectFsFactory: projectFsFactory,
+		themeFsFactory:   themeFsFactory,
+	}
 }
 
 type fileTreeParams struct {
@@ -101,16 +111,13 @@ var upgrader = websocket.Upgrader{
 }
 
 // 一个项目可以有多个 FS，比如存储源文件，比如存储主题
-func (a *Editor) projectFs(pid int64, bucket string) (*gobilly.DbFs, error) {
-	st, err := a.db.Open(fmt.Sprintf("project_%v", pid), bucket)
-	if err != nil {
-		return nil, err
+func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
+	switch bucket {
+	case "theme":
+		return a.themeFsFactory(pid)
 	}
-	fs := gobilly.NewDbFs(st)
-	if err != nil {
-		return nil, fmt.Errorf("new fs error: %w", err)
-	}
-	return fs, nil
+	return a.projectFsFactory(pid)
+
 }
 
 // localhost:9090/api/file/tree
@@ -185,7 +192,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		f, err := fs.Open(p.Path)
+		f, err := fs.OpenFile(p.Path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
 		if err != nil {
 			c.AbortWithError(400, err)
 			return

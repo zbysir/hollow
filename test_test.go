@@ -2,19 +2,20 @@ package main
 
 import (
 	"context"
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/blog/internal/bblog"
+	"github.com/zbysir/blog/internal/bblog/editor"
 	"github.com/zbysir/blog/internal/pkg/db"
 	"github.com/zbysir/blog/internal/pkg/gobilly"
 	"testing"
 )
 
 func TestService(t *testing.T) {
-	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
 	b, err := bblog.NewBblog(bblog.Option{
 		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
-		ThemeFs: themeFs,
+		ThemeFs: gobilly.NewStdFs(osfs.New("./workspace/theme")),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -92,5 +93,17 @@ func TestServiceDbFs(t *testing.T) {
 	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, ":8083")
 	if err != nil {
 		panic(err)
+	}
+}
+
+func TestEditor(t *testing.T) {
+	e := editor.NewEditor(func(pid int64) (billy.Filesystem, error) {
+		return osfs.New("./workspace/project"), nil
+	}, func(pid int64) (billy.Filesystem, error) {
+		return osfs.New("./workspace/theme"), nil
+	})
+	err := e.Run(nil, ":9091")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -21,4 +21,13 @@ func TestEditor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// st, err := a.db.Open(fmt.Sprintf("project_%v", pid), bucket)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	fs := gobilly.NewDbFs(st)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("new fs error: %w", err)
+	//	}
 }

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import {Helmet} from "react-helmet";
 
 const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement
@@ -10,6 +11,16 @@ const root = ReactDOM.createRoot(
 root.render(
     <React.StrictMode>
         <App />
+
+        <Helmet>
+            <meta charSet="utf-8" />
+            <title>My Title</title>
+            <meta name="apple-mobile-web-app-capable" content="yes" />
+            <meta name="x5-orientation" content="portrait"/>
+            <meta name="full-screen" content="yes"/>
+
+
+        </Helmet>
     </React.StrictMode>
 );
 

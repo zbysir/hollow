@@ -14,7 +14,7 @@ export function Menu(props: Props) {
             props.menus.map(i => (
                 <span
                     key={i.key}
-                    className="hover:bg-gray-700 cursor-pointer pl-3 py-0.5"
+                    className="hover:bg-gray-700 cursor-pointer px-3 py-0.5"
                     onClick={() => props.onMenuClick && props.onMenuClick(i)}
                 >{i.name}</span>
             ))

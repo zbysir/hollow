@@ -7,6 +7,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* 使用 100% 而不是 100vh 是因为移动端有浏览器头部，会导致实际高度超过视图*/
+html, body, #root,.App,.App-header{
+    height: 100%;
+    /*height: -webkit-fill-available;*/
+}
+
 code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
@@ -14,7 +20,7 @@ code {
 
 .App-header {
     background-color: #282c34;
-    min-height: 100vh;
+    /*min-height: 100vh;*/
     display: flex;
     color: white;
 }

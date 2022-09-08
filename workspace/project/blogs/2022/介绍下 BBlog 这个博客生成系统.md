@@ -1,5 +1,5 @@
 ---
-title: 介绍下 BBlog 这个博客生成系统
+title: 介绍下 Hollow 这个博客生成系统
 slug: bblog
 date: 2022-09-02
 tags: [Golang, Jsx, Blog]

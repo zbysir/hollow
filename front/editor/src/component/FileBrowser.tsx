@@ -6,6 +6,7 @@ import ReactDOM from "react-dom/client";
 import {Menu} from "./Menu";
 import {MenuI} from "./Header";
 import {DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon} from "../icon";
+import {ShowPopupMenu} from "../util/popupMenu";
 
 export interface FileTreeI extends FileI {
     items?: FileTreeI[]
@@ -41,34 +42,24 @@ function FileTree(props: Props) {
         }
     })
 
-
-    const onContextMenuClick = (m: MenuI, target: FileTreeI) => {
-        props.onMenu && props.onMenu(m, target)
-    }
-
     const handleContextMenu = (e: MouseEvent<HTMLDivElement>) => {
         e.preventDefault()
         e.stopPropagation()
-        menuDom.current?.remove()
 
-        const dom = document.createElement('div');
-        const m = <div
-            className="bg-gray-272C38 border border-gray-600 rounded-sm text-sm text-white py-1" style={
-            {position: "fixed", left: e.clientX + "px", top: e.clientY + "px", minWidth: '140px', zIndex: 1000}
-        }>
-            <Menu menus={[
+        ShowPopupMenu({
+            x: e.clientX,
+            y: e.clientY,
+            menu: [
                 {name: "New File", key: "new file"},
                 {name: "New Directory", key: "new directory"},
                 {name: "Open", key: "open"},
                 {name: "Delete", key: "delete"},
-            ]} onMenuClick={(m) => onContextMenuClick(m, props.tree!)}></Menu>
-        </div>
-
-        ReactDOM.createRoot(dom).render(m);
-
-        document.body.appendChild(dom);
-
-        menuDom.current = dom
+            ],
+            onClick: (m) => {
+                props.onMenu && props.onMenu(m, props.tree!)
+            },
+            id: ""
+        })
     }
 
     let ext = 'default'
@@ -88,7 +79,7 @@ function FileTree(props: Props) {
     return <div>
         {props.tree?.name === "" && props.tree?.path === "" ?
             <div
-                className="min-h-8"
+                className="min-h-8 select-none	"
                 onContextMenu={handleContextMenu}
             >
                 {

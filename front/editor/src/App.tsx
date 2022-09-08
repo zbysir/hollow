@@ -1,5 +1,5 @@
 import FileBrowser, {FileTreeI} from "./component/FileBrowser";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {
     CreateDirectory,
     CreateFile,
@@ -17,6 +17,13 @@ import Confirm from "./component/Confirm";
 import NewFileModal, {NewFileInfo} from "./particle/NewFileModal";
 import PublishModal from "./particle/PublishModal";
 import Ws from "./util/ws";
+import {ShowPopupMenu} from "./util/popupMenu";
+import {DownloadIcon} from "./icon";
+import debounce from "lodash/debounce";
+
+export interface FileStatus {
+    modifiedFiles: FileI[]
+}
 
 function App() {
     const [pid, setPid] = useState(1)
@@ -28,27 +35,73 @@ function App() {
     const [ws, setWs] = useState<any>(null)
     const [showPublishModal, setShowPublishModal] = useState(false)
     const [drawer, setDrawer] = useState(false)
+    const [fileStatus, setFileStatus] = useState<FileStatus>({modifiedFiles: []})
     const bucket = workspace
+
+    const setFileStatusFileModified = (f: FileI, modify: boolean) => {
+        const newStatus = {...fileStatus}
+        // console.log('fileStatus.modifiedFiles', fileStatus.modifiedFiles)
+        const idx = fileStatus.modifiedFiles.findIndex(i => i.path === f.path)
+        if (idx === -1) {
+            if (modify) {
+                newStatus.modifiedFiles.push({...f, modified: true})
+            }
+        } else {
+            if (!modify) {
+                newStatus.modifiedFiles.splice(idx, 1)
+            }
+        }
+        // console.log('xxx', f, modify, newStatus)
+
+        setFileStatus(newStatus)
+    }
 
     const reloadFileTree = async () => {
         const ft = await GetFileTree({project_id: pid, path: "", bucket: 'project'})
         setFileTreeProject(ft.data)
         {
-            const ft = await GetFileTree({project_id: pid, path: "", bucket: 'theme'})
-            setFileTreeTheme(ft.data)
+            // const ft = await GetFileTree({project_id: pid, path: "", bucket: 'theme'})
+            // setFileTreeTheme(ft.data)
         }
     }
     useEffect(() => {
         (reloadFileTree)();
     }, [])
 
-    const onFileChange = async (body: string) => {
-        await SaveFile({project_id: pid, path: currFile?.path!, bucket: bucket, body: body})
+    useEffect(() => {
+        const convertStyle = () => {
+            const height = window.innerHeight;
+            // alert(height)
+            // document.body.style.height = `${height}px`;
+        }
+        window.addEventListener("resize", convertStyle);
+        setInterval(() => {
+            convertStyle()
+        }, 1000)
+        convertStyle()
+    })
+
+    const debounceSave = useMemo(() => {
+        return debounce(async (f :FileI) => {
+            await onFileSave(f)
+        }, 1000)
+    }, [])
+
+    const onFileChange = useCallback((f :FileI)=>{
+        console.log('onFileChange',f.path)
+        setFileStatusFileModified(f!, true)
+        // 自动保存
+        debounceSave(f)
+    },[])
+
+    const onFileSave = async (f: FileI) => {
+        console.log('onFileSave',f.path)
+        setFileStatusFileModified(f, false)
+        await SaveFile({project_id: pid, path: f?.path!, bucket: bucket, body: f.body})
     }
 
-    const onFileClick = async (f: FileI) => {
-        setCurrFile(f)
 
+    const onFileClick = async (f: FileI) => {
         if (!f.is_dir) {
             const nf = await GetFile({project_id: pid, path: f.path, bucket: bucket})
             setCurrFile(nf.data)
@@ -132,16 +185,14 @@ function App() {
 
     const onLeftTab = (m: MenuI) => {
         switch (m.key) {
-            case 'project':
+            case 'files':
                 setWorkspace("project")
                 switchDrawer()
                 break
             case 'theme':
                 setWorkspace("theme")
                 break
-            case 'publish':
-                setShowPublishModal(true)
-                break
+
         }
     }
 
@@ -155,65 +206,99 @@ function App() {
         switch (m.key) {
             case 'publish':
                 setShowPublishModal(true)
-                break
+                return
+            case 'menu':
+                ShowPopupMenu({
+                    x: 20,
+                    y: 20,
+                    menu: [
+                        {
+                            name: <div className={"flex space-x-2"}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                     strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                          d="M7.5 7.5h-.75A2.25 2.25 0 004.5 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-7.5a2.25 2.25 0 00-2.25-2.25h-.75m-6 3.75l3 3m0 0l3-3m-3 3V1.5m6 9h.75a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-7.5a2.25 2.25 0 01-2.25-2.25v-.75"/>
+                                </svg>
+                                <span>Update Project</span></div>, key: "update project"
+                        },
+                        {
+                            name: <div className={"flex space-x-2"}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                     strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round"
+                                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                                </svg>
+                                <span>Push</span>
+
+                            </div>, key: "push"
+                        },
+                    ],
+                    onClick: (m) => {
+
+                    },
+                    id: "",
+                    mask: true,
+                })
         }
+        onLeftTab(m)
+        return
     }
 
     // @ts-ignore
     return (
-        <div className="App" data-theme="dark">
-            <div className="App-header flex-col h-screen space-y-2 bg-gray-1A1E2A">
-                <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile}></Header>
-                <section className="flex-1 flex h-0 ">
-                    <div className="w-6 ">
-                        <MenuVertical
-                            menus={[
-                                {key: "project", name: "Project"},
-                                {key: "theme", name: "Theme"},
-                            ]}
-                            activeKey={workspace}
-                            onMenuClick={onLeftTab}></MenuVertical>
-                    </div>
-                    <div className="drawer drawer-mobile h-auto flex-1">
-                        <input
-                            type="checkbox"
-                            checked={drawer}
-                            onChange={() => {
-                            }}
-                            className="drawer-toggle"/>
-                        <div className="drawer-content h-full">
-                            <div className="bg-gray-272C38 rounded-lg h-full  p-2">
-                                <FileEditor file={currFile} onChange={onFileChange}/>
-                            </div>
-                        </div>
-                        <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
-                            <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
-                            <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto">
-                                <>
-                                    <div style={{display: workspace === 'project' ? '' : 'none'}}>
-                                        <FileBrowser
-                                            tree={fileTreeProject}
-                                            currFile={currFile}
-                                            onFileClick={onFileClick}
-                                            onMenu={onFileMenu}
-                                        ></FileBrowser>
-                                    </div>
 
-                                    <div style={{display: workspace === 'theme' ? '' : 'none'}}>
-                                        <FileBrowser
-                                            tree={fileTreeTheme}
-                                            currFile={currFile}
-                                            onFileClick={onFileClick}
-                                            onMenu={onFileMenu}
-                                        ></FileBrowser>
-                                    </div>
-                                </>
-
-                            </div>
+        <div className="App flex flex-col space-y-2 bg-gray-1A1E2A" data-theme="dark">
+            <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile} drawer={drawer}
+                    fileStatus={fileStatus}></Header>
+            <section className="flex-1 flex h-0 relative">
+                <div className="absolute z-10 p-1 pl-0 pt-0 " style={{left: 0, top: 0}}>
+                    <MenuVertical
+                        menus={[
+                            {key: "files", name: "Files"},
+                        ]}
+                        activeKey={workspace}
+                        onMenuClick={onLeftTab}></MenuVertical>
+                </div>
+                <div className="drawer drawer-mobile h-auto flex-1">
+                    <input
+                        type="checkbox"
+                        checked={drawer}
+                        onChange={() => {
+                        }}
+                        className="drawer-toggle"/>
+                    <div className="drawer-content h-full">
+                        <div className="bg-gray-272C38 rounded-lg h-full  p-2">
+                            <FileEditor file={currFile} onChange={onFileChange} onSave={onFileSave}/>
                         </div>
                     </div>
-                </section>
-            </div>
+                    <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
+                        <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
+                        <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto">
+                            <>
+                                <div style={{display: workspace === 'project' ? '' : 'none'}}>
+                                    <FileBrowser
+                                        tree={fileTreeProject}
+                                        currFile={currFile}
+                                        onFileClick={onFileClick}
+                                        onMenu={onFileMenu}
+                                    ></FileBrowser>
+                                </div>
+
+                                <div style={{display: workspace === 'theme' ? '' : 'none'}}>
+                                    <FileBrowser
+                                        tree={fileTreeTheme}
+                                        currFile={currFile}
+                                        onFileClick={onFileClick}
+                                        onMenu={onFileMenu}
+                                    ></FileBrowser>
+                                </div>
+                            </>
+
+                        </div>
+                    </div>
+                </div>
+            </section>
+
 
             {/* New file Modal */}
             <NewFileModal
