@@ -5,17 +5,17 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/zbysir/blog/internal/bblog"
-	"github.com/zbysir/blog/internal/bblog/editor"
-	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/bblog/editor"
+	"github.com/zbysir/hollow/internal/pkg/db"
+	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"testing"
 )
 
 func TestService(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
-		ThemeFs: gobilly.NewStdFs(osfs.New("./workspace/theme")),
+		Fs:      osfs.New("./workspace/project"),
+		ThemeFs: osfs.New("./workspace/theme"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -30,10 +30,9 @@ func TestService(t *testing.T) {
 }
 
 func TestBuildAndPublish(t *testing.T) {
-	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
-		ThemeFs: themeFs,
+		Fs:      osfs.New("./workspace/project"),
+		ThemeFs: osfs.New("./workspace/theme"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -50,10 +49,9 @@ func TestBuildAndPublish(t *testing.T) {
 }
 
 func TestBuild(t *testing.T) {
-	themeFs := gobilly.NewStdFs(osfs.New("./workspace/theme"))
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      gobilly.NewStdFs(osfs.New("./workspace/project")),
-		ThemeFs: themeFs,
+		Fs:      osfs.New("./workspace/project"),
+		ThemeFs: osfs.New("./workspace/theme"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +83,7 @@ func TestServiceDbFs(t *testing.T) {
 	}
 	fProject := gobilly.NewDbFs(stp)
 
-	b, err := bblog.NewBblog(bblog.Option{ThemeFs: gobilly.NewStdFs(fa), Fs: gobilly.NewStdFs(fProject)})
+	b, err := bblog.NewBblog(bblog.Option{ThemeFs: fa, Fs: fProject})
 	if err != nil {
 		panic(err)
 	}

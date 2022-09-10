@@ -3,7 +3,7 @@ package bblog
 import (
 	"fmt"
 	"github.com/russross/blackfriday/v2"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"path/filepath"
 )

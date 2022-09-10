@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zbysir/blog/internal/bblog"
-	"github.com/zbysir/blog/internal/pkg/log"
-	"github.com/zbysir/blog/internal/pkg/oss/qiniu"
+	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/oss/qiniu"
 	"os"
 )
 
@@ -16,7 +17,7 @@ var AssetsUpload = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir := viper.GetString("d")
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      os.DirFS(dir),
+			Fs:      osfs.New(dir),
 			ThemeFs: nil,
 		})
 		if err != nil {

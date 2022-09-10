@@ -6,7 +6,7 @@ import {
     DeleteFile,
     GetFile,
     GetFileTree,
-    Publish,
+    Publish, Pull, Push,
     SaveFile,
     UploadFiles
 } from "./api/file";
@@ -20,9 +20,15 @@ import Ws from "./util/ws";
 import {ShowPopupMenu} from "./util/popupMenu";
 import {DownloadIcon} from "./icon";
 import debounce from "lodash/debounce";
+import ProcessModal from "./particle/ProcessModal";
 
 export interface FileStatus {
     modifiedFiles: FileI[]
+}
+
+interface ProcessModalI {
+    title: string
+    wsKey?: string
 }
 
 function App() {
@@ -36,6 +42,7 @@ function App() {
     const [drawer, setDrawer] = useState(false)
     const [fileStatus, setFileStatus] = useState<FileStatus>({modifiedFiles: []})
     const bucket = workspace
+    const [processModal, setProcessModal] = useState<ProcessModalI>()
 
     const setFileStatusFileModified = (f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
@@ -106,9 +113,6 @@ function App() {
             setCurrFile(nf.data)
         }
     }
-
-
-
 
     const onFileMenu = async (m: MenuI, f: FileTreeI) => {
         switch (m.key) {
@@ -216,7 +220,9 @@ function App() {
                                     <path strokeLinecap="round" strokeLinejoin="round"
                                           d="M7.5 7.5h-.75A2.25 2.25 0 004.5 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-7.5a2.25 2.25 0 00-2.25-2.25h-.75m-6 3.75l3 3m0 0l3-3m-3 3V1.5m6 9h.75a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-7.5a2.25 2.25 0 01-2.25-2.25v-.75"/>
                                 </svg>
-                                <span>Update Project</span></div>, key: "update project"
+                                <span>Update Project</span>
+                            </div>,
+                            key: "update project"
                         },
                         {
                             name: <div className={"flex space-x-2"}>
@@ -226,12 +232,28 @@ function App() {
                                           d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
                                 </svg>
                                 <span>Push</span>
-
-                            </div>, key: "push"
+                            </div>,
+                            key: "push"
                         },
                     ],
-                    onClick: (m) => {
+                    onClick: async (m) => {
+                        switch (m.key) {
+                            case "update project":
+                                let r = await Pull()
 
+                                setProcessModal({
+                                    title: "update",
+                                    wsKey: r.data,
+                                })
+                                break
+                            case "push":
+                                let rr = await Push()
+
+                                setProcessModal({
+                                    title: "update",
+                                    wsKey: rr.data,
+                                })
+                        }
                     },
                     id: "",
                     mask: true,
@@ -311,6 +333,14 @@ function App() {
                 show={showPublishModal}
                 onConfirm={doPublish}
             ></PublishModal>
+            <ProcessModal
+                onClose={() => {
+                    setProcessModal(undefined)
+                }}
+                show={!!processModal}
+                onConfirm={doPublish}
+                wsKey={processModal?.wsKey}
+            ></ProcessModal>
         </div>
     );
 }

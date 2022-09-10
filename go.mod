@@ -1,4 +1,4 @@
-module github.com/zbysir/blog
+module github.com/zbysir/hollow
 
 go 1.18
 
@@ -10,6 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/hanwen/go-fuse v1.0.0
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/qiniu/go-sdk/v7 v7.13.0
 	github.com/russross/blackfriday/v2 v2.1.0
@@ -63,6 +64,7 @@ require (
 	github.com/subosito/gotenv v1.3.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
+	github.com/zbysir/blog v0.0.0-20220908145059-ffdcb2e21075 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect

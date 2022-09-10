@@ -3,7 +3,7 @@ package fusefs
 import (
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/sirupsen/logrus"
-	db2 "github.com/zbysir/blog/internal/pkg/db"
+	db2 "github.com/zbysir/hollow/internal/pkg/db"
 	"io/ioutil"
 	"path/filepath"
 	"testing"

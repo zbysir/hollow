@@ -3,8 +3,8 @@ package bblog
 import (
 	"fmt"
 	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/db"
+	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"path/filepath"
 	"testing"
 )
@@ -26,8 +26,8 @@ func TestSource(t *testing.T) {
 
 func TestLoad(t *testing.T) {
 	b, err := NewBblog(Option{
-		Fs:      gobilly.NewStdFs(osfs.New("../../workspace/project")),
-		ThemeFs: gobilly.NewStdFs(osfs.New("../../workspace/theme")),
+		Fs:      osfs.New("../../workspace/project"),
+		ThemeFs: osfs.New("../../workspace/theme"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -67,8 +67,8 @@ func TestBuildFromFs(t *testing.T) {
 	fs := gobilly.NewDbFs(st2)
 
 	b, err := NewBblog(Option{
-		Fs:      gobilly.NewStdFs(fs),
-		ThemeFs: gobilly.NewStdFs(fsTheme),
+		Fs:      fs,
+		ThemeFs: fsTheme,
 	})
 
 	err = b.Build("docs", ExecOption{

@@ -4,7 +4,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io/ioutil"
 	"os"
 	"path/filepath"

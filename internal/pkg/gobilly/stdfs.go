@@ -20,15 +20,28 @@ func NewStdFs(under billy.Filesystem) *StdFs {
 }
 
 func (s *StdFs) Open(name string) (fs.File, error) {
-	f, err := s.under.Open(name)
+	stat, err := s.under.Stat(name)
 	if err != nil {
 		return nil, err
 	}
-	return &stdFile{
-		f:     f,
-		path:  name,
-		under: s.under,
-	}, nil
+	if stat.IsDir() {
+		return &stdFile{
+			f:     nil,
+			path:  name,
+			under: s.under,
+		}, nil
+	} else {
+		f, err := s.under.Open(name)
+		if err != nil {
+			return nil, err
+		}
+		return &stdFile{
+			f:     f,
+			path:  name,
+			under: s.under,
+		}, nil
+	}
+
 }
 
 var _ fs.FS = (*StdFs)(nil)
@@ -85,6 +98,9 @@ func (s *stdFile) Read(bytes []byte) (int, error) {
 }
 
 func (s *stdFile) Close() error {
+	if s.f == nil {
+		return nil
+	}
 	return s.f.Close()
 }
 

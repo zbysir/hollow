@@ -81,3 +81,6 @@ export const UploadFiles = (params: UploadFilesParams) => {
 
     return axios.put<void>('/api/file/upload', forms, configs);
 }
+
+export const Pull = () => axios.post<string>('/api/pull');
+export const Push = () => axios.post<string>('/api/push');

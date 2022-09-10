@@ -1,4 +1,4 @@
-package bblog
+package easyfs
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"path"
 )
 
-func copyFile(src, dst string, srcFs fs.FS, dstFs billy.Filesystem) error {
+func CopyFile(src, dst string, srcFs fs.FS, dstFs billy.Filesystem) error {
 	var err error
 	var srcfd fs.File
 	var dstfd billy.File
@@ -32,7 +32,7 @@ func copyFile(src, dst string, srcFs fs.FS, dstFs billy.Filesystem) error {
 	return nil
 }
 
-func copyDir(src string, dst string, srcFs fs.FS, dstFs billy.Filesystem) error {
+func CopyDir(src string, dst string, srcFs fs.FS, dstFs billy.Filesystem) error {
 	var err error
 	var fds []os.DirEntry
 	var srcinfo os.FileInfo
@@ -41,7 +41,7 @@ func copyDir(src string, dst string, srcFs fs.FS, dstFs billy.Filesystem) error 
 		return fmt.Errorf("fs.State %s error: %w", src, err)
 	}
 	if !srcinfo.IsDir() {
-		return copyFile(src, dst, srcFs, dstFs)
+		return CopyFile(src, dst, srcFs, dstFs)
 	}
 
 	if err = dstFs.MkdirAll(dst, srcinfo.Mode()); err != nil {
@@ -55,11 +55,11 @@ func copyDir(src string, dst string, srcFs fs.FS, dstFs billy.Filesystem) error 
 		dstfp := path.Join(dst, fd.Name())
 
 		if fd.IsDir() {
-			if err = copyDir(srcfp, dstfp, srcFs, dstFs); err != nil {
+			if err = CopyDir(srcfp, dstfp, srcFs, dstFs); err != nil {
 				log.Warnf("exportDir error: %s", err)
 			}
 		} else {
-			if err = copyFile(srcfp, dstfp, srcFs, dstFs); err != nil {
+			if err = CopyFile(srcfp, dstfp, srcFs, dstFs); err != nil {
 				log.Warnf("exportFile error: %s", err)
 			}
 		}

@@ -1,4 +1,4 @@
-package bblog
+package easyfs
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestExport(t *testing.T) {
+func TestCopy(t *testing.T) {
 	d, err := db.NewKvDb("./editor/database")
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestExport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = copyDir("/", "", gobilly.NewStdFs(fsTheme), osfs.New("../.cached"))
+	err = CopyDir("/", "", gobilly.NewStdFs(fsTheme), osfs.New("../.cached"))
 	if err != nil {
 		t.Fatal(err)
 	}

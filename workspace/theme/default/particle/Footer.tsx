@@ -6,7 +6,7 @@ export default function Footer(props) {
                 {/*<a href="#_" class="text-xl font-black leading-none text-gray-900 select-none logo">{props.name}<span*/}
                 {/*    class="text-indigo-600">.</span></a>*/}
                 <p class="mt-4 text-sm text-gray-500 sm:border-gray-200 sm:mt-0">© 2022 {props.name}'s Blog -
-                    Tailwindcss + <a href="https://github.com/zbysir/blog">BBlog</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
+                    Tailwindcss + <a href="https://github.com/zbysir/hollow">BBlog</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
                 </p>
                 <span class="inline-flex justify-center mt-4 space-x-5 sm:ml-auto sm:mt-0 sm:justify-start">
             <a href="#" class="text-gray-400 hover:text-gray-500">

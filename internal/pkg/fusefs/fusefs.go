@@ -3,7 +3,7 @@ package fusefs
 import (
 	"fmt"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"path"
 	"path/filepath"

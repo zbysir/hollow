@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zbysir/blog/internal/cmd"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/cmd"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"os"
 )
 

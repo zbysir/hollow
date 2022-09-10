@@ -10,11 +10,11 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/gorilla/websocket"
 	"github.com/thoas/go-funk"
-	"github.com/zbysir/blog/internal/bblog"
-	"github.com/zbysir/blog/internal/pkg/easyfs"
-	"github.com/zbysir/blog/internal/pkg/gobilly"
-	"github.com/zbysir/blog/internal/pkg/log"
-	ws "github.com/zbysir/blog/internal/pkg/ws"
+	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/pkg/easyfs"
+	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/log"
+	ws "github.com/zbysir/hollow/internal/pkg/ws"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -373,8 +373,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      gobilly.NewStdFs(fs),
-			ThemeFs: gobilly.NewStdFs(fsTheme),
+			Fs:      fs,
+			ThemeFs: fsTheme,
 		})
 		if err != nil {
 			c.Error(err)
@@ -401,6 +401,115 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 
 			dst := memfs.New()
 			err = b.BuildAndPublish(dst, bblog.ExecOption{
+				Log: logWs,
+			})
+			if err != nil {
+				holloLog.Errorf("publish fail: %v", err)
+				return
+			}
+			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+		}()
+
+		c.JSON(200, key)
+	})
+
+	api.POST("/pull", func(c *gin.Context) {
+		fsTheme, err := a.projectFs(0, "theme")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		fs, err := a.projectFs(0, "project")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		key := funk.RandomString(6)
+
+		b, err := bblog.NewBblog(bblog.Option{
+			Fs:      fs,
+			ThemeFs: fsTheme,
+		})
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		start := time.Now()
+
+		go func() {
+			defer func() {
+				a.hub.Close(key)
+			}()
+
+			out := &WsSink{hub: a.hub, key: key}
+			logWs := log.New(log.Options{
+				IsDev:         false,
+				To:            out,
+				DisableCaller: true,
+				CallerSkip:    0,
+				Name:          "",
+			})
+			holloLog := logWs.Named("[Hollow]")
+			holloLog.Infof("start publish")
+
+			err = b.PullProject(bblog.ExecOption{
+				Log: logWs,
+			})
+			if err != nil {
+				holloLog.Errorf("publish fail: %v", err)
+				return
+			}
+			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+		}()
+
+		c.JSON(200, key)
+	})
+
+	api.POST("/push", func(c *gin.Context) {
+
+		fsTheme, err := a.projectFs(0, "theme")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		fs, err := a.projectFs(0, "project")
+		if err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		key := funk.RandomString(6)
+
+		b, err := bblog.NewBblog(bblog.Option{
+			Fs:      fs,
+			ThemeFs: fsTheme,
+		})
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		start := time.Now()
+
+		go func() {
+			defer func() {
+				a.hub.Close(key)
+			}()
+
+			out := &WsSink{hub: a.hub, key: key}
+			logWs := log.New(log.Options{
+				IsDev:         false,
+				To:            out,
+				DisableCaller: true,
+				CallerSkip:    0,
+				Name:          "",
+			})
+			holloLog := logWs.Named("[Hollow]")
+			holloLog.Infof("start publish")
+
+			err = b.PushProject(bblog.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {

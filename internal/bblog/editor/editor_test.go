@@ -1,8 +1,8 @@
 package editor
 
 import (
-	"github.com/zbysir/blog/internal/bblog/storage"
-	"github.com/zbysir/blog/internal/pkg/db"
+	"github.com/zbysir/hollow/internal/bblog/storage"
+	"github.com/zbysir/hollow/internal/pkg/db"
 	"testing"
 )
 

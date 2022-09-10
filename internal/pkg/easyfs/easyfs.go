@@ -78,6 +78,10 @@ func GetFileTree(fs stdFs.FS, base string, deep int) (ft FileTree, err error) {
 		return fds[i].Name() < fds[j].Name()
 	})
 	for _, fd := range fds {
+		if fd.Name() == ".git" {
+			continue
+		}
+
 		srcfp := path.Join(base, fd.Name())
 
 		if fd.IsDir() {

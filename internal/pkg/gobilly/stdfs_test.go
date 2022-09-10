@@ -1,8 +1,8 @@
 package gobilly
 
 import (
-	"github.com/zbysir/blog/internal/pkg/db"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/db"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io/fs"
 	"path/filepath"
 	"testing"

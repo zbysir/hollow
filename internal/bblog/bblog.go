@@ -9,10 +9,12 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/zbysir/blog/internal/pkg/easyfs"
-	"github.com/zbysir/blog/internal/pkg/git"
-	"github.com/zbysir/blog/internal/pkg/log"
+	lru "github.com/hashicorp/golang-lru"
 	jsx "github.com/zbysir/gojsx"
+	"github.com/zbysir/hollow/internal/pkg/easyfs"
+	"github.com/zbysir/hollow/internal/pkg/git"
+	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"io/fs"
@@ -79,15 +81,16 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 
 type Bblog struct {
 	x *jsx.Jsx
-	// 项目文件和主题文件可以独立，比如支持 project 在本地编写，主题通过 http 加载，用来做主题预览
-	projectFs fs.FS // 项目文件
-	themeFs   fs.FS // 多个主题，顶级是主题名字文件夹
+	// 项目文件和主题文件可以独立，比如支持 project 在本地编写，主题通过 http 加载（到本地），用来做主题预览
+	projectFs billy.Filesystem // 项目文件
+	themeFs   billy.Filesystem // 多个主题，顶级是主题名字文件夹
 	log       *zap.SugaredLogger
+	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 }
 
 type Option struct {
-	Fs      fs.FS
-	ThemeFs fs.FS
+	Fs      billy.Filesystem
+	ThemeFs billy.Filesystem
 }
 
 type StdFileSystem struct {
@@ -100,7 +103,7 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 func NewBblog(o Option) (*Bblog, error) {
 	if o.Fs == nil {
 		//o.Fs = os.DirFS(".")
-		o.Fs = StdFileSystem{}
+		o.Fs = osfs.New(".")
 	}
 	if o.ThemeFs == nil {
 		o.ThemeFs = o.Fs
@@ -109,18 +112,23 @@ func NewBblog(o Option) (*Bblog, error) {
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
-		SourceFs:    o.ThemeFs,
+		SourceFs:    gobilly.NewStdFs(o.ThemeFs),
 		Debug:       false,
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
+	cache, err := lru.New(100)
+	if err != nil {
+		return nil, err
+	}
 	b := &Bblog{
 		x:         x,
 		projectFs: o.Fs,
 		log:       log.StdLogger,
 		themeFs:   o.ThemeFs,
+		cache:     cache,
 	}
 
 	x.RegisterModule("@bysir/hollow", map[string]interface{}{
@@ -189,7 +197,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		d := filepath.Dir(configFile)
 
 		srcDir := filepath.Join(d, a)
-		err = copyDir(srcDir, "", b.themeFs, dst)
+		err = copyDir(srcDir, "", gobilly.NewStdFs(b.themeFs), dst)
 		if err != nil {
 			return err
 		}
@@ -197,7 +205,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	}
 
 	for _, a := range conf.Assets {
-		err = copyDir(a, "", b.projectFs, dst)
+		err = copyDir(a, "", gobilly.NewStdFs(b.projectFs), dst)
 		if err != nil {
 			return err
 		}
@@ -223,16 +231,68 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 	if o.Log != nil {
 		l = o.Log
 	}
-	g := git.NewGit(conf.Git.Token, l)
-
-	branch := conf.Git.Branch
-	if branch == "" {
-		branch = "docs"
-	}
-	err = g.Push(dst, conf.Git.Repo, "bblog", branch, true)
+	g, err := git.NewGit(conf.Deploy.Token, dst, l)
 	if err != nil {
 		return err
 	}
+
+	branch := conf.Deploy.Branch
+	if branch == "" {
+		branch = "docs"
+	}
+	err = g.Push(conf.Deploy.Repo, branch, "by hollow", true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *Bblog) PushProject(o ExecOption) error {
+	conf, err := b.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	l := b.log
+	if o.Log != nil {
+		l = o.Log
+	}
+
+	g, err := git.NewGit(conf.Source.Token, b.projectFs, l)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("config %+v", conf.Source)
+	err = g.Push(conf.Source.Repo, conf.Source.Branch, "-", true)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Bblog) PullProject(o ExecOption) error {
+	conf, err := b.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	l := b.log
+	if o.Log != nil {
+		l = o.Log
+	}
+
+	g, err := git.NewGit(conf.Deploy.Token, b.projectFs, l)
+	if err != nil {
+		return err
+	}
+
+	err = g.Pull(conf.Source.Repo, conf.Source.Branch, true)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -262,17 +322,24 @@ func (d *DirFs) Open(name string) (http.File, error) {
 }
 
 type Config struct {
-	Theme       string      `json:"theme" yaml:"theme"`
-	Git         ConfigGit   `json:"git" yaml:"git"`
+	Theme  string  `json:"theme" yaml:"theme"`
+	Deploy GitRepo `json:"deploy" yaml:"deploy"`
+	Source GitRepo `json:"source" yaml:"source"`
+	//Git         ConfigGit   `json:"git" yaml:"git"`
 	Oss         ConfigOss   `json:"oss" yaml:"oss"`
 	Assets      Assets      `json:"assets" yaml:"assets"`
 	ThemeConfig interface{} `json:"theme_config" yaml:"theme_config"`
 }
 
-type ConfigGit struct {
-	Repo   string `json:"repo" yaml:"repo"`
+type GitRepo struct {
 	Token  string `json:"token" yaml:"token"`
-	Branch string `yaml:"branch"`
+	Repo   string `json:"repo" yaml:"repo"`
+	Branch string `json:"branch" yaml:"branch"`
+}
+
+type ConfigGit struct {
+	Deploy GitRepo `json:"deploy" yaml:"deploy"`
+	Source GitRepo `json:"source" yaml:"source"`
 }
 
 type ConfigOss struct {
@@ -284,7 +351,7 @@ type ConfigOss struct {
 }
 
 func (b *Bblog) LoadConfig() (conf *Config, err error) {
-	f, err := easyfs.GetFile(b.projectFs, "config.yml")
+	f, err := easyfs.GetFile(gobilly.NewStdFs(b.projectFs), "config.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -311,6 +378,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 
 	var themeModule ThemeModule
 	prepare := func() error {
+		b.cache.Purge()
 		var conf *Config
 
 		conf, err = b.LoadConfig()
@@ -329,7 +397,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		for _, i := range themeModule.Assets {
 			// 得到相对 themeFs root 的路径，e.g. dark/publish
 			dir := filepath.Join(configDir, i)
-			sub, err := fs.Sub(b.themeFs, dir)
+			sub, err := fs.Sub(gobilly.NewStdFs(b.themeFs), dir)
 			if err != nil {
 				return fmt.Errorf("sub fs '%v' error: %w", i, err)
 			}
@@ -340,7 +408,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		}
 		for _, i := range conf.Assets {
 			dir := i
-			sub, err := fs.Sub(b.projectFs, dir)
+			sub, err := fs.Sub(gobilly.NewStdFs(b.projectFs), dir)
 			if err != nil {
 				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
@@ -348,22 +416,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 				fs: http.FS(sub),
 			})
 		}
-		//
-		//dirs = append(dirs, &DirFs{
-		//	appPrefix: filepath.Join(configDir),
-		//	fs:        http.FS(b.themeFs),
-		//})
-		//dirs = append(dirs, &DirFs{
-		//	appPrefix: "",
-		//	stripPrefix: "",
-		//	fs:        http.FS(b.projectFs),
-		//})
 
-		// for img import by md file
-		//dirs = append(dirs, &DirFs{
-		//	appPrefix: "",
-		//	fs:     http.FS(b.projectFs),
-		//})
 		assetsHandler = http.FileServer(dirs)
 		return nil
 	}
@@ -515,6 +568,11 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
 }
+
+func (g getBlogOption) cacheKey() string {
+	return ""
+}
+
 type BlogList struct {
 	Total int    `json:"total"`
 	List  []Blog `json:"list"`
@@ -538,64 +596,71 @@ func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
 func (b *Bblog) getBlogs(dir string, opt getBlogOption) BlogList {
 	var blogs []Blog
 	var total int
-
-	err := fs.WalkDir(b.projectFs, dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		ext := filepath.Ext(path)
-		loader, ok := b.getLoader(ext)
-
-		if !ok {
-			return nil
-		}
-		total++
-
-		blog, ok, err := loader.Load(b.projectFs, path, false)
-		if err != nil {
-			log.Errorf("load blog (%v) file: %v", path, err)
-		}
-		if !ok {
-			return nil
-		}
-		// read meta
-		metaFileName := path + ".yaml"
-		bs, err := fs.ReadFile(b.projectFs, metaFileName)
-		if err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("read meta file error: %w", err)
-			}
-			err = nil
-		} else {
-			var m = map[string]interface{}{}
-			err = yaml.Unmarshal(bs, &m)
+	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
+	x, ok := b.cache.Get(cacheKey)
+	if ok {
+		blogs = x.([]Blog)
+	} else {
+		err := fs.WalkDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return fmt.Errorf("unmarshal meta file error: %w", err)
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			ext := filepath.Ext(path)
+			loader, ok := b.getLoader(ext)
+
+			if !ok {
+				return nil
+			}
+			total++
+
+			blog, ok, err := loader.Load(gobilly.NewStdFs(b.projectFs), path, false)
+			if err != nil {
+				log.Errorf("load blog (%v) file: %v", path, err)
+			}
+			if !ok {
+				return nil
+			}
+			// read meta
+			metaFileName := path + ".yaml"
+			bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
+			if err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					return fmt.Errorf("read meta file error: %w", err)
+				}
+				err = nil
+			} else {
+				var m = map[string]interface{}{}
+				err = yaml.Unmarshal(bs, &m)
+				if err != nil {
+					return fmt.Errorf("unmarshal meta file error: %w", err)
+				}
+
+				for k, v := range m {
+					blog.Meta[k] = v
+				}
+
+			}
+			// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
+			for k, v := range blog.Meta {
+				switch t := v.(type) {
+				case time.Time:
+					blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+				}
 			}
 
-			for k, v := range m {
-				blog.Meta[k] = v
-			}
+			blogs = append(blogs, blog)
 
+			return nil
+		})
+		if err != nil {
+			log.Errorf("get source '%s' error: %v", dir, err)
+			return BlogList{}
 		}
-		// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
-		for k, v := range blog.Meta {
-			switch t := v.(type) {
-			case time.Time:
-				blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-			}
-		}
 
-		blogs = append(blogs, blog)
-
-		return nil
-	})
-	if err != nil {
-		log.Errorf("get source '%s' error: %v", dir, err)
-		return BlogList{}
+		b.cache.Add(cacheKey, blogs)
 	}
 
 	if opt.Sort != nil {
@@ -617,7 +682,7 @@ func (b *Bblog) getBlogDetail(path string) Blog {
 	if !ok {
 		return Blog{}
 	}
-	blog, ok, _ := loader.Load(b.projectFs, path, true)
+	blog, ok, _ := loader.Load(gobilly.NewStdFs(b.projectFs), path, true)
 	if !ok {
 		return Blog{}
 	}

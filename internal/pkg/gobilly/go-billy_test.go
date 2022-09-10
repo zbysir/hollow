@@ -1,7 +1,7 @@
 package gobilly
 
 import (
-	"github.com/zbysir/blog/internal/pkg/db"
+	"github.com/zbysir/hollow/internal/pkg/db"
 	"io/ioutil"
 	"testing"
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/go-git/go-billy/v5/helper/chroot"
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
-	"github.com/zbysir/blog/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"io/fs"
 	"os"
