@@ -94,6 +94,9 @@ func (s *stdFile) Stat() (fs.FileInfo, error) {
 }
 
 func (s *stdFile) Read(bytes []byte) (int, error) {
+	if s.f == nil {
+		return 0, os.ErrNotExist
+	}
 	return s.f.Read(bytes)
 }
 

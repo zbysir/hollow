@@ -265,18 +265,18 @@ function App() {
 
     // @ts-ignore
     return (
-
-        <div className="App flex flex-col space-y-2 bg-gray-1A1E2A" data-theme="dark">
-            <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile} drawer={drawer}
-                    fileStatus={fileStatus}></Header>
-            <section className="flex-1 flex h-0 relative">
-                <div className="absolute z-10 p-1 pl-0 pt-0 " style={{left: 0, top: 0}}>
-                    <MenuVertical
-                        menus={[
-                            {key: "files", name: "Files"},
-                        ]}
-                        activeKey={workspace}
-                        onMenuClick={onLeftTab}></MenuVertical>
+        <div id="app" className=" h-full" data-theme="dark">
+            <div className="flex flex-col space-y-2 bg-gray-1A1E2A h-full">
+                <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile} drawer={drawer}
+                        fileStatus={fileStatus}></Header>
+                <section className="flex-1 flex h-0 relative">
+                    <div className="absolute z-10 p-1 pl-0 pt-0 " style={{left: 0, top: 0}}>
+                        <MenuVertical
+                            menus={[
+                                {key: "files", name: "Files"},
+                            ]}
+                            activeKey={workspace}
+                            onMenuClick={onLeftTab}></MenuVertical>
                 </div>
                 <div className="drawer drawer-mobile h-auto flex-1">
                     <input
@@ -286,7 +286,7 @@ function App() {
                         }}
                         className="drawer-toggle"/>
                     <div className="drawer-content h-full">
-                        <div className="bg-gray-272C38 rounded-lg h-full  p-2">
+                        <div className="bg-gray-272C38 rounded-lg h-full overflow-hidden">
                             <FileEditor file={currFile} onChange={onFileChange} onSave={onFileSave}/>
                         </div>
                     </div>
@@ -316,8 +316,8 @@ function App() {
                         </div>
                     </div>
                 </div>
-            </section>
-
+                </section>
+            </div>
 
             {/* New file Modal */}
             <NewFileModal

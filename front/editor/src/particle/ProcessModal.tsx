@@ -49,7 +49,7 @@ export default function ProcessModal(props: Props) {
         term?.clear()
         // props.onConfirm && await props.onConfirm()
         let xresolve: (v: unknown) => void
-        const ws = new WebSocket("ws://localhost:9091/ws/" + props.wsKey);
+        const ws = new WebSocket("ws://192.168.31.119:9091/ws/" + props.wsKey);
         ws.onclose = function () {
             xresolve(false)
         }
