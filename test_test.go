@@ -9,6 +9,8 @@ import (
 	"github.com/zbysir/hollow/internal/bblog/editor"
 	"github.com/zbysir/hollow/internal/pkg/db"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/signal"
+	"sync"
 	"testing"
 )
 
@@ -99,9 +101,19 @@ func TestEditor(t *testing.T) {
 		return osfs.New("./workspace/project"), nil
 	}, func(pid int64) (billy.Filesystem, error) {
 		return osfs.New("./workspace/theme"), nil
-	})
-	err := e.Run(nil, ":9091")
-	if err != nil {
-		t.Fatal(err)
-	}
+	}, editor.Config{PreviewDomain: "preview.blog.bysir.top"})
+
+	ctx, c := signal.NewContext()
+	defer c()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := e.Run(ctx, ":9091")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	wg.Wait()
 }

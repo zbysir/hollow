@@ -10,11 +10,14 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/gorilla/websocket"
 	"github.com/thoas/go-funk"
+	"github.com/zbysir/hollow/front/editor"
 	"github.com/zbysir/hollow/internal/bblog"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	ws "github.com/zbysir/hollow/internal/pkg/ws"
+	"go.uber.org/zap"
+	"io/fs"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -24,25 +27,34 @@ import (
 	"time"
 )
 
+// Editor 是编辑器，提供以下功能：
+// - web ui 编辑文章
+//  - 上传文件到本地或 OSS
+// - 实时预览文章
 type Editor struct {
-	hub *ws.WsHub
-	//dbDir   string
-	//project *storage.Project
-	//db               *db.KvDb
+	hub              *ws.WsHub
 	projectFsFactory FsFactory
 	themeFsFactory   FsFactory
+	config           Config
+}
+
+type Config struct {
+	PreviewDomain string // 只要当访问域名能匹配上时，才会渲染，否则显示编辑器
 }
 
 type FsFactory func(pid int64) (billy.Filesystem, error)
 
-func NewEditor(projectFsFactory FsFactory,
-	themeFsFactory FsFactory) *Editor {
+func NewEditor(
+	projectFsFactory FsFactory,
+	themeFsFactory FsFactory,
+	config Config,
+) *Editor {
 	hub := ws.NewHub()
 	return &Editor{
-		hub: hub,
-		//db:               nil,
+		hub:              hub,
 		projectFsFactory: projectFsFactory,
 		themeFsFactory:   themeFsFactory,
+		config:           config,
 	}
 }
 
@@ -71,8 +83,8 @@ type publishParams struct {
 
 func Cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		method := c.Request.Method               //请求方法
-		origin := c.Request.Header.Get("Origin") //请求头部
+		method := c.Request.Method               // 请求方法
+		origin := c.Request.Header.Get("Origin") // 请求头部
 		var headerKeys []string                  // 声明请求头keys
 		for k, _ := range c.Request.Header {
 			headerKeys = append(headerKeys, k)
@@ -96,12 +108,28 @@ func Cors() gin.HandlerFunc {
 			c.Set("content-type", "application/json")                                                                                                                                                              // 设置返回格式是json
 		}
 
-		//放行所有OPTIONS方法
+		//放行所有 OPTIONS 方法
 		if method == "OPTIONS" {
 			c.JSON(http.StatusOK, "Options Request!")
 		}
 		// 处理请求
 		c.Next() //  处理请求
+	}
+}
+
+func ErrorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+		for _, e := range c.Errors {
+			err := e.Err
+
+			c.JSON(http.StatusOK, gin.H{
+				"code": 500,
+				"msg":  err.Error(),
+			})
+
+			return
+		}
 	}
 }
 
@@ -125,7 +153,45 @@ func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
 // localhost:9090/api/file/tree
 func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	r := gin.Default()
-	r.Use(Cors())
+	r.Use(Cors(), ErrorHandler())
+	var handleEditorFront = func(c *gin.Context) {
+		sub, _ := fs.Sub(editor.EditorFront, "build")
+		http.FileServer(http.FS(sub)).ServeHTTP(c.Writer, c.Request)
+		c.Abort()
+		return
+	}
+
+	var handleRender = func(c *gin.Context) {
+		fsTheme, err := a.projectFs(0, "theme")
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		fs, err := a.projectFs(0, "project")
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		b, err := bblog.NewBblog(bblog.Option{
+			Fs:      fs,
+			ThemeFs: fsTheme,
+		})
+
+		b.ServiceHandle(bblog.ExecOption{
+			Log:   nil,
+			IsDev: true,
+		})(c.Writer, c.Request)
+	}
+
+	// 编辑 或者 实时预览
+	r.NoRoute(func(c *gin.Context) {
+		if matchDomain(a.config.PreviewDomain, c.Request.Host) {
+			handleRender(c)
+		} else {
+			handleEditorFront(c)
+		}
+	})
 
 	r.Any("/ws/:key", func(c *gin.Context) {
 		key := c.Param("key")
@@ -243,12 +309,6 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.Error(err)
 			return
 		}
-		//for _, f := range fm.File {
-		//	for _, f := range f {
-		//		log.Infof("files %+v", f)
-		//
-		//	}
-		//}
 
 		fs, err := a.projectFs(p.ProjectId, p.Bucket)
 		if err != nil {
@@ -388,14 +448,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 				a.hub.Close(key)
 			}()
 
-			out := &WsSink{hub: a.hub, key: key}
-			logWs := log.New(log.Options{
-				IsDev:         false,
-				To:            out,
-				DisableCaller: true,
-				CallerSkip:    0,
-				Name:          "",
-			})
+			logWs := NewWsLog(a.hub, key)
 			holloLog := logWs.Named("[Hollow]")
 			holloLog.Infof("start publish")
 
@@ -443,32 +496,24 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 				a.hub.Close(key)
 			}()
 
-			out := &WsSink{hub: a.hub, key: key}
-			logWs := log.New(log.Options{
-				IsDev:         false,
-				To:            out,
-				DisableCaller: true,
-				CallerSkip:    0,
-				Name:          "",
-			})
+			logWs := NewWsLog(a.hub, key)
 			holloLog := logWs.Named("[Hollow]")
-			holloLog.Infof("start publish")
+			holloLog.Infof("start pull")
 
 			err = b.PullProject(bblog.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
-				holloLog.Errorf("publish fail: %v", err)
+				holloLog.Errorf("pull fail: %v", err)
 				return
 			}
-			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+			holloLog.Infof("pull success in %s", time.Now().Sub(start))
 		}()
 
 		c.JSON(200, key)
 	})
 
 	api.POST("/push", func(c *gin.Context) {
-
 		fsTheme, err := a.projectFs(0, "theme")
 		if err != nil {
 			c.AbortWithError(400, err)
@@ -498,25 +543,18 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 				a.hub.Close(key)
 			}()
 
-			out := &WsSink{hub: a.hub, key: key}
-			logWs := log.New(log.Options{
-				IsDev:         false,
-				To:            out,
-				DisableCaller: true,
-				CallerSkip:    0,
-				Name:          "",
-			})
+			logWs := NewWsLog(a.hub, key)
 			holloLog := logWs.Named("[Hollow]")
-			holloLog.Infof("start publish")
+			holloLog.Infof("start push")
 
 			err = b.PushProject(bblog.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
-				holloLog.Errorf("publish fail: %v", err)
+				holloLog.Errorf("push fail: %v", err)
 				return
 			}
-			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+			holloLog.Infof("push success in %s", time.Now().Sub(start))
 		}()
 
 		c.JSON(200, key)
@@ -551,4 +589,43 @@ func (w *WsSink) Sync() error {
 
 func (w *WsSink) Close() error {
 	return nil
+}
+
+func NewWsLog(hub *ws.WsHub, key string) *zap.SugaredLogger {
+	out := &WsSink{hub: hub, key: key}
+	logWs := log.New(log.Options{
+		IsDev:         false,
+		To:            out,
+		DisableCaller: true,
+		CallerSkip:    0,
+		Name:          "",
+		DisableTime:   true,
+	})
+	return logWs
+}
+
+func matchDomain(match, domain string) bool {
+	// split port
+	ss := strings.LastIndex(domain, ":")
+	if ss != -1 {
+		domain = domain[:ss]
+	}
+	return matchDomainArray(strings.Split(match, "."), strings.Split(domain, "."))
+}
+
+func matchDomainArray(match, domain []string) bool {
+	if len(match) != len(domain) {
+		return false
+	}
+
+	if len(match) == 0 {
+		return true
+	}
+	if match[0] == "*" {
+		return true
+	}
+	if match[0] != domain[0] {
+		return false
+	}
+	return matchDomainArray(match[1:], domain[1:])
 }

@@ -52,6 +52,7 @@ func (b *BuffSink) Close() error {
 type Options struct {
 	IsDev         bool
 	To            zapcore.WriteSyncer
+	DisableTime   bool
 	DisableCaller bool
 	CallerSkip    int
 	Name          string
@@ -64,7 +65,11 @@ func New(o Options) *zap.SugaredLogger {
 	}
 
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.StampMilli)
+	if o.DisableTime {
+		config.EncoderConfig.EncodeTime = nil
+	} else {
+		config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.StampMilli)
+	}
 
 	var ops []zap.Option
 

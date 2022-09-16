@@ -12,6 +12,7 @@ interface Props {
     onMenuClick?: (u: MenuI) => void
     onClose?: () => void
     // multipleClick?: boolean
+    offsetY?: number
 }
 
 export default function Dropdown(props: Props) {
@@ -62,7 +63,7 @@ export default function Dropdown(props: Props) {
                 rounded
                 origin-bottom transition-all
                 ${show ? '' : 'invisible opacity-0 scale-95'}
-            `}>
+            `} style={{bottom: `calc( 100% + ${props.offsetY||0}px )`}}>
                 <Menu menus={props.menus} onMenuClick={props.onMenuClick} active={props.activeMenu}></Menu>
             </div>
         </div>

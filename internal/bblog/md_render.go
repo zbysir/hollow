@@ -1,11 +1,11 @@
 package bblog
 
 import (
-	"fmt"
 	"github.com/russross/blackfriday/v2"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"path/filepath"
+	"strings"
 )
 
 type mdRender struct {
@@ -21,6 +21,8 @@ func (m *mdRender) RenderNode(w io.Writer, node *blackfriday.Node, entering bool
 				node.LinkData.Destination = []byte(m.assetsUrlProcess(string(node.LinkData.Destination)))
 			}
 		}
+	default:
+		log.Infof("%+v %+v", node.Type, node)
 	}
 	return m.inner.RenderNode(w, node, entering)
 }
@@ -42,13 +44,23 @@ func (m *mdRender) Render(src []byte) []byte {
 }
 
 func renderMd(src []byte) []byte {
-	dir := "blogs"
+	dir := "/blogs/2020"
 	return newMdRender(func(s string) string {
-		log.Infof("path %+v", s)
+		p := s
+		if filepath.IsAbs(s) {
+		} else {
+			p = filepath.Join(dir, s)
+		}
 
-		rel, _ := filepath.Rel(dir, filepath.Join(s))
-		log.Infof("path %+v", rel)
+		assets := []string{"static"}
+		// 移除 assets 文件夹前缀
+		for _, a := range assets {
+			if strings.HasPrefix(p, "/"+a) {
+				p = strings.TrimPrefix(p, "/"+a)
+				break
+			}
+		}
 
-		return fmt.Sprintf("/%v" + rel)
+		return p
 	}).Render(src)
 }

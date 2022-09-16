@@ -79,7 +79,7 @@ export const UploadFiles = (params: UploadFilesParams) => {
     forms.append("bucket", params.bucket)
     forms.append("project_id", params.project_id + '')
 
-    return axios.put<void>('/api/file/upload', forms, configs);
+    return axios.put<string[]>('/api/file/upload', forms, configs);
 }
 
 export const Pull = () => axios.post<string>('/api/pull');

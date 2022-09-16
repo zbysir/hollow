@@ -21,7 +21,7 @@ export default function Gallery() {
         auto-rows-auto	auto-cols-auto	grid-flow-row
         ">
             {
-                gallery.map(i => (
+                gallery?.map(i => (
                     <img className={"aspect-square object-cover"} src={i.img} alt={i.img}/>
                 ))
             }

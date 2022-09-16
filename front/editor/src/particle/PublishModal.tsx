@@ -53,7 +53,7 @@ export default function PublishModal(props: Props) {
             project_id: 0,
         })
 
-        const ws = new WebSocket("ws://localhost:9091/ws/" + r.data);
+        const ws = new WebSocket("ws://192.168.31.119:9091/ws/" + r.data);
         ws.onclose = function () {
             xresolve(false)
         }

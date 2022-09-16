@@ -5,11 +5,11 @@ import BlogDetail from "./page/BlogDetail";
 import TagPage from "./page/TagPage";
 import About from "./page/About";
 
-import hollow, {getBlogs} from "@bysir/hollow"
+import hollow, {getArticles} from "@bysir/hollow"
 import MarkDown from "./page/Md";
 import {blogRoute} from "./utilx";
 import Gallery from "./page/Gallery";
-let blog = getBlogs('./blogs');
+let blog = getArticles('./blogs');
 let params = hollow.getConfig();
 
 let global = {

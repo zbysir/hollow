@@ -1,4 +1,4 @@
-export interface Blog {
+export interface Article {
     name: string
     getContent: () => string
     meta?: Record<string, any>
@@ -8,22 +8,23 @@ export interface Blog {
 
 type ThemeConfig = Record<string, any>
 
-interface GetBlogsOptions {
-    sort: (a: Blog, b: Blog) => boolean
+interface GetArticlesOptions {
+    sort: (a: Article, b: Article) => boolean
+    filter: (a: Article) => boolean
     page: number
     size: number
 }
 
-interface BlogList {
+interface ArticleList {
     total: number
-    list: Blog[]
+    list: Article[]
 }
 
-export function getBlogs(path: string, option?: GetBlogsOptions): BlogList;
+export function getArticles(path: string, option?: GetArticlesOptions): ArticleList;
 
 export function getConfig(): ThemeConfig;
 
-export function getBlogDetail(path: string): Blog;
+export function getArticleDetail(path: string): Article;
 
 interface MdOption {
     unwrap: boolean

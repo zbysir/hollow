@@ -1,33 +1,23 @@
 package editor
 
 import (
-	"github.com/zbysir/hollow/internal/bblog/storage"
-	"github.com/zbysir/hollow/internal/pkg/db"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestEditor(t *testing.T) {
-	d, err := db.NewKvDb("./database")
+	e := NewEditor(nil, nil, Config{PreviewDomain: "abc"})
+	err := e.Run(nil, ":9091")
 	if err != nil {
 		t.Fatal(err)
 	}
+}
 
-	st, err := d.Open("main", "default")
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := NewEditor(d, storage.NewProject(st))
-	err = e.Run(nil, ":9091")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// st, err := a.db.Open(fmt.Sprintf("project_%v", pid), bucket)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	fs := gobilly.NewDbFs(st)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("new fs error: %w", err)
-	//	}
+func TestMatchPreviewDomain(t *testing.T) {
+	assert.Equal(t, true, matchDomain("bysir.top", "bysir.top"))
+	assert.Equal(t, true, matchDomain("blog.bysir.top", "blog.bysir.top"))
+	assert.Equal(t, true, matchDomain("*.bysir.top", "blog.bysir.top"))
+	assert.Equal(t, false, matchDomain("*.bysir.top", "editor.blog.bysir.top"))
+	assert.Equal(t, false, matchDomain("bysir.top", "blog.bysir.top"))
+	assert.Equal(t, false, matchDomain("preview.blog.bysir.top", "editor.blog.bysir.top:9091"))
 }

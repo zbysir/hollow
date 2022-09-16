@@ -286,13 +286,13 @@ function App() {
                         }}
                         className="drawer-toggle"/>
                     <div className="drawer-content h-full">
-                        <div className="bg-gray-272C38 rounded-lg h-full overflow-hidden">
+                        <div className=" rounded-lg h-full overflow-hidden">
                             <FileEditor file={currFile} onChange={onFileChange} onSave={onFileSave}/>
                         </div>
                     </div>
                     <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
                         <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
-                        <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto">
+                        <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto overflow-x-auto">
                             <>
                                 <div style={{display: workspace === 'project' ? '' : 'none'}}>
                                     <FileBrowser

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// WsHub todo 优化：使用占位符逻辑，当 key 生成就放入，只有放入了 key 才能写消息
 type WsHub struct {
 	conns map[string]*websocket.Conn
 	msg   map[string]string

@@ -1,6 +1,5 @@
 import Link from "./Link";
 import {blogRoute, dateFormat} from "../utilx";
-import {BlogI} from "../d";
 import {Blog} from "@bysir/hollow";
 
 export default function BlogBig({blog}: { blog: Blog }) {

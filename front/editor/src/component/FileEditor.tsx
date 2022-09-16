@@ -145,7 +145,7 @@ export default function FileEditor(props: Props) {
     }}>
         {/* 不同的文件需要有不同的编辑器，否则历史记录会乱 */}
         <div
-            className="h-full overflow-y-auto text-base md:text-sm	"
+            className="h-full overflow-y-auto text-base md:text-sm bg-gray-272C38"
             // key={props.file?.path}
         >
             <div ref={editor} className={"cm-theme"}></div>

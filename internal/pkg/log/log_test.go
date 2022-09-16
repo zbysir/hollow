@@ -20,3 +20,14 @@ func TestColor(t *testing.T) {
 
 	t.Logf("buf: %s", buf.buf.String())
 }
+
+func TestFormat(t *testing.T) {
+	l := New(Options{
+		IsDev:         true,
+		DisableCaller: true,
+		CallerSkip:    0,
+		Name:          "",
+	})
+
+	l.Infof("123")
+}

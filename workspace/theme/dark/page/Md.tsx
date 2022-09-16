@@ -8,7 +8,7 @@ import hollow from "@bysir/hollow"
 
 // 用来渲染 markdown
 export default function MarkDown(props: Props) {
-    const blog = hollow.getBlogDetail(props.mdFilepath)
+    const blog = hollow.getArticleDetail(props.mdFilepath)
 
     return <Container>
         <div className="prose dark:prose-invert"

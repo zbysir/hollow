@@ -1,11 +1,11 @@
 import BlogBig from "../component/BlogBig";
 import Container from "../component/Container";
 
-import {getBlogs} from "@bysir/hollow"
+import {getArticles} from "@bysir/hollow"
 import {sortBlog} from "../utilx";
 
 export default function Home() {
-    const blogs = getBlogs('./blogs',
+    const blogs = getArticles('./blogs',
         {
             sort: sortBlog, page: 1, size: 20
         }

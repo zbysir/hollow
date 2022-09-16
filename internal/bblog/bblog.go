@@ -132,10 +132,10 @@ func NewBblog(o Option) (*Bblog, error) {
 	}
 
 	x.RegisterModule("@bysir/hollow", map[string]interface{}{
-		"getBlogs":      b.getBlogs,
-		"getConfig":     b.getConfig,
-		"getBlogDetail": b.getBlogDetail,
-		"md":            b.md,
+		"getArticles":      b.getArticles,
+		"getConfig":        b.getConfig,
+		"getArticleDetail": b.getArticleDetail,
+		"md":               b.md,
 	})
 
 	return b, nil
@@ -368,12 +368,7 @@ func (b *Bblog) LoadConfig() (conf *Config, err error) {
 	return
 }
 
-// Service 运行一个渲染程序
-func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
-	s, err := NewService(addr)
-	if err != nil {
-		return err
-	}
+func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
 
 	var themeModule ThemeModule
@@ -381,7 +376,7 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		b.cache.Purge()
 		var conf *Config
 
-		conf, err = b.LoadConfig()
+		conf, err := b.LoadConfig()
 		if err != nil {
 			return err
 		}
@@ -421,16 +416,16 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 		return nil
 	}
 	if !o.IsDev {
-		err = prepare()
+		err := prepare()
 		if err != nil {
-			return err
+			return nil
 		}
 	}
 
-	s.Handler("/", func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		if o.IsDev {
 			b.x.RefreshRegistry(nil)
-			err = prepare()
+			err := prepare()
 			if err != nil {
 				writer.Write([]byte(err.Error()))
 				return
@@ -451,8 +446,16 @@ func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
 			}
 		}
 		assetsHandler.ServeHTTP(writer, request)
+	}
+}
 
-	})
+// Service 运行一个渲染程序
+func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
+	s, err := NewService(addr)
+	if err != nil {
+		return err
+	}
+	s.Handler("/", b.ServiceHandle(o))
 
 	return s.Start(ctx)
 }
@@ -495,6 +498,9 @@ type MDBlogLoader struct {
 
 func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, bool, error) {
 	dir, name := filepath.Split(filePath)
+	if !strings.HasPrefix(dir, "/") {
+		dir = "/" + dir
+	}
 
 	ext := filepath.Ext(filePath)
 	if supportExt[ext] {
@@ -532,17 +538,18 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 	}
 
 	md := newMdRender(func(s string) string {
-		p := filepath.Join(dir, s)
+		p := s
+		if filepath.IsAbs(s) {
+		} else {
+			p = filepath.Join(dir, s)
+		}
 
 		// 移除 assets 文件夹前缀
 		for _, a := range m.assets {
-			if strings.HasPrefix(p, a) {
-				p = strings.TrimPrefix(p, a)
+			if strings.HasPrefix(p, "/"+a) {
+				p = strings.TrimPrefix(p, "/"+a)
 				break
 			}
-		}
-		if !strings.HasPrefix(p, "/") {
-			p = "/" + p
 		}
 		return p
 	})
@@ -592,8 +599,8 @@ func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
 	return nil, false
 }
 
-// getBlogs 返回 dir 目录下的所有博客
-func (b *Bblog) getBlogs(dir string, opt getBlogOption) BlogList {
+// getArticles 返回 dir 目录下的所有博客
+func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 	var blogs []Blog
 	var total int
 	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
@@ -675,8 +682,8 @@ func (b *Bblog) getBlogs(dir string, opt getBlogOption) BlogList {
 	}
 }
 
-// getBlogDetail 返回一个文件
-func (b *Bblog) getBlogDetail(path string) Blog {
+// getArticleDetail 返回一个文件
+func (b *Bblog) getArticleDetail(path string) Blog {
 	ext := filepath.Ext(path)
 	loader, ok := b.getLoader(ext)
 	if !ok {

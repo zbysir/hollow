@@ -24,8 +24,11 @@ function FileIcon({iconKey, size}: { iconKey: string, size: number }) {
         jsx: 'javascript',
         sh: 'powershell',
         yml: 'yaml',
+        png: 'image',
+        jpeg: 'image',
+        jpg: 'image',
     }[iconKey] || iconKey) + '.svg'
-    return <span style={{backgroundImage: `url("${url}")`, width: size + 'px', height: size + 'px'}}></span>
+    return <div className={"shrink-0"} style={{backgroundImage: `url("${url}")`, width: size + 'px', height: size + 'px'}}></div>
 }
 
 function FileTree(props: Props) {
@@ -71,15 +74,15 @@ function FileTree(props: Props) {
     } else {
         const eindex = props.tree?.name.lastIndexOf(".")
         if (eindex && eindex >= 0) {
-            ext = props.tree?.name.substr(eindex + 1)!
+            ext = props.tree?.name.substr(eindex + 1).toLowerCase()!
         }
     }
     const icon = <FileIcon iconKey={ext} size={14}></FileIcon>
 
-    return <div>
+    return <>
         {props.tree?.name === "" && props.tree?.path === "" ?
             <div
-                className="min-h-8 select-none	"
+                className="min-h-8 select-none inline-block"
                 onContextMenu={handleContextMenu}
             >
                 {
@@ -95,16 +98,16 @@ function FileTree(props: Props) {
                         props.onFileClick && props.onFileClick(props.tree!)
                     }}
                     className={
-                        `px-1 cursor-pointer rounded-sm flex items-center text-gray-400 hover:text-current
+                        `px-1 cursor-pointer rounded-sm inline-flex items-center text-gray-400 hover:text-current
                  ${(props.currFile?.path === props.tree?.path ? 'bg-gray-600 text-current' : '')}
                  ${props.modifiedFile?.hasOwnProperty(props.tree?.path!) ? 'text-blue-600' : ''}
                  `}
                     onContextMenu={handleContextMenu}
                 >
                     {icon}
-                    <span className="ml-2 py-0.5">{props.tree?.name}</span>
+                    <span className="ml-2 py-0.5 flex-1 whitespace-nowrap">{props.tree?.name}</span>
                 </div>
-                <div className="pl-4">
+                <div className="pl-4 ">
                     {
                         props.tree?.items?.map(i => (
                             <FileTree key={i.name} {...props} tree={i}></FileTree>
@@ -113,8 +116,7 @@ function FileTree(props: Props) {
                 </div>
             </>
         }
-
-    </div>
+    </>
 }
 
 
@@ -129,10 +131,9 @@ interface Props {
 export default function FileBrowser(props: Props) {
     const handleContextMenu = function () {
     }
-    return <div className="text-sm p-2 h-full"
+    return <div className="text-sm p-2 h-full inline-block"
                 onContextMenu={handleContextMenu}
     >
-        <div></div>
         <FileTree {...props}></FileTree>
     </div>
 }

@@ -4,7 +4,7 @@ import BlogXS from "../component/BlogXS";
 import hollow, {Blog} from "@bysir/hollow"
 import {sortBlog} from "../utilx";
 
-let blogs = hollow.getBlogs('./blogs', {
+let blogs = hollow.getArticles('./blogs', {
     sort: sortBlog, page: 1, size: 20
 });
 
