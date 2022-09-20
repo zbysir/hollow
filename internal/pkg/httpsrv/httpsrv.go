@@ -1,11 +1,11 @@
-package bblog
+package httpsrv
 
 import (
 	"context"
 	"net/http"
 )
 
-// Service 本地运行的服务，用于实时预览
+// Service 支持 Start(ctx)
 type Service struct {
 	s  *http.Server
 	sm *http.ServeMux
@@ -26,7 +26,7 @@ func (s *Service) Handler(path string, f func(writer http.ResponseWriter, reques
 	s.sm.HandleFunc(path, f)
 }
 
-func (s Service) Start(ctx context.Context) error {
+func (s *Service) Start(ctx context.Context) error {
 	var err error
 	go func() {
 		select {

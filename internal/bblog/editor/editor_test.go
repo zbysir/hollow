@@ -1,13 +1,14 @@
 package editor
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestEditor(t *testing.T) {
 	e := NewEditor(nil, nil, Config{PreviewDomain: "abc"})
-	err := e.Run(nil, ":9091")
+	err := e.Run(context.Background(), ":9091")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import {AttachAddon} from 'xterm-addon-attach';
 import "xterm/css/xterm.css"
 import {Publish} from "../api/file";
 import Ws from "../util/ws";
+import {serviceAddress} from "../const/const";
 
 interface Props {
     show: boolean,
@@ -53,7 +54,7 @@ export default function PublishModal(props: Props) {
             project_id: 0,
         })
 
-        const ws = new WebSocket("ws://192.168.31.119:9091/ws/" + r.data);
+        const ws = new WebSocket(`ws://${serviceAddress}/ws/` + r.data);
         ws.onclose = function () {
             xresolve(false)
         }

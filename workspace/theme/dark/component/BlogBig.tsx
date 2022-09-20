@@ -1,9 +1,9 @@
 import Link from "./Link";
-import {blogRoute, dateFormat} from "../utilx";
-import {Blog} from "@bysir/hollow";
+import {articleRoute, dateFormat} from "../utilx";
+import {Article} from "@bysir/hollow";
 
-export default function BlogBig({blog}: { blog: Blog }) {
-    let link = blogRoute(blog)
+export default function BlogBig({blog}: { blog: Article }) {
+    let link = articleRoute(blog)
     const name = blog.meta.title || blog.name
 
     return <div className="relative group">

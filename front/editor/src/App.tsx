@@ -21,6 +21,9 @@ import {ShowPopupMenu} from "./util/popupMenu";
 import {DownloadIcon} from "./icon";
 import debounce from "lodash/debounce";
 import ProcessModal from "./particle/ProcessModal";
+import LoginModal from "./particle/LoginModal";
+import {Login} from "./api/base";
+import {AxiosError} from "axios";
 
 export interface FileStatus {
     modifiedFiles: FileI[]
@@ -43,6 +46,7 @@ function App() {
     const [fileStatus, setFileStatus] = useState<FileStatus>({modifiedFiles: []})
     const bucket = workspace
     const [processModal, setProcessModal] = useState<ProcessModalI>()
+    const [loginModal, setLoginModal] = useState<boolean>(false)
 
     const setFileStatusFileModified = (f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
@@ -263,6 +267,28 @@ function App() {
         return
     }
 
+    let login = async (secret: string) => {
+        await Login({secret})
+        window.location = window.location
+        return
+    }
+
+    useEffect(() => {
+        (async function () {
+            try {
+                let r = await Login({secret: ''})
+                console.log(r)
+            } catch (e) {
+                if (e instanceof AxiosError) {
+                    console.log(e.response?.data.code, e.response?.data.code == 401)
+                    if (e.response?.data.code == 401) {
+                        setLoginModal(true)
+                    }
+                }
+            }
+        })()
+    })
+
     // @ts-ignore
     return (
         <div id="app" className=" h-full" data-theme="dark">
@@ -341,6 +367,7 @@ function App() {
                 onConfirm={doPublish}
                 wsKey={processModal?.wsKey}
             ></ProcessModal>
+            <LoginModal onConfirm={login} show={loginModal}></LoginModal>
         </div>
     );
 }

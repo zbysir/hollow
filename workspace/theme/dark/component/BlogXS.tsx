@@ -1,10 +1,10 @@
 import Link from "./Link";
-import {blogRoute, dateFormat} from "../utilx";
-import {Blog} from "@bysir/hollow";
+import {articleRoute, dateFormat} from "../utilx";
+import {Article} from "@bysir/hollow";
 
 
-export default function BlogXS({blog}: { blog: Blog }) {
-    let link = blogRoute(blog)
+export default function BlogXS({blog}: { blog: Article }) {
+    let link = articleRoute(blog)
     let name = blog.meta?.title || blog.name
 
     return <div className="">
@@ -26,7 +26,11 @@ export default function BlogXS({blog}: { blog: Blog }) {
 
             </div>
             <div className="w-1/2 flex flex-col space-y-1">
-                <p className="text-sm "><Link href={link} className={"text-gray-500"}> {blog.meta.desc}</Link></p>
+                <div className="flex space-x-1 items-center">
+                    {blog.meta.draft? <span className="text-xs text-gray-500">[draft]</span>: null}
+
+                    <p className="text-sm"><Link href={link} className={"text-gray-500"}>{blog.meta.desc}</Link></p>
+                </div>
 
                 <div className="flex space-x-3">
                     {

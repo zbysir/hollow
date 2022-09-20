@@ -7,9 +7,11 @@ import {sortBlog} from "../utilx";
 export default function Home() {
     const blogs = getArticles('./blogs',
         {
-            sort: sortBlog, page: 1, size: 20
+            sort: sortBlog,
+            page: 1,
+            size: 20,
         }
-    ).list;
+    ).list.filter(i => (i.meta.draft !== true));
 
     return <section>
         <Container>

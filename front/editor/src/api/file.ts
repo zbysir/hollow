@@ -1,8 +1,8 @@
 import axios from 'axios'
 import {FileTreeI} from "../component/FileBrowser";
 import {FileI} from "../component/FileEditor";
+import {serviceAddress} from "../const/const";
 
-axios.defaults.baseURL = '//192.168.31.119:9091';
 
 interface GetFileTreeParams {
     path: string

@@ -1,3 +1,5 @@
+import {serviceAddress} from "../const/const";
+
 export default class Ws {
     private callback: ((bs: string) => void)[]
     conn: WebSocket
@@ -5,7 +7,7 @@ export default class Ws {
     constructor(key: string) {
         this.callback = []
 
-        this.conn = new WebSocket("ws://localhost:9091/ws/"+key);
+        this.conn = new WebSocket(`ws://${serviceAddress}/ws/`+key);
         this.conn.onclose = function (evt) {
             // var item = document.createElement("div");
             // item.innerHTML = "<b>Connection closed.</b>";

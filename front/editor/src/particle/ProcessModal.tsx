@@ -6,6 +6,7 @@ import {AttachAddon} from 'xterm-addon-attach';
 import "xterm/css/xterm.css"
 import {Publish} from "../api/file";
 import Ws from "../util/ws";
+import {serviceAddress} from "../const/const";
 
 interface Props {
     show: boolean,
@@ -49,7 +50,8 @@ export default function ProcessModal(props: Props) {
         term?.clear()
         // props.onConfirm && await props.onConfirm()
         let xresolve: (v: unknown) => void
-        const ws = new WebSocket("ws://192.168.31.119:9091/ws/" + props.wsKey);
+        // will concat like this: 'ws:////localhost:9432/ws/0cD4Fp', but it's work
+        const ws = new WebSocket(`ws://${serviceAddress}/ws/` + props.wsKey);
         ws.onclose = function () {
             xresolve(false)
         }
@@ -86,6 +88,9 @@ export default function ProcessModal(props: Props) {
         }
     }, [])
 
+    useEffect(() => {
+        onConfirm()
+    })
     const m2 = <Modal
         className="max-w-5xl"
         value={props.show}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/zbysir/hollow/internal/cmd"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"os"
@@ -15,33 +14,12 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("d", "d", ".", "workspace")
-	viper.BindPFlag("d", rootCmd.PersistentFlags().Lookup("d"))
+	//rootCmd.PersistentFlags().StringP("d", "d", ".", "workspace")
+	//viper.BindPFlag("d", rootCmd.PersistentFlags().Lookup("d"))
 }
 
 func init() {
-	var upload = &cobra.Command{
-		Use:   "upload file to hollow service",
-		Short: "u",
-		Long:  `upload`,
-		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil
-		},
-	}
-	rootCmd.AddCommand(upload)
-
-	// 资源管理
-	var assets = &cobra.Command{
-		Use:   "assets",
-		Short: "a",
-		Long:  `assets`,
-	}
-	{
-
-		assets.AddCommand(cmd.AssetsUpload)
-	}
-	rootCmd.AddCommand(assets)
+	rootCmd.AddCommand(cmd.Editor)
 }
 
 func main() {

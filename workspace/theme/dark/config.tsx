@@ -7,7 +7,7 @@ import About from "./page/About";
 
 import hollow, {getArticles} from "@bysir/hollow"
 import MarkDown from "./page/Md";
-import {blogRoute} from "./utilx";
+import {articleRoute} from "./utilx";
 import Gallery from "./page/Gallery";
 let blog = getArticles('./blogs');
 let params = hollow.getConfig();
@@ -39,7 +39,7 @@ export default {
         },
         ...blog.list.map(b => {
             return {
-                path: blogRoute(b),
+                path: articleRoute(b),
                 component: () => {
                     let content = b.getContent()
                     // 不能这样写，因为在 golang 中没有对应的 content 字段，不能赋值成功
@@ -93,5 +93,7 @@ export default {
     ],
 
     // 将 public 文件下所有内容 copy 到 dist 下
-    assets: ['statics']
+    assets: ['statics'],
+
+    articleRouter: articleRoute
 }

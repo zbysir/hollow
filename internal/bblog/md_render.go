@@ -2,7 +2,6 @@ package bblog
 
 import (
 	"github.com/russross/blackfriday/v2"
-	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"path/filepath"
 	"strings"
@@ -21,8 +20,8 @@ func (m *mdRender) RenderNode(w io.Writer, node *blackfriday.Node, entering bool
 				node.LinkData.Destination = []byte(m.assetsUrlProcess(string(node.LinkData.Destination)))
 			}
 		}
-	default:
-		log.Infof("%+v %+v", node.Type, node)
+		//default:
+		//	log.Infof("%+v %+v", node.Type, node)
 	}
 	return m.inner.RenderNode(w, node, entering)
 }

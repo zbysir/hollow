@@ -4,7 +4,7 @@ interface Props {
     title: string
     className?: string,
     value: boolean
-    onClose: () => void
+    onClose?: () => void
     onConfirm?: () => void
     closeBtn?: string
     closeBtnWarn?: boolean
@@ -23,7 +23,7 @@ export default function Modal(props: Props) {
     }, [props.value])
     const escFunction = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
-            props.onClose()
+            props.onClose && props.onClose()
         } else {
         }
     }
@@ -78,10 +78,16 @@ export default function Modal(props: Props) {
                                    onClick={onConfirm}>{props.confirmBtn}</label> :
                             null
                     }
-                    <label className={'btn btn-sm'
-                        + (props.closeBtnWarn ? ' btn-warning' : '')
+                    {
+                        props.closeBtn ?
+                            <label
+                                className={'btn btn-sm'
+                                    + (props.closeBtnWarn ? ' btn-warning' : '')
+                                }
+                                onClick={props.onClose}>{props.closeBtn}</label>
+                            : null
                     }
-                           onClick={props.onClose}>{props.closeBtn || 'Cancel'}</label>
+
                 </div>
             </div>
         </div>

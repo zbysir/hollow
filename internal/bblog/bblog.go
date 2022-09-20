@@ -14,6 +14,7 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/git"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/httpsrv"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -451,7 +452,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 
 // Service 运行一个渲染程序
 func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
-	s, err := NewService(addr)
+	s, err := httpsrv.NewService(addr)
 	if err != nil {
 		return err
 	}

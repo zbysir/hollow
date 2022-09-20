@@ -4,6 +4,7 @@ package editor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5"
@@ -12,8 +13,10 @@ import (
 	"github.com/thoas/go-funk"
 	"github.com/zbysir/hollow/front/editor"
 	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/pkg/auth"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/httpsrv"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	ws "github.com/zbysir/hollow/internal/pkg/ws"
 	"go.uber.org/zap"
@@ -40,6 +43,7 @@ type Editor struct {
 
 type Config struct {
 	PreviewDomain string // 只要当访问域名能匹配上时，才会渲染，否则显示编辑器
+	Secret        string
 }
 
 type FsFactory func(pid int64) (billy.Filesystem, error)
@@ -85,35 +89,32 @@ func Cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		method := c.Request.Method               // 请求方法
 		origin := c.Request.Header.Get("Origin") // 请求头部
-		var headerKeys []string                  // 声明请求头keys
-		for k, _ := range c.Request.Header {
-			headerKeys = append(headerKeys, k)
-		}
-		headerStr := strings.Join(headerKeys, ", ")
-		if headerStr != "" {
-			headerStr = fmt.Sprintf("access-control-allow-origin, access-control-allow-headers, %s", headerStr)
-		} else {
-			headerStr = "access-control-allow-origin, access-control-allow-headers"
-		}
+		//var headerKeys []string                  // 声明请求头keys
+		//for k, _ := range c.Request.Header {
+		//	headerKeys = append(headerKeys, k)
+		//}
+		//headerStr := strings.Join(headerKeys, ", ")
+		//if headerStr != "" {
+		//	headerStr = fmt.Sprintf("access-control-allow-origin, access-control-allow-headers, %s", headerStr)
+		//} else {
+		//	headerStr = "access-control-allow-origin, access-control-allow-headers"
+		//}
 		if origin != "" {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Origin", "*")                                       // 这是允许访问所有域
-			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE,UPDATE") //服务器支持的所有跨域请求的方法,为了避免浏览次请求的多次'预检'请求
-			//  header的类型
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Length, X-CSRF-Token, Token,session,X_Requested_With,Accept, Origin, Host, Connection, Accept-Encoding, Accept-Language,DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Pragma")
-			//              允许跨域设置                                                                                                      可以返回其他子段
-			c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers,Cache-Control,Content-Language,Content-Type,Expires,Last-Modified,Pragma,FooBar") // 跨域关键设置 让浏览器可以解析
-			c.Header("Access-Control-Max-Age", "172800")                                                                                                                                                           // 缓存请求信息 单位为秒
-			c.Header("Access-Control-Allow-Credentials", "false")                                                                                                                                                  //  跨域请求是否需要带cookie信息 默认设置为true
-			c.Set("content-type", "application/json")                                                                                                                                                              // 设置返回格式是json
+			c.Header("Access-Control-Allow-Origin", origin)
+		} else {
+			c.Header("Access-Control-Allow-Origin", "*") // 这是允许访问所有域
 		}
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Length, X-CSRF-Token, Token,session,X_Requested_With,Accept, Origin, Host, Connection, Accept-Encoding, Accept-Language,DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Pragma, Cookie")
+		c.Header("Access-Control-Allow-Credentials", "true") //  跨域请求是否需要带cookie信息 默认设置为true
 
 		//放行所有 OPTIONS 方法
 		if method == "OPTIONS" {
 			c.JSON(http.StatusOK, "Options Request!")
+			c.Abort()
+			return
 		}
-		// 处理请求
-		c.Next() //  处理请求
+
+		c.Next()
 	}
 }
 
@@ -122,14 +123,40 @@ func ErrorHandler() gin.HandlerFunc {
 		c.Next()
 		for _, e := range c.Errors {
 			err := e.Err
+			log.Infof("3 %v", err)
 
-			c.JSON(http.StatusOK, gin.H{
-				"code": 500,
+			code := 400
+			if errors.Is(err, AuthErr) {
+				code = 401
+			}
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code": code,
 				"msg":  err.Error(),
 			})
 
 			return
 		}
+	}
+
+}
+
+var AuthErr = errors.New("need login")
+
+func Auth(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t, _ := c.Cookie("token")
+		if t == "" {
+			c.Error(AuthErr)
+			c.Abort()
+			return
+		}
+		if !auth.CheckToken(secret, t) {
+			c.Error(AuthErr)
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }
 
@@ -153,11 +180,10 @@ func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
 // localhost:9090/api/file/tree
 func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	r := gin.Default()
-	r.Use(Cors(), ErrorHandler())
+	r.Use(Cors())
 	var handleEditorFront = func(c *gin.Context) {
 		sub, _ := fs.Sub(editor.EditorFront, "build")
 		http.FileServer(http.FS(sub)).ServeHTTP(c.Writer, c.Request)
-		c.Abort()
 		return
 	}
 
@@ -182,6 +208,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			Log:   nil,
 			IsDev: true,
 		})(c.Writer, c.Request)
+		c.Abort()
 	}
 
 	// 编辑 或者 实时预览
@@ -193,7 +220,9 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 	})
 
-	r.Any("/ws/:key", func(c *gin.Context) {
+	var gateway = r.Group("/").Use(ErrorHandler())
+
+	gateway.Use(Auth(a.config.Secret)).GET("/ws/:key", func(c *gin.Context) {
 		key := c.Param("key")
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -203,9 +232,53 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		a.hub.Add(key, conn)
 	})
 
-	api := r.Group("/api", func(c *gin.Context) {})
+	var api = r.Group("/api").Use(ErrorHandler(), Cors())
+	api.POST("/auth", func(c *gin.Context) {
+		// 创建 token
+		var p struct {
+			Secret string `json:"secret"`
+		}
+		err = c.BindJSON(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
 
-	api.GET("/file/tree", func(c *gin.Context) {
+		// 如果是空，则验证 token
+		if p.Secret == "" {
+			t, _ := c.Cookie("token")
+			log.Infof("token %+v", t)
+			if t == "" {
+				c.Error(AuthErr)
+				return
+			}
+			if !auth.CheckToken(a.config.Secret, t) {
+				c.Error(AuthErr)
+				return
+			}
+
+			c.JSON(200, "ok")
+			return
+		}
+		log.Infof("a.config.Secret, %v %v", a.config.Secret, p.Secret)
+		if p.Secret != a.config.Secret {
+			c.Error(AuthErr)
+			return
+		}
+		t := auth.CreateToken(p.Secret)
+		c.SetCookie("token", t, 7*24*3600, "", "localhost:9432", false, true)
+		c.JSON(200, "ok")
+	})
+
+	apiAuth := api.Use(Auth(a.config.Secret))
+
+	apiAuth.GET("/setting", func(c *gin.Context) {
+		c.JSON(200, map[string]interface{}{
+			"preview_domain": a.config.PreviewDomain,
+		})
+	})
+
+	apiAuth.GET("/file/tree", func(c *gin.Context) {
 		var p fileTreeParams
 		err = c.BindQuery(&p)
 		if err != nil {
@@ -227,7 +300,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 打开文件
-	api.GET("/file", func(c *gin.Context) {
+	apiAuth.GET("/file", func(c *gin.Context) {
 		var p fileTreeParams
 		err = c.BindQuery(&p)
 		if err != nil {
@@ -248,7 +321,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 写入文件
-	api.PUT("/file", func(c *gin.Context) {
+	apiAuth.PUT("/file", func(c *gin.Context) {
 		var p fileModifyParams
 		err = c.BindJSON(&p)
 		if err != nil {
@@ -275,7 +348,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 新建文件
-	api.POST("/file", func(c *gin.Context) {
+	apiAuth.POST("/file", func(c *gin.Context) {
 		var p fileModifyParams
 		err = c.BindJSON(&p)
 		if err != nil {
@@ -297,7 +370,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 批量上传文件
-	api.PUT("/file/upload", func(c *gin.Context) {
+	apiAuth.PUT("/file/upload", func(c *gin.Context) {
 		var p fileTreeParams
 		err = c.Bind(&p)
 		if err != nil {
@@ -360,7 +433,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 删除文件
-	api.DELETE("/file", func(c *gin.Context) {
+	apiAuth.DELETE("/file", func(c *gin.Context) {
 		var p deleteFileParams
 		err = c.Bind(&p)
 		if err != nil {
@@ -390,7 +463,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	// 新建文件夹
-	api.POST("/directory", func(c *gin.Context) {
+	apiAuth.POST("/directory", func(c *gin.Context) {
 		var p fileModifyParams
 		err = c.BindJSON(&p)
 		if err != nil {
@@ -411,7 +484,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, nil)
 	})
 
-	api.POST("/publish", func(c *gin.Context) {
+	apiAuth.POST("/publish", func(c *gin.Context) {
 		var p publishParams
 		err = c.BindJSON(&p)
 		if err != nil {
@@ -466,7 +539,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, key)
 	})
 
-	api.POST("/pull", func(c *gin.Context) {
+	apiAuth.POST("/pull", func(c *gin.Context) {
 		fsTheme, err := a.projectFs(0, "theme")
 		if err != nil {
 			c.AbortWithError(400, err)
@@ -513,7 +586,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, key)
 	})
 
-	api.POST("/push", func(c *gin.Context) {
+	apiAuth.POST("/push", func(c *gin.Context) {
 		fsTheme, err := a.projectFs(0, "theme")
 		if err != nil {
 			c.AbortWithError(400, err)
@@ -560,7 +633,12 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, key)
 	})
 
-	err = r.Run(addr)
+	s, err := httpsrv.NewService(addr)
+	if err != nil {
+		return
+	}
+	s.Handler("/", r.Handler().ServeHTTP)
+	err = s.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -574,7 +652,6 @@ type WsSink struct {
 }
 
 func (w *WsSink) Write(p []byte) (n int, err error) {
-	//p = append(p, []byte("\r\n")...)
 	err = w.hub.Send(w.key, p)
 	if err != nil {
 		return 0, err
