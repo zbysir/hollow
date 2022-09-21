@@ -7,10 +7,10 @@ import {Menu} from "./Menu";
 import {MenuI} from "./Header";
 import {DocumentIcon, DocumentTextIcon, FolderIcon, FolderOpenIcon} from "../icon";
 import {ShowPopupMenu} from "../util/popupMenu";
+import {FileStatus} from "../App";
 
 export interface FileTreeI extends FileI {
     items?: FileTreeI[]
-    is_open?: boolean
 }
 
 function FileIcon({iconKey, size}: { iconKey: string, size: number }) {
@@ -65,19 +65,21 @@ function FileTree(props: Props) {
         })
     }
 
-    let ext = 'default'
+    let iconKey = 'default'
+    let dirOpen = false
     if (props.tree?.is_dir) {
-        ext = 'dir'
-        if (props.tree.is_open) {
-            ext = 'diropen'
+        iconKey = 'dir'
+        dirOpen = !!props.status?.openedDir?.find((i => (props.tree?.path === i.path)))
+        if (dirOpen) {
+            iconKey = 'diropen'
         }
     } else {
         const eindex = props.tree?.name.lastIndexOf(".")
         if (eindex && eindex >= 0) {
-            ext = props.tree?.name.substr(eindex + 1).toLowerCase()!
+            iconKey = props.tree?.name.substr(eindex + 1).toLowerCase()!
         }
     }
-    const icon = <FileIcon iconKey={ext} size={14}></FileIcon>
+    const icon = <FileIcon iconKey={iconKey} size={14}></FileIcon>
 
     return <>
         {props.tree?.name === "" && props.tree?.path === "" ?
@@ -99,21 +101,25 @@ function FileTree(props: Props) {
                     }}
                     className={
                         `px-1 cursor-pointer rounded-sm inline-flex items-center text-gray-400 hover:text-current
-                 ${(props.currFile?.path === props.tree?.path ? 'bg-gray-600 text-current' : '')}
-                 ${props.modifiedFile?.hasOwnProperty(props.tree?.path!) ? 'text-blue-600' : ''}
-                 `}
+                         w-full
+                         ${props.status?.currFile?.path === props.tree?.path ? 'bg-gray-600 text-current' : ''}
+                         `}
                     onContextMenu={handleContextMenu}
                 >
                     {icon}
                     <span className="ml-2 py-0.5 flex-1 whitespace-nowrap">{props.tree?.name}</span>
                 </div>
-                <div className="pl-4 ">
-                    {
-                        props.tree?.items?.map(i => (
-                            <FileTree key={i.name} {...props} tree={i}></FileTree>
-                        ))
-                    }
-                </div>
+                {
+                    dirOpen ?
+                        <div className="pl-4">
+                            {
+                                props.tree?.items?.map(i => (
+                                    <FileTree key={i.name} {...props} tree={i}></FileTree>
+                                ))
+                            }
+                        </div> : null
+                }
+
             </>
         }
     </>
@@ -124,8 +130,7 @@ interface Props {
     tree?: FileTreeI
     onFileClick?: (f: FileI) => void
     onMenu?: (m: MenuI, f: FileTreeI) => void
-    currFile?: FileTreeI
-    modifiedFile?: Object
+    status?: FileStatus
 }
 
 export default function FileBrowser(props: Props) {

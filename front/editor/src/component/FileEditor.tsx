@@ -16,6 +16,7 @@ import CodeMirrorTools from "../pkg/codemirror/tools";
 import {useCodeMirror} from "@uiw/react-codemirror";
 import {Transaction, StateEffect, EditorState} from "@codemirror/state";
 import {isolateHistory, historyField} from "@codemirror/commands";
+import {GetFile} from "../api/file";
 
 export interface FileI {
     name: string
@@ -25,7 +26,6 @@ export interface FileI {
     created_at?: number
     modify_at?: number
     body: string
-    modified?: boolean,
 }
 
 interface Props {
@@ -35,7 +35,7 @@ interface Props {
 }
 
 export default function FileEditor(props: Props) {
-    const [body, setBody] = useState(props.file?.body || '')
+    const [body, setBody] = useState('')
     const editor = useRef<HTMLDivElement>(null);
     const mirror = useRef<ReactCodeMirrorRef>(null)
     const save = () => {
@@ -106,36 +106,42 @@ export default function FileEditor(props: Props) {
 
     // 当 body 改变重新更改
     useEffect(() => {
-        const currentValue = view ? view.state.doc.toString() : '';
-        if (view && props.file?.body !== currentValue) {
-            view.dispatch({
-                changes: {from: 0, to: currentValue.length, insert: props.file?.body},
-                annotations: [
-                    // 这次修改不记录到 history
-                    // 不过下面有代码会清空 history，不加这行代码也可以
-                    Transaction.addToHistory.of(false),
-                ],
-                effects: [
-                    EditorView.scrollIntoView(0),
-                ],
-            });
-            // 清空历史记录：
+        (async function () {
+            const nf = await GetFile({project_id: 0, path: props.file?.path!, bucket: 'project'})
+            setBody(nf.data.body)
 
-            // 方案 1，重新初始化 state
-            // const x = view.state.toJSON({history: historyField})
-            // x.history = {}
-            // const state= EditorState.fromJSON(x, undefined, {history: historyField})
-            // view.setState(state)
+            const currentValue = view ? view.state.doc.toString() : '';
+            if (view && nf.data.body !== currentValue) {
+                view.dispatch({
+                    changes: {from: 0, to: currentValue.length, insert: nf.data.body},
+                    annotations: [
+                        // 这次修改不记录到 history
+                        // 不过下面有代码会清空 history，不加这行代码也可以
+                        Transaction.addToHistory.of(false),
+                    ],
+                    effects: [
+                        EditorView.scrollIntoView(0),
+                    ],
+                });
+                // 清空历史记录：
 
-            // 方案 2，更改 histFieldValue
-            // hackier to clean history
-            // https://github.com/codemirror/dev/issues/651
-            // @ts-ignore
-            let histFieldValue: { done: any, undone: any } = view.state.field(historyField);
-            histFieldValue.done = []
-            histFieldValue.undone = []
-        }
-    }, [props.file?.body])
+                // 方案 1，重新初始化 state
+                // const x = view.state.toJSON({history: historyField})
+                // x.history = {}
+                // const state= EditorState.fromJSON(x, undefined, {history: historyField})
+                // view.setState(state)
+
+                // 方案 2，更改 histFieldValue
+                // hackier to clean history
+                // https://github.com/codemirror/dev/issues/651
+                // @ts-ignore
+                let histFieldValue: { done: any, undone: any } = view.state.field(historyField);
+                histFieldValue.done = []
+                histFieldValue.undone = []
+            }
+        })()
+
+    }, [props.file?.path, view])
 
     return <div className="flex h-full flex-col overflow-y-auto" onKeyDownCapture={(e) => {
         if (e.metaKey && e.code == "KeyS") {
@@ -143,23 +149,10 @@ export default function FileEditor(props: Props) {
             save();
         }
     }}>
-        {/* 不同的文件需要有不同的编辑器，否则历史记录会乱 */}
         <div
             className="h-full overflow-y-auto text-base md:text-sm bg-gray-272C38"
-            // key={props.file?.path}
         >
             <div ref={editor} className={"cm-theme"}></div>
-            {/*<CodeMirror*/}
-            {/*    ref={mirror}*/}
-            {/*    autoFocus={false}*/}
-            {/*    value={props.file?.body}*/}
-            {/*    basicSetup={true}*/}
-            {/*    // defaultValue={props.file?.body}*/}
-            {/*    theme={oneDark}*/}
-            {/*    onChange={onChange}*/}
-            {/*    // onStatistics*/}
-            {/*    extensions={extensions}*/}
-            {/*></CodeMirror>*/}
         </div>
         <CodeMirrorTools view={view} key={props.file?.path + '1'} onChange={(e) => {
             onChange(e)

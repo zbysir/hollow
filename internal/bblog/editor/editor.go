@@ -105,6 +105,7 @@ func Cors() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", "*") // 这是允许访问所有域
 		}
 		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Length, X-CSRF-Token, Token,session,X_Requested_With,Accept, Origin, Host, Connection, Accept-Encoding, Accept-Language,DNT, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Pragma, Cookie")
+		c.Header("Access-Control-Allow-Methods", "OPTIONS,GET,PUT,POST,DELETE")
 		c.Header("Access-Control-Allow-Credentials", "true") //  跨域请求是否需要带cookie信息 默认设置为true
 
 		//放行所有 OPTIONS 方法

@@ -24,9 +24,13 @@ import ProcessModal from "./particle/ProcessModal";
 import LoginModal from "./particle/LoginModal";
 import {Login} from "./api/base";
 import {AxiosError} from "axios";
+import {set} from "lodash";
 
+// FileStatus 可以被序列化，刷新页面恢复
 export interface FileStatus {
     modifiedFiles: FileI[]
+    currFile?: FileTreeI
+    openedDir?: FileI[]
 }
 
 interface ProcessModalI {
@@ -34,34 +38,50 @@ interface ProcessModalI {
     wsKey?: string
 }
 
+function UseStorage<T>(key: string, initVal: T): [T, (t: T) => void] {
+    const raw = localStorage.getItem(key)
+
+    const [value, setValue] = useState<T>(raw ? JSON.parse(raw) : initVal)
+    const updater = useCallback(
+        (updatedValue: T) => {
+            localStorage.setItem(key, JSON.stringify(updatedValue))
+            setValue(updatedValue);
+        },
+        [key],
+    );
+
+    return [value, updater]
+}
+
 function App() {
     const [pid, setPid] = useState(1)
     const [workspace, setWorkspace] = useState<'project' | 'theme'>('project')
     const [fileTreeProject, setFileTreeProject] = useState<FileTreeI>()
-    const [fileTreeTheme, setFileTreeTheme] = useState<FileTreeI>()
-    const [currFile, setCurrFile] = useState<FileI>()
     const [newFileInfo, setNewFileInfo] = useState<NewFileInfo>()
     const [showPublishModal, setShowPublishModal] = useState(false)
     const [drawer, setDrawer] = useState(false)
-    const [fileStatus, setFileStatus] = useState<FileStatus>({modifiedFiles: []})
+    const [fileStatus, setFileStatus] = UseStorage<FileStatus>("file_status", {modifiedFiles: []})
     const bucket = workspace
     const [processModal, setProcessModal] = useState<ProcessModalI>()
     const [loginModal, setLoginModal] = useState<boolean>(false)
 
-    const setFileStatusFileModified = (f: FileI, modify: boolean) => {
+    const setFileStatusFileModified = (fileStatus: FileStatus, f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
         // console.log('fileStatus.modifiedFiles', fileStatus.modifiedFiles)
         const idx = fileStatus.modifiedFiles.findIndex(i => i.path === f.path)
         if (idx === -1) {
             if (modify) {
-                newStatus.modifiedFiles.push({...f, modified: true})
+                newStatus.modifiedFiles.push(f)
+            } else {
+                return
             }
         } else {
             if (!modify) {
                 newStatus.modifiedFiles.splice(idx, 1)
+            } else {
+                return
             }
         }
-        // console.log('xxx', f, modify, newStatus)
 
         setFileStatus(newStatus)
     }
@@ -91,30 +111,47 @@ function App() {
         convertStyle()
     })
 
-    const debounceSave = useMemo(() => {
-        return debounce(async (f :FileI) => {
-            await onFileSave(f)
-        }, 1000)
-    }, [])
-
-    const onFileChange = useCallback((f :FileI)=>{
-        console.log('onFileChange',f.path)
-        setFileStatusFileModified(f!, true)
+    const onFileChange = useCallback((f: FileI) => {
+        console.log('onFileChange', f.path)
+        setFileStatusFileModified(fileStatus, f!, true)
         // 自动保存
-        debounceSave(f)
-    },[])
+        debounceSave(fileStatus, f)
+    }, [fileStatus])
 
-    const onFileSave = async (f: FileI) => {
-        console.log('onFileSave',f.path)
-        setFileStatusFileModified(f, false)
+    const onFileSave = async (fileStatus: FileStatus, f: FileI) => {
+        console.log('onFileSave', f.path)
+        setFileStatusFileModified(fileStatus, f, false)
         await SaveFile({project_id: pid, path: f?.path!, bucket: bucket, body: f.body})
     }
 
 
+    const debounceSave = useMemo(() => {
+        return debounce(async (fileStatus: FileStatus, f: FileI) => {
+            await onFileSave(fileStatus, f)
+        }, 1000)
+    }, [])
+
     const onFileClick = async (f: FileI) => {
         if (!f.is_dir) {
-            const nf = await GetFile({project_id: pid, path: f.path, bucket: bucket})
-            setCurrFile(nf.data)
+            // const nf = await GetFile({project_id: pid, path: f.path, bucket: bucket})
+            setFileStatus({
+                ...fileStatus,
+                currFile: f,
+            })
+        } else {
+            const newStatus = {...fileStatus}
+            if (!newStatus.openedDir) {
+                newStatus.openedDir = []
+            }
+
+            const idx = fileStatus.openedDir?.findIndex(i => i.path === f.path)
+            if (idx !== undefined && idx >= 0) {
+                newStatus.openedDir.splice(idx, 1)
+            } else {
+                newStatus.openedDir.push(f)
+            }
+
+            setFileStatus(newStatus)
         }
     }
 
@@ -287,13 +324,13 @@ function App() {
                 }
             }
         })()
-    })
+    }, [])
 
     // @ts-ignore
     return (
         <div id="app" className=" h-full" data-theme="dark">
             <div className="flex flex-col space-y-2 bg-gray-1A1E2A h-full">
-                <Header menus={headMenus} onMenuClick={onTopMenu} currFile={currFile} drawer={drawer}
+                <Header menus={headMenus} onMenuClick={onTopMenu} currFile={fileStatus.currFile} drawer={drawer}
                         fileStatus={fileStatus}></Header>
                 <section className="flex-1 flex h-0 relative">
                     <div className="absolute z-10 p-1 pl-0 pt-0 " style={{left: 0, top: 0}}>
@@ -303,45 +340,39 @@ function App() {
                             ]}
                             activeKey={workspace}
                             onMenuClick={onLeftTab}></MenuVertical>
-                </div>
-                <div className="drawer drawer-mobile h-auto flex-1">
-                    <input
-                        type="checkbox"
-                        checked={drawer}
-                        onChange={() => {
-                        }}
-                        className="drawer-toggle"/>
-                    <div className="drawer-content h-full">
-                        <div className=" rounded-lg h-full overflow-hidden">
-                            <FileEditor file={currFile} onChange={onFileChange} onSave={onFileSave}/>
+                    </div>
+                    <div className="drawer drawer-mobile h-auto flex-1">
+                        <input
+                            type="checkbox"
+                            checked={drawer}
+                            onChange={() => {
+                            }}
+                            className="drawer-toggle"/>
+                        <div className="drawer-content h-full">
+                            <div className=" rounded-lg h-full overflow-hidden">
+                                <FileEditor file={fileStatus.currFile} onChange={onFileChange} onSave={async (f) => {
+                                    await onFileSave(fileStatus, f)
+                                }}/>
+                            </div>
+                        </div>
+                        <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
+                            <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
+                            <div
+                                className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto overflow-x-auto">
+                                <>
+                                    <div style={{display: workspace === 'project' ? '' : 'none'}}>
+                                        <FileBrowser
+                                            tree={fileTreeProject}
+                                            status={fileStatus}
+                                            onFileClick={onFileClick}
+                                            onMenu={onFileMenu}
+                                        ></FileBrowser>
+                                    </div>
+                                </>
+
+                            </div>
                         </div>
                     </div>
-                    <div className="drawer-side" style={{"height": '100%', 'overflowY': "auto"}}>
-                        <label onClick={() => setDrawer(false)} className="drawer-overlay "></label>
-                        <div className="menu w-60 flex flex-col mr-2 bg-gray-272C38 rounded-lg overflow-y-auto overflow-x-auto">
-                            <>
-                                <div style={{display: workspace === 'project' ? '' : 'none'}}>
-                                    <FileBrowser
-                                        tree={fileTreeProject}
-                                        currFile={currFile}
-                                        onFileClick={onFileClick}
-                                        onMenu={onFileMenu}
-                                    ></FileBrowser>
-                                </div>
-
-                                <div style={{display: workspace === 'theme' ? '' : 'none'}}>
-                                    <FileBrowser
-                                        tree={fileTreeTheme}
-                                        currFile={currFile}
-                                        onFileClick={onFileClick}
-                                        onMenu={onFileMenu}
-                                    ></FileBrowser>
-                                </div>
-                            </>
-
-                        </div>
-                    </div>
-                </div>
                 </section>
             </div>
 
