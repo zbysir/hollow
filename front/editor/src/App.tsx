@@ -25,6 +25,7 @@ import LoginModal from "./particle/LoginModal";
 import {Login} from "./api/base";
 import {AxiosError} from "axios";
 import {set} from "lodash";
+import PullModal, {Repo} from "./particle/PullModal";
 
 // FileStatus 可以被序列化，刷新页面恢复
 export interface FileStatus {
@@ -53,6 +54,10 @@ function UseStorage<T>(key: string, initVal: T): [T, (t: T) => void] {
     return [value, updater]
 }
 
+interface PullModalData {
+    repo?: Repo
+}
+
 function App() {
     const [pid, setPid] = useState(1)
     const [workspace, setWorkspace] = useState<'project' | 'theme'>('project')
@@ -64,6 +69,8 @@ function App() {
     const bucket = workspace
     const [processModal, setProcessModal] = useState<ProcessModalI>()
     const [loginModal, setLoginModal] = useState<boolean>(false)
+
+    const [pullModal, setPullModal] = useState<PullModalData>()
 
     const setFileStatusFileModified = (fileStatus: FileStatus, f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
@@ -97,19 +104,6 @@ function App() {
     useEffect(() => {
         (reloadFileTree)();
     }, [])
-
-    useEffect(() => {
-        const convertStyle = () => {
-            const height = window.innerHeight;
-            // alert(height)
-            // document.body.style.height = `${height}px`;
-        }
-        window.addEventListener("resize", convertStyle);
-        setInterval(() => {
-            convertStyle()
-        }, 1000)
-        convertStyle()
-    })
 
     const onFileChange = useCallback((f: FileI) => {
         console.log('onFileChange', f.path)
@@ -280,12 +274,7 @@ function App() {
                     onClick: async (m) => {
                         switch (m.key) {
                             case "update project":
-                                let r = await Pull()
-
-                                setProcessModal({
-                                    title: "update",
-                                    wsKey: r.data,
-                                })
+                                setPullModal({repo: undefined})
                                 break
                             case "push":
                                 let rr = await Push()
@@ -304,6 +293,15 @@ function App() {
         return
     }
 
+    const doPull = async (repo: Repo) => {
+        let r = await Pull()
+        setPullModal(undefined)
+        setProcessModal({
+            title: "update",
+            wsKey: r.data,
+        })
+    }
+
     let login = async (secret: string) => {
         await Login({secret})
         window.location = window.location
@@ -311,6 +309,8 @@ function App() {
     }
 
     useEffect(() => {
+        console.log('app');
+
         (async function () {
             try {
                 let r = await Login({secret: ''})
@@ -326,7 +326,6 @@ function App() {
         })()
     }, [])
 
-    // @ts-ignore
     return (
         <div id="app" className=" h-full" data-theme="dark">
             <div className="flex flex-col space-y-2 bg-gray-1A1E2A h-full">
@@ -390,14 +389,29 @@ function App() {
                 show={showPublishModal}
                 onConfirm={doPublish}
             ></PublishModal>
-            <ProcessModal
-                onClose={() => {
-                    setProcessModal(undefined)
-                }}
-                show={!!processModal}
-                onConfirm={doPublish}
-                wsKey={processModal?.wsKey}
-            ></ProcessModal>
+
+            {pullModal ?
+                <PullModal
+                    repo={pullModal?.repo}
+                    show={!!pullModal}
+                    onClose={() => {
+                        setPullModal(undefined)
+                    }}
+                    onConfirm={async (v) => {
+                        await doPull(v)
+                    }}></PullModal> : null}
+
+            {processModal ?
+                <ProcessModal
+                    onClose={() => {
+                        setProcessModal(undefined)
+                    }}
+                    show={true}
+                    onConfirm={doPublish}
+                    wsKey={processModal?.wsKey}
+                ></ProcessModal> : null}
+
+
             <LoginModal onConfirm={login} show={loginModal}></LoginModal>
         </div>
     );

@@ -6,6 +6,7 @@ interface Props {
     value: boolean
     onClose?: () => void
     onConfirm?: () => void
+    onShow?: () => void
     closeBtn?: string
     closeBtnWarn?: boolean
     confirmBtn?: string
@@ -13,18 +14,31 @@ interface Props {
     confirmClassName?: string
     children: ReactNode,
     keyEnter?: boolean
+    buttons?: ReactNode
 }
 
 export default function Modal(props: Props) {
     const [show, setShow] = useState(false)
+    const [create, setCreate] = useState(false)
     // defer for animate
     useEffect(() => {
-        setShow(props.value)
+        setCreate(props.value)
+
+        // 先生成 dom，再动画
+        setTimeout(function () {
+            setShow(props.value)
+        }, 16*4)
     }, [props.value])
+
+    useEffect(() => {
+        if (show) {
+            props.onShow && props.onShow()
+        }
+    }, [show])
+
     const escFunction = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
             props.onClose && props.onClose()
-        } else {
         }
     }
 
@@ -49,6 +63,10 @@ export default function Modal(props: Props) {
         }
     }
 
+    if (!create) {
+        return null
+    }
+
     return <>
         <input type="checkbox"
                className="modal-toggle" checked={show}
@@ -68,16 +86,7 @@ export default function Modal(props: Props) {
                 </h3>
                 <div className="py-4">{props.children}</div>
                 <div className="modal-action mt-3">
-                    {
-                        props.confirmBtn ?
-                            <label className={"btn btn-sm"
-                                + (confirmLoading ? ' loading' : '')
-                                + (props.confirmBtnWarn ? ' btn-warning' : '')
-                                + (props.confirmClassName ? ' ' + props.confirmClassName : '')
-                            }
-                                   onClick={onConfirm}>{props.confirmBtn}</label> :
-                            null
-                    }
+
                     {
                         props.closeBtn ?
                             <label
@@ -88,6 +97,17 @@ export default function Modal(props: Props) {
                             : null
                     }
 
+                    {
+                        props.confirmBtn ?
+                            <label className={"btn btn-sm"
+                                + (confirmLoading ? ' loading' : '')
+                                + (props.confirmBtnWarn ? ' btn-warning' : '')
+                                + (props.confirmClassName ? ' ' + props.confirmClassName : '')
+                            }
+                                   onClick={onConfirm}>{props.confirmBtn}</label> :
+                            null
+                    }
+                    {props.buttons}
                 </div>
             </div>
         </div>

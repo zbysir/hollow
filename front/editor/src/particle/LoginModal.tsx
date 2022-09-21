@@ -10,7 +10,6 @@ interface Props {
 }
 
 export default function LoginModal(props: Props) {
-    const [uploading, setUploading] = useState(false)
     const [secret, setSecret] = useState('')
 
     const onConfirm = async () => {
@@ -29,7 +28,7 @@ export default function LoginModal(props: Props) {
             <Input
                 label={'Secret'}
                 autoFocus={true}
-                type="text"
+                type="password"
                 value={secret}
                 onChange={(e) => {
                     setSecret(e.currentTarget.value)

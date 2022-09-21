@@ -24,21 +24,21 @@ export default function Confirm(p: ConfirmParams): Promise<ConfirmResult> {
     const m = <Modal
         value={true}
         onClose={() => {
-            onOk(false)
+            onOk(true)
         }}
         title={p.title}
-        confirmBtn={"Delete"}
-        confirmBtnWarn={true}
+        confirmBtn={"Cancel"}
+        closeBtn={"Delete"}
+        closeBtnWarn={true}
         onConfirm={() => {
-            onOk(true)
+            onOk(false)
         }}>
         {p.children}
     </Modal>
 
     ReactDOM.createRoot(dom).render(m);
 
-    document.body.querySelector(".App")?.appendChild(dom)
-    // document.body.appendChild(dom);
+    document.body.querySelector("#app")?.appendChild(dom)
 
     return new Promise((resolve, reject) => {
         xresolve = resolve

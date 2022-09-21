@@ -14,11 +14,12 @@ const Index: React.FC<Props> = (props: Props) => {
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
+        console.log('input', inputRef.current)
         if (props.autoFocus) {
             setTimeout(() => {
                 // wait animate
                 inputRef.current?.focus()
-            }, 10)
+            }, 100)
         }
     })
     return <div className="form-control w-full">

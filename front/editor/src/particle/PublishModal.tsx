@@ -67,11 +67,14 @@ export default function PublishModal(props: Props) {
     }
 
     useEffect(() => {
+        if (!boxRef.current) {
+            return
+        }
         let term = new Terminal({
             // cols: 100,
             convertEol: true,
         });
-        term.open(boxRef.current!);
+        term.open(boxRef.current);
 
         const fitAddon = new FitAddon();
         fitAddon.activate(term!)
@@ -89,7 +92,7 @@ export default function PublishModal(props: Props) {
             term.element?.remove()
             term.dispose()
         }
-    }, [])
+    }, [boxRef])
 
     // useEffect(() => {
     //     // ws
@@ -104,7 +107,7 @@ export default function PublishModal(props: Props) {
     //
     // }, [props.ws])
 
-    const m2 = <Modal
+    return <Modal
         className="max-w-5xl"
         value={props.show}
         confirmBtn={"Publish"}
@@ -136,5 +139,4 @@ export default function PublishModal(props: Props) {
 
     </Modal>
 
-    return m2
 }

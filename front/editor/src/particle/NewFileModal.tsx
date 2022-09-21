@@ -39,16 +39,17 @@ export default function NewFileModal(p: Props) {
         setNewFileName('')
         setUploadFiles([])
     }
-    const m2 = <Modal
-        value={!!p.newFileInfo}
-        confirmBtn={"OK"}
-        title={p.newFileInfo?.isDir ? "New Directory" : "New File"}
-        onClose={onCloseNewFile}
-        onConfirm={doNewFile}
-        keyEnter={true}
-    >
-        {/*{...getRootProps()}*/}
-        <div {...getRootProps()}>
+   return <Modal
+       value={!!p.newFileInfo}
+       confirmBtn={"OK"}
+       title={p.newFileInfo?.isDir ? "New Directory" : "New File"}
+       onClose={onCloseNewFile}
+       closeBtn={"Cancel"}
+       confirmClassName="btn-info"
+       onConfirm={doNewFile}
+       keyEnter={true}
+   >
+       <div {...getRootProps()}>
             {
                 isDragActive ? (
                         <p className="btn btn-outline btn-sm btn-block">Upload files or drag some files
@@ -84,6 +85,4 @@ export default function NewFileModal(p: Props) {
         </div>
 
     </Modal>
-
-    return m2
 }

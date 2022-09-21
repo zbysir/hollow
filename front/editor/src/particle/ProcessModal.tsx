@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import Modal from "../component/Modal";
 import {Terminal} from "xterm";
 import {FitAddon} from 'xterm-addon-fit';
@@ -23,13 +23,12 @@ export interface NewFileInfo {
 
 // 弹出框
 export default function ProcessModal(props: Props) {
-    const [uploading, setUploading] = useState(false)
-    const [statusMsg, setStatusMsg] = useState('')
+    const [loading, setLoading] = useState(true)
     const [term, setTerm] = useState<Terminal>()
     const boxRef = useRef<HTMLDivElement>(null)
-    const onClose = () => {
-        props.onClose()
-    }
+    // const onClose = () => {
+    //     props.onClose()
+    // }
     // useEffect(() => {
     //     const onResize = () => {
     //         const fitAddon = new FitAddon();
@@ -45,10 +44,9 @@ export default function ProcessModal(props: Props) {
     //         window.removeEventListener('resize', onResize);
     //     };
     // }, []);
-    const onConfirm = async () => {
+    const onConfirm = async (term: Terminal) => {
         // 发布 API
-        term?.clear()
-        // props.onConfirm && await props.onConfirm()
+        // term?.clear()
         let xresolve: (v: unknown) => void
         // will concat like this: 'ws:////localhost:9432/ws/0cD4Fp', but it's work
         const ws = new WebSocket(`ws://${serviceAddress}/ws/` + props.wsKey);
@@ -62,8 +60,8 @@ export default function ProcessModal(props: Props) {
             xresolve = resolve
         })
     }
-
-    useEffect(() => {
+    const init = async () => {
+        console.log('init terminal')
         let term = new Terminal({
             // cols: 100,
             convertEol: true,
@@ -73,40 +71,39 @@ export default function ProcessModal(props: Props) {
         const fitAddon = new FitAddon();
         fitAddon.activate(term!)
         fitAddon.fit();
-        term.write('Hello')
-
-        if (boxRef.current) {
-            console.log('init terminal')
-        }
 
         setTerm(term)
 
-        return () => {
-            console.log('dispose terminal')
-            term.element?.remove()
-            term.dispose()
-        }
-    }, [])
+        await onConfirm(term)
+        setLoading(false)
+    }
 
     useEffect(() => {
-        onConfirm()
-    })
-    const m2 = <Modal
+        return () => {
+            console.log('dispose terminal')
+            term?.element?.remove()
+            term?.dispose()
+        }
+    }, [])
+    return <Modal
         className="max-w-5xl"
         value={props.show}
-        confirmBtn={"Publish"}
-        title={"Publish"}
-        onClose={onClose}
-        onConfirm={onConfirm}
+        title={"Doing"}
+        onShow={init}
         keyEnter={true}
-        confirmClassName="btn-info"
+        buttons={<>
+            <button
+                className={
+                    `btn btn-sm btn-success
+                    ${(loading ? 'loading' : '')}
+                `}
+                disabled={loading}
+                onClick={props.onClose}> OK
+            </button>
+        </>}
     >
         <div>
-
             <div id="terminal" ref={boxRef}></div>
         </div>
-
     </Modal>
-
-    return m2
 }
