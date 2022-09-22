@@ -24,7 +24,7 @@ var AssetsUpload = &cobra.Command{
 			return err
 		}
 
-		conf, err := b.LoadConfig()
+		conf, err := b.LoadConfig(true)
 		if err != nil {
 			return err
 		}

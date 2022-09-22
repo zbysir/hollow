@@ -156,7 +156,7 @@ func (b *Bblog) Build(distPath string, o ExecOption) error {
 
 func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 }
 
 func (b *Bblog) PushProject(o ExecOption) error {
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (b *Bblog) PushProject(o ExecOption) error {
 }
 
 func (b *Bblog) PullProject(o ExecOption) error {
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
 	}
@@ -351,14 +351,21 @@ type ConfigOss struct {
 	Prefix string `yaml:"prefix"`
 }
 
-func (b *Bblog) LoadConfig() (conf *Config, err error) {
+func (b *Bblog) LoadConfig(env bool) (conf *Config, err error) {
 	f, err := easyfs.GetFile(gobilly.NewStdFs(b.projectFs), "config.yml")
 	if err != nil {
 		return nil, err
 	}
 
 	body := f.Body
-	body = os.ExpandEnv(body)
+	if env {
+		body = os.Expand(body, os.Getenv)
+	} else {
+		body = os.Expand(body, func(s string) string {
+			k := os.Getenv(s)
+			return strings.Repeat("*", len(k))
+		})
+	}
 
 	conf = &Config{}
 	err = yaml.Unmarshal([]byte(body), conf)
@@ -377,7 +384,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 		b.cache.Purge()
 		var conf *Config
 
-		conf, err := b.LoadConfig()
+		conf, err := b.LoadConfig(true)
 		if err != nil {
 			return err
 		}
@@ -587,7 +594,7 @@ type BlogList struct {
 }
 
 func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
-	c, err := b.LoadConfig()
+	c, err := b.LoadConfig(true)
 	if err != nil {
 		return nil, false
 	}
@@ -700,7 +707,7 @@ func (b *Bblog) getArticleDetail(path string) Blog {
 
 // getConfig config.yml 下的 theme_config 字段
 func (b *Bblog) getConfig() interface{} {
-	c, err := b.LoadConfig()
+	c, err := b.LoadConfig(true)
 	if err != nil {
 		panic(err)
 	}

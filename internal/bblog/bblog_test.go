@@ -33,7 +33,7 @@ func TestLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := b.LoadConfig()
+	c, err := b.LoadConfig(true)
 	if err != nil {
 		t.Fatal(err)
 	}

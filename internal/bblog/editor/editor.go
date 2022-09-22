@@ -195,13 +195,13 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		fs, err := a.projectFs(0, "project")
+		fsSource, err := a.projectFs(0, "project")
 		if err != nil {
 			c.Error(err)
 			return
 		}
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fs,
+			Fs:      fsSource,
 			ThemeFs: fsTheme,
 		})
 
@@ -277,6 +277,31 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, map[string]interface{}{
 			"preview_domain": a.config.PreviewDomain,
 		})
+	})
+	apiAuth.GET("/config", func(c *gin.Context) {
+		fsTheme, err := a.projectFs(0, "theme")
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		fsSource, err := a.projectFs(0, "project")
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		b, err := bblog.NewBblog(bblog.Option{
+			Fs:      fsSource,
+			ThemeFs: fsTheme,
+		})
+
+		conf, err := b.LoadConfig(false)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		c.JSON(200, conf)
 	})
 
 	apiAuth.GET("/file/tree", func(c *gin.Context) {
