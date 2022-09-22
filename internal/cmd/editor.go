@@ -15,7 +15,6 @@ import (
 type EditorParams struct {
 	Address       string `json:"address"`
 	Source        string `json:"source"`
-	Theme         string `json:"theme"`
 	PreviewDomain string `json:"preview_domain"`
 	Secret        string `json:"secret"`
 }
@@ -58,7 +57,6 @@ var Editor = &cobra.Command{
 func init() {
 	config.DeclareFlag(Editor, "address", "a", ":9432", "service listen address")
 	config.DeclareFlag(Editor, "source", "s", "source", "source file dir")
-	config.DeclareFlag(Editor, "theme", "t", "theme", "theme file dir")
 	config.DeclareFlag(Editor, "preview_domain", "p", "", "preview website with the domain ")
 	config.DeclareFlag(Editor, "secret", "c", "", "secret for web ui")
 }

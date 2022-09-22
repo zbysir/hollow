@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/filesystem"
@@ -314,14 +315,23 @@ func (g *Git) Push(remote string, branch string, commitMsg string, force bool) e
 	if err != nil {
 		return fmt.Errorf("worktree error: %w", err)
 	}
-	_, err = wt.Add(".")
+	patterns, err := gitignore.ReadPatterns(wt.Filesystem, nil)
+	if err != nil {
+		return fmt.Errorf("ReadPatterns error: %w", err)
+	}
+	wt.Excludes = patterns
+	err = wt.AddWithOptions(&git.AddOptions{
+		All:  true,
+		Path: "",
+		Glob: "",
+	})
 	if err != nil {
 		return fmt.Errorf("add error: %w", err)
 	}
 
 	g.log.Infof("git commit %v", commitMsg)
 	_, err = wt.Commit(commitMsg, &git.CommitOptions{
-		All:       false,
+		All:       true,
 		Author:    nil,
 		Committer: nil,
 		Parents:   nil,
