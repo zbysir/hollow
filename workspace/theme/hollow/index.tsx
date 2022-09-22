@@ -1,4 +1,4 @@
-import Index from "./Index"
+import Index from "./layout/Index"
 
 import Home from "./page/Home";
 import BlogDetail from "./page/BlogDetail";
@@ -95,5 +95,6 @@ export default {
     // 将 public 文件下所有内容 copy 到 dist 下
     assets: ['statics'],
 
+    // 用于得到预览某一个篇文章的地址
     articleRouter: articleRoute
 }

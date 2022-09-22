@@ -6,26 +6,25 @@ import {
     DeleteFile,
     GetFile,
     GetFileTree,
-    Publish, Pull, Push,
+    Publish,
     SaveFile,
     UploadFiles
 } from "./api/file";
+import {GetConfig, Login, Pull, Push} from "./api/base";
+
 import FileEditor, {FileI} from "./component/FileEditor";
 import {Header, MenuI} from "./component/Header";
 import {MenuVertical} from "./component/MenuVertical";
 import Confirm from "./component/Confirm";
 import NewFileModal, {NewFileInfo} from "./particle/NewFileModal";
 import PublishModal from "./particle/PublishModal";
-import Ws from "./util/ws";
 import {ShowPopupMenu} from "./util/popupMenu";
-import {DownloadIcon} from "./icon";
 import debounce from "lodash/debounce";
 import ProcessModal from "./particle/ProcessModal";
 import LoginModal from "./particle/LoginModal";
-import {Login} from "./api/base";
 import {AxiosError} from "axios";
-import {set} from "lodash";
 import PullModal, {Repo} from "./particle/PullModal";
+import ThemeModal from "./particle/ThemeModal";
 
 // FileStatus 可以被序列化，刷新页面恢复
 export interface FileStatus {
@@ -58,6 +57,10 @@ interface PullModalData {
     repo?: Repo
 }
 
+interface ThemeModalData {
+
+}
+
 function App() {
     const [pid, setPid] = useState(1)
     const [workspace, setWorkspace] = useState<'project' | 'theme'>('project')
@@ -71,6 +74,7 @@ function App() {
     const [loginModal, setLoginModal] = useState<boolean>(false)
 
     const [pullModal, setPullModal] = useState<PullModalData>()
+    const [themeModal, setThemeModal] = useState<ThemeModalData>()
 
     const setFileStatusFileModified = (fileStatus: FileStatus, f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
@@ -238,55 +242,21 @@ function App() {
         })
     }
 
-    const onTopMenu = (m: MenuI) => {
+    const onTopMenu = async (m: MenuI) => {
         switch (m.key) {
             case 'publish':
                 setShowPublishModal(true)
                 return
-            case 'menu':
-                ShowPopupMenu({
-                    x: 20,
-                    y: 20,
-                    menu: [
-                        {
-                            name: <div className={"flex space-x-2"}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                     strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round"
-                                          d="M7.5 7.5h-.75A2.25 2.25 0 004.5 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-7.5a2.25 2.25 0 00-2.25-2.25h-.75m-6 3.75l3 3m0 0l3-3m-3 3V1.5m6 9h.75a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-7.5a2.25 2.25 0 01-2.25-2.25v-.75"/>
-                                </svg>
-                                <span>Update Project</span>
-                            </div>,
-                            key: "update project"
-                        },
-                        {
-                            name: <div className={"flex space-x-2"}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                     strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round"
-                                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-                                </svg>
-                                <span>Push</span>
-                            </div>,
-                            key: "push"
-                        },
-                    ],
-                    onClick: async (m) => {
-                        switch (m.key) {
-                            case "update project":
-                                setPullModal({repo: undefined})
-                                break
-                            case "push":
-                                let rr = await Push()
-
-                                setProcessModal({
-                                    title: "update",
-                                    wsKey: rr.data,
-                                })
-                        }
-                    },
-                    id: "",
-                    mask: true,
+            case "update project":
+                const r = await GetConfig()
+                setPullModal({repo: r.data.source})
+                break
+            case "push":
+                const r1 = await GetConfig()
+                let rr = await Push(r1.data.source)
+                setProcessModal({
+                    title: "update",
+                    wsKey: rr.data,
                 })
         }
         onLeftTab(m)
@@ -294,7 +264,7 @@ function App() {
     }
 
     const doPull = async (repo: Repo) => {
-        let r = await Pull()
+        let r = await Pull(repo)
         setPullModal(undefined)
         setProcessModal({
             title: "update",
@@ -410,6 +380,17 @@ function App() {
                     onConfirm={doPublish}
                     wsKey={processModal?.wsKey}
                 ></ProcessModal> : null}
+
+            {themeModal ?
+                <ThemeModal
+                    repo={pullModal?.repo}
+                    show={!!pullModal}
+                    onClose={() => {
+                        setPullModal(undefined)
+                    }}
+                    onConfirm={async (v) => {
+                        await doPull(v)
+                    }}></ThemeModal> : null}
 
 
             <LoginModal onConfirm={login} show={loginModal}></LoginModal>

@@ -2,6 +2,7 @@ import axios from 'axios'
 import {FileTreeI} from "../component/FileBrowser";
 import {FileI} from "../component/FileEditor";
 import {serviceAddress} from "../const/const";
+import {Repo} from "../particle/PullModal";
 
 
 interface GetFileTreeParams {
@@ -81,6 +82,3 @@ export const UploadFiles = (params: UploadFilesParams) => {
 
     return axios.put<string[]>('/api/file/upload', forms, configs);
 }
-
-export const Pull = () => axios.post<string>('/api/pull');
-export const Push = () => axios.post<string>('/api/push');

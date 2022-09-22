@@ -40,8 +40,6 @@ var Editor = &cobra.Command{
 
 		e := editor.NewEditor(func(pid int64) (billy.Filesystem, error) {
 			return osfs.New(p.Source), nil
-		}, func(pid int64) (billy.Filesystem, error) {
-			return osfs.New(p.Theme), nil
 		}, editor.Config{
 			PreviewDomain: p.PreviewDomain,
 			Secret:        p.Secret,

@@ -44,7 +44,7 @@ export default function ProcessModal(props: Props) {
     //         window.removeEventListener('resize', onResize);
     //     };
     // }, []);
-    const onConfirm = async (term: Terminal) => {
+    const process = async (term: Terminal) => {
         // 发布 API
         // term?.clear()
         let xresolve: (v: unknown) => void
@@ -74,7 +74,7 @@ export default function ProcessModal(props: Props) {
 
         setTerm(term)
 
-        await onConfirm(term)
+        await process(term)
         setLoading(false)
     }
 
@@ -85,12 +85,21 @@ export default function ProcessModal(props: Props) {
             term?.dispose()
         }
     }, [])
+
+    const onClose = () => {
+        if (loading) {
+            return
+        }
+        props.onClose && props.onClose()
+    }
     return <Modal
         className="max-w-5xl"
         value={props.show}
         title={"Doing"}
         onShow={init}
         keyEnter={true}
+        onKeyEnter={onClose}
+        onClose={onClose}
         buttons={<>
             <button
                 className={
@@ -98,7 +107,7 @@ export default function ProcessModal(props: Props) {
                     ${(loading ? 'loading' : '')}
                 `}
                 disabled={loading}
-                onClick={props.onClose}> OK
+                onClick={onClose}> OK
             </button>
         </>}
     >

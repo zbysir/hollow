@@ -50,14 +50,12 @@ type FsFactory func(pid int64) (billy.Filesystem, error)
 
 func NewEditor(
 	projectFsFactory FsFactory,
-	themeFsFactory FsFactory,
 	config Config,
 ) *Editor {
 	hub := ws.NewHub()
 	return &Editor{
 		hub:              hub,
 		projectFsFactory: projectFsFactory,
-		themeFsFactory:   themeFsFactory,
 		config:           config,
 	}
 }
@@ -170,10 +168,6 @@ var upgrader = websocket.Upgrader{
 
 // 一个项目可以有多个 FS，比如存储源文件，比如存储主题
 func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
-	switch bucket {
-	case "theme":
-		return a.themeFsFactory(pid)
-	}
 	return a.projectFsFactory(pid)
 
 }
@@ -189,27 +183,20 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	}
 
 	var handleRender = func(c *gin.Context) {
-		fsTheme, err := a.projectFs(0, "theme")
-		if err != nil {
-			c.Error(err)
-			return
-		}
-
-		fsSource, err := a.projectFs(0, "project")
+		fsSource, err := a.projectFsFactory(0)
 		if err != nil {
 			c.Error(err)
 			return
 		}
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fsSource,
-			ThemeFs: fsTheme,
+			Fs: fsSource,
 		})
 
 		b.ServiceHandle(bblog.ExecOption{
 			Log:   nil,
 			IsDev: true,
 		})(c.Writer, c.Request)
-		c.Abort()
+		//c.Abort()
 	}
 
 	// 编辑 或者 实时预览
@@ -248,7 +235,6 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		// 如果是空，则验证 token
 		if p.Secret == "" {
 			t, _ := c.Cookie("token")
-			log.Infof("token %+v", t)
 			if t == "" {
 				c.Error(AuthErr)
 				return
@@ -279,11 +265,11 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		})
 	})
 	apiAuth.GET("/config", func(c *gin.Context) {
-		fsTheme, err := a.projectFs(0, "theme")
-		if err != nil {
-			c.Error(err)
-			return
-		}
+		//fsTheme, err := a.projectFs(0, "theme")
+		//if err != nil {
+		//	c.Error(err)
+		//	return
+		//}
 
 		fsSource, err := a.projectFs(0, "project")
 		if err != nil {
@@ -291,8 +277,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fsSource,
-			ThemeFs: fsTheme,
+			Fs: fsSource,
+			//ThemeFs: fsTheme,
 		})
 
 		conf, err := b.LoadConfig(false)
@@ -518,11 +504,11 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		fsTheme, err := a.projectFs(p.ProjectId, "theme")
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
+		//fsTheme, err := a.projectFs(p.ProjectId, "theme")
+		//if err != nil {
+		//	c.AbortWithError(400, err)
+		//	return
+		//}
 
 		fs, err := a.projectFs(p.ProjectId, "project")
 		if err != nil {
@@ -532,8 +518,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fs,
-			ThemeFs: fsTheme,
+			Fs: fs,
+			//ThemeFs: fsTheme,
 		})
 		if err != nil {
 			c.Error(err)
@@ -566,11 +552,11 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	apiAuth.POST("/pull", func(c *gin.Context) {
-		fsTheme, err := a.projectFs(0, "theme")
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
+		//fsTheme, err := a.projectFs(0, "theme")
+		//if err != nil {
+		//	c.AbortWithError(400, err)
+		//	return
+		//}
 
 		fs, err := a.projectFs(0, "project")
 		if err != nil {
@@ -580,8 +566,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fs,
-			ThemeFs: fsTheme,
+			Fs: fs,
+			//ThemeFs: fsTheme,
 		})
 		if err != nil {
 			c.Error(err)
@@ -613,11 +599,11 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	})
 
 	apiAuth.POST("/push", func(c *gin.Context) {
-		fsTheme, err := a.projectFs(0, "theme")
-		if err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
+		//fsTheme, err := a.projectFs(0, "theme")
+		//if err != nil {
+		//	c.AbortWithError(400, err)
+		//	return
+		//}
 
 		fs, err := a.projectFs(0, "project")
 		if err != nil {
@@ -627,8 +613,8 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      fs,
-			ThemeFs: fsTheme,
+			Fs: fs,
+			//ThemeFs: fsTheme,
 		})
 		if err != nil {
 			c.Error(err)
@@ -666,7 +652,12 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	s.Handler("/", r.Handler().ServeHTTP)
 	err = s.Start(ctx)
 	if err != nil {
-		return err
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
+			log.Infof("http service shutdown")
+		} else {
+			return err
+		}
 	}
 	return nil
 }

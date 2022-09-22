@@ -16,8 +16,7 @@ import (
 
 func TestService(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      osfs.New("./workspace/project"),
-		ThemeFs: osfs.New("./workspace/theme"),
+		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -33,8 +32,7 @@ func TestService(t *testing.T) {
 
 func TestBuildAndPublish(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      osfs.New("./workspace/project"),
-		ThemeFs: osfs.New("./workspace/theme"),
+		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,15 +50,13 @@ func TestBuildAndPublish(t *testing.T) {
 
 func TestBuild(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs:      osfs.New("./workspace/project"),
-		ThemeFs: osfs.New("./workspace/theme"),
+		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dst := memfs.New()
-	err = b.BuildToFs(dst, bblog.ExecOption{
+	err = b.Build("./.dist", bblog.ExecOption{
 		Log:   nil,
 		IsDev: false,
 	})
@@ -74,18 +70,13 @@ func TestServiceDbFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st, err := d.Open("project_1", "theme")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fa := gobilly.NewDbFs(st)
 	stp, err := d.Open("project_1", "project")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fProject := gobilly.NewDbFs(stp)
 
-	b, err := bblog.NewBblog(bblog.Option{ThemeFs: fa, Fs: fProject})
+	b, err := bblog.NewBblog(bblog.Option{Fs: fProject})
 	if err != nil {
 		panic(err)
 	}
@@ -98,9 +89,7 @@ func TestServiceDbFs(t *testing.T) {
 
 func TestEditor(t *testing.T) {
 	e := editor.NewEditor(func(pid int64) (billy.Filesystem, error) {
-		return osfs.New("./workspace/project"), nil
-	}, func(pid int64) (billy.Filesystem, error) {
-		return osfs.New("./workspace/theme"), nil
+		return osfs.New("./workspace"), nil
 	}, editor.Config{PreviewDomain: "preview.blog.bysir.top"})
 
 	ctx, c := signal.NewContext()

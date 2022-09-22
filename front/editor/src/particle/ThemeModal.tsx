@@ -17,7 +17,7 @@ export interface Repo {
     branch: string
 }
 
-export default function PullModal(props: Props) {
+export default function ThemeModal(props: Props) {
     const [repo, setRepo] = useState<Repo>(props.repo || {remote: '', token: '', branch: ''})
     useEffect(() => {
         setRepo(props.repo || {remote: '', token: '', branch: ''})

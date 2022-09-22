@@ -13,6 +13,7 @@ interface Props {
     onClose?: () => void
     // multipleClick?: boolean
     offsetY?: number
+    position?: 'bottom' | 'top'
 }
 
 export default function Dropdown(props: Props) {
@@ -44,6 +45,11 @@ export default function Dropdown(props: Props) {
         }, {once: true})
     })
 
+    let style: any = {bottom: `calc( 100% + ${props.offsetY || 0}px )`};
+    if (props.position === 'bottom') {
+        style = {top: `calc( 100% + ${props.offsetY || 0}px )`};
+    }
+
     return <>
         <div className="relative" onClick={(e) => {
             props.onClick && props.onClick()
@@ -56,14 +62,15 @@ export default function Dropdown(props: Props) {
             </div>
 
             <div className={`
-                absolute bottom-[100%]
+                absolute
+                z-20
                 shadow
                 border border-gray-600
                 bg-base-100
                 rounded
                 origin-bottom transition-all
                 ${show ? '' : 'invisible opacity-0 scale-95'}
-            `} style={{bottom: `calc( 100% + ${props.offsetY||0}px )`}}>
+            `} style={style}>
                 <Menu menus={props.menus} onMenuClick={props.onMenuClick} active={props.activeMenu}></Menu>
             </div>
         </div>

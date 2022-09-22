@@ -81,17 +81,14 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 }
 
 type Bblog struct {
-	x *jsx.Jsx
-	// 项目文件和主题文件可以独立，比如支持 project 在本地编写，主题通过 http 加载（到本地），用来做主题预览
-	projectFs billy.Filesystem // 项目文件
-	themeFs   billy.Filesystem // 多个主题，顶级是主题名字文件夹
+	x         *jsx.Jsx
+	projectFs billy.Filesystem // 文件
 	log       *zap.SugaredLogger
 	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 }
 
 type Option struct {
-	Fs      billy.Filesystem
-	ThemeFs billy.Filesystem
+	Fs billy.Filesystem
 }
 
 type StdFileSystem struct {
@@ -103,17 +100,13 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 
 func NewBblog(o Option) (*Bblog, error) {
 	if o.Fs == nil {
-		//o.Fs = os.DirFS(".")
 		o.Fs = osfs.New(".")
-	}
-	if o.ThemeFs == nil {
-		o.ThemeFs = o.Fs
 	}
 
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
-		SourceFs:    gobilly.NewStdFs(o.ThemeFs),
+		SourceFs:    gobilly.NewStdFs(o.Fs),
 		Debug:       false,
 	})
 	if err != nil {
@@ -128,7 +121,6 @@ func NewBblog(o Option) (*Bblog, error) {
 		x:         x,
 		projectFs: o.Fs,
 		log:       log.StdLogger,
-		themeFs:   o.ThemeFs,
 		cache:     cache,
 	}
 
@@ -161,8 +153,8 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 
-	configFile := filepath.Join(conf.Theme, "config")
-	themeModule, err := b.loadTheme(configFile)
+	themeIndexFile := filepath.Join(conf.Theme, "index")
+	themeModule, err := b.loadTheme(themeIndexFile)
 	if err != nil {
 		return err
 	}
@@ -195,10 +187,10 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	}
 
 	for _, a := range themeModule.Assets {
-		d := filepath.Dir(configFile)
+		d := filepath.Dir(themeIndexFile)
 
 		srcDir := filepath.Join(d, a)
-		err = copyDir(srcDir, "", gobilly.NewStdFs(b.themeFs), dst)
+		err = copyDir(srcDir, "", gobilly.NewStdFs(b.projectFs), dst)
 		if err != nil {
 			return err
 		}
@@ -241,7 +233,7 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 	if branch == "" {
 		branch = "docs"
 	}
-	err = g.Push(conf.Deploy.Repo, branch, "by hollow", true)
+	err = g.Push(conf.Deploy.Remote, branch, "by hollow", true)
 	if err != nil {
 		return err
 	}
@@ -265,7 +257,7 @@ func (b *Bblog) PushProject(o ExecOption) error {
 	}
 
 	log.Infof("config %+v", conf.Source)
-	err = g.Push(conf.Source.Repo, conf.Source.Branch, "-", true)
+	err = g.Push(conf.Source.Remote, conf.Source.Branch, "-", true)
 	if err != nil {
 		return err
 	}
@@ -289,7 +281,7 @@ func (b *Bblog) PullProject(o ExecOption) error {
 		return err
 	}
 
-	err = g.Pull(conf.Source.Repo, conf.Source.Branch, true)
+	err = g.Pull(conf.Source.Remote, conf.Source.Branch, true)
 	if err != nil {
 		return err
 	}
@@ -323,10 +315,9 @@ func (d *DirFs) Open(name string) (http.File, error) {
 }
 
 type Config struct {
-	Theme  string  `json:"theme" yaml:"theme"`
-	Deploy GitRepo `json:"deploy" yaml:"deploy"`
-	Source GitRepo `json:"source" yaml:"source"`
-	//Git         ConfigGit   `json:"git" yaml:"git"`
+	Theme       string      `json:"theme" yaml:"theme"`
+	Deploy      GitRepo     `json:"deploy" yaml:"deploy"`
+	Source      GitRepo     `json:"source" yaml:"source"`
 	Oss         ConfigOss   `json:"oss" yaml:"oss"`
 	Assets      Assets      `json:"assets" yaml:"assets"`
 	ThemeConfig interface{} `json:"theme_config" yaml:"theme_config"`
@@ -334,7 +325,7 @@ type Config struct {
 
 type GitRepo struct {
 	Token  string `json:"token" yaml:"token"`
-	Repo   string `json:"repo" yaml:"repo"`
+	Remote string `json:"remote" yaml:"remote"`
 	Branch string `json:"branch" yaml:"branch"`
 }
 
@@ -390,17 +381,17 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 		}
 		themeDir := conf.Theme
 
-		configFile := filepath.Join(themeDir, "config")
-		themeModule, err = b.loadTheme(configFile)
+		themeIndexFile := filepath.Join(themeDir, "index")
+		themeModule, err = b.loadTheme(themeIndexFile)
 		if err != nil {
 			return err
 		}
-		configDir := filepath.Dir(configFile)
+		configDir := filepath.Dir(themeIndexFile)
 		var dirs MuitDir
 		for _, i := range themeModule.Assets {
 			// 得到相对 themeFs root 的路径，e.g. dark/publish
 			dir := filepath.Join(configDir, i)
-			sub, err := fs.Sub(gobilly.NewStdFs(b.themeFs), dir)
+			sub, err := fs.Sub(gobilly.NewStdFs(b.projectFs), dir)
 			if err != nil {
 				return fmt.Errorf("sub fs '%v' error: %w", i, err)
 			}
@@ -444,10 +435,12 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 		for _, p := range themeModule.Pages {
 			if reqPath == p.GetPath() {
 				component, err := p.GetComponent()
+				writer.WriteHeader(400)
 				if err != nil {
 					writer.Write([]byte(err.Error()))
 					return
 				}
+				writer.WriteHeader(200)
 				x := component.Render()
 				writer.Write([]byte(x))
 				return
@@ -545,11 +538,10 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 		}
 	}
 
-	md := newMdRender(func(s string) string {
-		p := s
-		if filepath.IsAbs(s) {
+	md := newMdRender(func(p string) string {
+		if filepath.IsAbs(p) {
 		} else {
-			p = filepath.Join(dir, s)
+			p = filepath.Join(dir, p)
 		}
 
 		// 移除 assets 文件夹前缀

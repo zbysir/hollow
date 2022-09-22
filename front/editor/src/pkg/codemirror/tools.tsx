@@ -77,9 +77,7 @@ function HeadBtn(props: HeadBtnProps) {
                 // add
                 changes = {from: currLine?.from!, to: currLine?.from!, insert: '#'.repeat(+e.key) + ' '};
             }
-            console.log('change', changes, view)
             view?.dispatch({changes: changes, annotations: Transaction.userEvent.of("from tools")})
-
         }}
     >
         <button tabIndex={0} className="btn btn-ghost btn-xs btn-active btn-square ">

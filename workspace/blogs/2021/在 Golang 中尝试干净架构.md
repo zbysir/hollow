@@ -4,9 +4,12 @@ slug: 'Clean Architecture on Golang'
 tags: [Golang]
 desc: 架构是一个哲学问题
 ---
+
 > 架构是一个哲学问题，并且复杂，我也才跨入了一根脚指头，如有不正，感谢指教。
 
 ## 什么是“干净架构” ？
+
+![](/statics/img/DSC01646.JPG)
 
 “干净架构”是 Robert C. Martin (Uncle Bob)（[About](http://cleancoder.com/files/about.md)，[Robert C·Martin Robert C·Martin的作品(16)](https://book.douban.com/author/104377/books?start=0&format=pic&sortby=collect)）在 2012 年总结现有的系统架构并提出的一个理念。
 

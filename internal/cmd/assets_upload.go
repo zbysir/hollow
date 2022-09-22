@@ -17,8 +17,8 @@ var AssetsUpload = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir := viper.GetString("d")
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs:      osfs.New(dir),
-			ThemeFs: nil,
+			Fs: osfs.New(dir),
+			//ThemeFs: nil,
 		})
 		if err != nil {
 			return err

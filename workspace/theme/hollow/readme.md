@@ -1,6 +1,6 @@
-# Dark Theme
+# Hollow Theme
 
-简介，大字，少图
+Hollow 系统同名主题（也是第一款主题）。https://blog.bysir.top/
 
 ## Params
 

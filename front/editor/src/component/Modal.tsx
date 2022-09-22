@@ -14,6 +14,7 @@ interface Props {
     confirmClassName?: string
     children: ReactNode,
     keyEnter?: boolean
+    onKeyEnter?: () => void
     buttons?: ReactNode
 }
 
@@ -36,21 +37,28 @@ export default function Modal(props: Props) {
         }
     }, [show])
 
-    const escFunction = (event: KeyboardEvent) => {
+    const keyDown = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
             props.onClose && props.onClose()
+        } else if (event.code === 'Enter') {
+            if (props.keyEnter) {
+                if (props.onKeyEnter) {
+                    props.onKeyEnter()
+                } else {
+                    props.onConfirm && props.onConfirm()
+                }
+            }
         }
     }
 
     const [confirmLoading, setConfirmLoading] = useState(false)
 
     useEffect(() => {
-        window.addEventListener("keydown", escFunction, true);
-
+        window.addEventListener("keydown", keyDown, true);
         return () => {
-            window.removeEventListener("keydown", escFunction, true);
+            window.removeEventListener("keydown", keyDown, true);
         };
-    });
+    }, []);
 
     const onConfirm = async () => {
         if (props.onConfirm) {
@@ -72,14 +80,7 @@ export default function Modal(props: Props) {
                className="modal-toggle" checked={show}
                onChange={() => {
                }}/>
-        <div className="modal" onKeyUpCapture={(e) => {
-            // console.log('xxx', e.code)
-            if (e.code == "Enter") {
-                if (props.keyEnter) {
-                    props.onConfirm && props.onConfirm()
-                }
-            }
-        }}>
+        <div className="modal">
             <div className={"modal-box rounded-md " + props.className || ''}>
                 <h3 className="font-bold text-lg ">
                     {props.title}

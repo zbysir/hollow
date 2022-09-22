@@ -13,8 +13,8 @@ Hollow 是一款快速、简洁静态博客生成器。目前只服务于自己�
 ## Feature
 
 - **使用 Web UI 管理文章**
-  - 在任何地方（如手机上）管理你的文章
-  - 云端文件也支持提交到 Git 上，不怕文件丢失
+  - 在任何地方（如手机）管理你的文章
+  - 源文件支持与 Git 同步，不怕文件丢失
 - 提供工具一键部署到 Git 仓库
 - 主题开发没有限制，没有规则，足够简单，代码即所得
 - 快速：生成 1000 篇页面只需要 2s
@@ -29,7 +29,7 @@ Hollow 提供的工具是最简单的，代码即所得，没有复杂的规则�
 比如一个最简单的项目只有一个文件：
 ```jsx
 function Index(props) {
-  return <html lang="zh" class="dark">
+  return <html lang="zh">
   <head>
     <meta charSet="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

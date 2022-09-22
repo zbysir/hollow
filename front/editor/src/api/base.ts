@@ -1,5 +1,7 @@
 import axios from "axios";
 import {serviceAddress} from "../const/const";
+import {Repo} from "../particle/PullModal";
+import exp from "constants";
 
 axios.defaults.baseURL = serviceAddress;
 axios.defaults.withCredentials = true
@@ -18,3 +20,13 @@ interface LoginParams {
 }
 
 export const Login = (params: LoginParams) => axios.post<void>('/api/auth', params);
+
+export const Pull = (repo: Repo) => axios.post<string>('/api/pull');
+export const Push = (repo: Repo) => axios.post<string>('/api/push');
+
+export interface Config {
+    source: Repo
+    deploy: Repo
+}
+
+export const GetConfig = () => axios.get<Config>("/api/config")

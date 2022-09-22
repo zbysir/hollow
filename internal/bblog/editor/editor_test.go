@@ -7,7 +7,7 @@ import (
 )
 
 func TestEditor(t *testing.T) {
-	e := NewEditor(nil, nil, Config{PreviewDomain: "abc"})
+	e := NewEditor(nil, Config{PreviewDomain: "abc"})
 	err := e.Run(context.Background(), ":9091")
 	if err != nil {
 		t.Fatal(err)

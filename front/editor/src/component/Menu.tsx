@@ -16,7 +16,8 @@ export function Menu(props: Props) {
                 <span
                     key={i.key}
                     className={
-                        `${props.active == i.key ? 'bg-gray-700' : ''}
+                        `whitespace-nowrap 
+                        ${props.active == i.key ? 'bg-gray-700' : ''}
                         transition-all
                         hover:bg-gray-700 cursor-pointer px-3 py-0.5`
                     }

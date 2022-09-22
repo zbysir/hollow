@@ -1,5 +1,5 @@
-import Header from "./particle/Header";
-import Footer, {Link} from "./particle/Footer";
+import Header from "../particle/Header";
+import Footer, {Link} from "../particle/Footer";
 
 interface Props {
     title: string
