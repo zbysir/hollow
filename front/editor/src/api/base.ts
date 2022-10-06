@@ -1,19 +1,17 @@
-import axios from "axios";
+import axios, {AxiosError} from "axios";
 import {serviceAddress} from "../const/const";
 import {Repo} from "../particle/PullModal";
-import exp from "constants";
+import {message} from "../util/Toast";
 
 axios.defaults.baseURL = serviceAddress;
 axios.defaults.withCredentials = true
 
-// axios.interceptors.response.use(response => {
-//     let resData = response.data
-//     if (resData.code === -1) {
-//         return Promise.reject(new Error(resData.msg))
-//     } else {
-//         return resData.data
-//     }
-// })
+axios.interceptors.response.use(response => {
+    return response
+}, function (error: AxiosError<any>) {
+    message("error", error.response?.data?.msg || error.message)
+    return Promise.reject(error);
+})
 
 interface LoginParams {
     secret: string

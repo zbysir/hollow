@@ -47,6 +47,7 @@ export default function NewFileModal(p: Props) {
        closeBtn={"Cancel"}
        confirmClassName="btn-info"
        onConfirm={doNewFile}
+       confirmBtnDisable={!newFileName}
        keyEnter={true}
    >
        <div {...getRootProps()}>

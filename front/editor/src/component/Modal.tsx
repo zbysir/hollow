@@ -16,6 +16,9 @@ interface Props {
     keyEnter?: boolean
     onKeyEnter?: () => void
     buttons?: ReactNode
+
+    closeBtnDisable?: boolean
+    confirmBtnDisable?: boolean
 }
 
 export default function Modal(props: Props) {
@@ -90,22 +93,25 @@ export default function Modal(props: Props) {
 
                     {
                         props.closeBtn ?
-                            <label
+                            <button
+                                disabled={props.closeBtnDisable}
                                 className={'btn btn-sm'
                                     + (props.closeBtnWarn ? ' btn-warning' : '')
                                 }
-                                onClick={props.onClose}>{props.closeBtn}</label>
+                                onClick={props.onClose}>{props.closeBtn}</button>
                             : null
                     }
 
                     {
                         props.confirmBtn ?
-                            <label className={"btn btn-sm"
+                            <button
+                                disabled={props.confirmBtnDisable}
+                                className={"btn btn-sm"
                                 + (confirmLoading ? ' loading' : '')
                                 + (props.confirmBtnWarn ? ' btn-warning' : '')
                                 + (props.confirmClassName ? ' ' + props.confirmClassName : '')
                             }
-                                   onClick={onConfirm}>{props.confirmBtn}</label> :
+                                   onClick={onConfirm}>{props.confirmBtn}</button> :
                             null
                     }
                     {props.buttons}

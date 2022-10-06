@@ -1,10 +1,7 @@
 import axios from 'axios'
 import {FileTreeI} from "../component/FileBrowser";
 import {FileI} from "../component/FileEditor";
-import {serviceAddress} from "../const/const";
-import {Repo} from "../particle/PullModal";
-
-
+import {message} from "../util/Toast";
 interface GetFileTreeParams {
     path: string
     bucket: string

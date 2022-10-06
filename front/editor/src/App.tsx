@@ -25,6 +25,7 @@ import LoginModal from "./particle/LoginModal";
 import {AxiosError} from "axios";
 import PullModal, {Repo} from "./particle/PullModal";
 import ThemeModal from "./particle/ThemeModal";
+import {Toast} from "./util/Toast";
 
 // FileStatus 可以被序列化，刷新页面恢复
 export interface FileStatus {
@@ -57,10 +58,6 @@ interface PullModalData {
     repo?: Repo
 }
 
-interface ThemeModalData {
-
-}
-
 function App() {
     const [pid, setPid] = useState(1)
     const [workspace, setWorkspace] = useState<'project' | 'theme'>('project')
@@ -74,7 +71,6 @@ function App() {
     const [loginModal, setLoginModal] = useState<boolean>(false)
 
     const [pullModal, setPullModal] = useState<PullModalData>()
-    const [themeModal, setThemeModal] = useState<ThemeModalData>()
 
     const setFileStatusFileModified = (fileStatus: FileStatus, f: FileI, modify: boolean) => {
         const newStatus = {...fileStatus}
@@ -381,19 +377,10 @@ function App() {
                     wsKey={processModal?.wsKey}
                 ></ProcessModal> : null}
 
-            {themeModal ?
-                <ThemeModal
-                    repo={pullModal?.repo}
-                    show={!!pullModal}
-                    onClose={() => {
-                        setPullModal(undefined)
-                    }}
-                    onConfirm={async (v) => {
-                        await doPull(v)
-                    }}></ThemeModal> : null}
-
-
             <LoginModal onConfirm={login} show={loginModal}></LoginModal>
+
+            <Toast/>
+
         </div>
     );
 }
