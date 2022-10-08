@@ -19,7 +19,7 @@ jobs:
         go-version: 1.18
 
     - name: Build Go
-      run: go build -v ./...
+      run: go build -v .
 
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag bysir/hollow:latest

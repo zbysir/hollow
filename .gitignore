@@ -3,3 +3,4 @@
 node_modules/
 # 存储了私密信息，如 token
 main.boltdb
+/hollow
