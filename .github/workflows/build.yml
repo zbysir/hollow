@@ -3,7 +3,7 @@ name: Publish to Docker Hub
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: "bysir/hollow:latest"
 
 on:
   push:
