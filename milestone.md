@@ -8,6 +8,7 @@
 
 ## 完善主题
 - [ ] 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/
+- [ ] 实现模糊搜索，React 与 https://github.com/krisk/Fuse
 
 ## 发布
 - [ ] 将 Editor 发布为 Docker 镜像
