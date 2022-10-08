@@ -1,7 +1,8 @@
 FROM golang:1.18 AS builder
 
-RUN pwd
-RUN ls
+WORKDIR /go/src/app
+
+COPY . .
 
 RUN go build -v .
 
