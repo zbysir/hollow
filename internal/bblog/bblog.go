@@ -440,7 +440,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 					writer.Write([]byte(err.Error()))
 					return
 				}
-				writer.WriteHeader(200)
+				//writer.WriteHeader(200)
 				x := component.Render()
 				writer.Write([]byte(x))
 				return
@@ -487,6 +487,24 @@ type Blog struct {
 	Meta       map[string]interface{} `json:"meta"`
 	Ext        string                 `json:"ext"`
 	Content    string                 `json:"content"`
+	IsDir      bool                   `json:"is_dir"`
+}
+
+type ArticleTree struct {
+	Blog
+	Children ArticleTrees `json:"children"`
+}
+
+type ArticleTrees []ArticleTree
+
+func (ats ArticleTrees) Sort(f func(a, b interface{}) bool) {
+	sort.Slice(ats, func(i, j int) bool {
+		return f(ats[i], ats[j])
+	})
+
+	for _, v := range ats {
+		v.Children.Sort(f)
+	}
 }
 
 type BlogLoader interface {
@@ -574,6 +592,9 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 
 type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
+	Flat bool                        `json:"flat"` // 如果不需要目录信息，则可以传递 flat = true
+	Size int                         `json:"size"`
+	Page int                         `json:"page"`
 }
 
 func (g getBlogOption) cacheKey() string {
@@ -581,8 +602,8 @@ func (g getBlogOption) cacheKey() string {
 }
 
 type BlogList struct {
-	Total int    `json:"total"`
-	List  []Blog `json:"list"`
+	Total int           `json:"total"`
+	List  []ArticleTree `json:"list"`
 }
 
 func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
@@ -599,56 +620,140 @@ func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
 	return nil, false
 }
 
+func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ArticleTree, error)) ([]ArticleTree, error) {
+	info, err := fs.Stat(fsys, root)
+	if err != nil {
+
+	} else {
+		at, err := mapDir(fsys, root, &statDirEntry{info}, fn)
+		return at, err
+	}
+
+	return nil, err
+}
+
+type statDirEntry struct {
+	info fs.FileInfo
+}
+
+func (d *statDirEntry) Name() string               { return d.info.Name() }
+func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+
+// walkDir recursively descends path, calling walkDirFn.
+func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, d fs.DirEntry) (ArticleTree, error)) ([]ArticleTree, error) {
+	dirs, err := fs.ReadDir(fsys, name)
+	if err != nil {
+		return nil, err
+	}
+	var ats []ArticleTree
+	for _, d1 := range dirs {
+		name1 := path.Join(name, d1.Name())
+
+		a, err := walkDirFn(name1, d1)
+		if err != nil {
+			return nil, err
+		}
+		if a.Name == "" {
+			continue
+		}
+		var children ArticleTrees
+		if d1.IsDir() {
+			children, err = mapDir(fsys, name1, d1, walkDirFn)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		ats = append(ats, ArticleTree{
+			Blog:     a.Blog,
+			Children: children,
+		})
+	}
+	return ats, nil
+}
+
 // getArticles 返回 dir 目录下的所有博客
 func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
-	var blogs []Blog
-	var total int
+	var blogs ArticleTrees
+	//var total int
 	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
 	x, ok := b.cache.Get(cacheKey)
 	if ok {
-		blogs = x.([]Blog)
+		blogs = x.(ArticleTrees)
 	} else {
-		err := fs.WalkDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+		ts, err := MapDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry) (ArticleTree, error) {
+			//if err != nil {
+			//	return ArticleTree{}, err
+			//}
 			if d.IsDir() {
-				return nil
+				// read dir meta
+				var mate = map[string]interface{}{}
+				metaFileName := filepath.Join(path, "meta.yaml")
+				bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
+				if err != nil {
+					if !errors.Is(err, fs.ErrNotExist) {
+						return ArticleTree{}, fmt.Errorf("read meta file error: %w", err)
+					}
+					err = nil
+				} else {
+					err = yaml.Unmarshal(bs, &mate)
+					if err != nil {
+						return ArticleTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
+					}
+				}
+				// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
+				for k, v := range mate {
+					switch t := v.(type) {
+					case time.Time:
+						mate[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+					}
+				}
+				return ArticleTree{Blog: Blog{
+					Name: d.Name(),
+					GetContent: func() string {
+						return ""
+					},
+					Meta:    mate,
+					Ext:     "",
+					Content: "",
+					IsDir:   true,
+				}}, nil
 			}
+
 			ext := filepath.Ext(path)
 			loader, ok := b.getLoader(ext)
 
 			if !ok {
-				return nil
+				return ArticleTree{}, nil
 			}
-			total++
 
 			blog, ok, err := loader.Load(gobilly.NewStdFs(b.projectFs), path, false)
 			if err != nil {
 				log.Errorf("load blog (%v) file: %v", path, err)
 			}
 			if !ok {
-				return nil
+				return ArticleTree{}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
 			bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
 			if err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
-					return fmt.Errorf("read meta file error: %w", err)
+					return ArticleTree{}, fmt.Errorf("read meta file error: %w", err)
 				}
 				err = nil
 			} else {
 				var m = map[string]interface{}{}
 				err = yaml.Unmarshal(bs, &m)
 				if err != nil {
-					return fmt.Errorf("unmarshal meta file error: %w", err)
+					return ArticleTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
 				}
 
 				for k, v := range m {
 					blog.Meta[k] = v
 				}
-
 			}
 			// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
 			for k, v := range blog.Meta {
@@ -658,22 +763,80 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 				}
 			}
 
-			blogs = append(blogs, blog)
-
-			return nil
+			return ArticleTree{Blog: blog}, nil
 		})
 		if err != nil {
-			log.Errorf("get source '%s' error: %v", dir, err)
+			log.Warnf("MapDir error: %v", err)
 			return BlogList{}
 		}
+
+		blogs = ts
+
+		//err := fs.WalkDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry, err error) error {
+		//	if err != nil {
+		//		return err
+		//	}
+		//
+		//	ext := filepath.Ext(path)
+		//	loader, ok := b.getLoader(ext)
+		//
+		//	if !ok {
+		//		return nil
+		//	}
+		//	total++
+		//
+		//	blog, ok, err := loader.Load(gobilly.NewStdFs(b.projectFs), path, false)
+		//	if err != nil {
+		//		log.Errorf("load blog (%v) file: %v", path, err)
+		//	}
+		//	if !ok {
+		//		return nil
+		//	}
+		//	// read meta
+		//	metaFileName := path + ".yaml"
+		//	bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
+		//	if err != nil {
+		//		if !errors.Is(err, fs.ErrNotExist) {
+		//			return fmt.Errorf("read meta file error: %w", err)
+		//		}
+		//		err = nil
+		//	} else {
+		//		var m = map[string]interface{}{}
+		//		err = yaml.Unmarshal(bs, &m)
+		//		if err != nil {
+		//			return fmt.Errorf("unmarshal meta file error: %w", err)
+		//		}
+		//
+		//		for k, v := range m {
+		//			blog.Meta[k] = v
+		//		}
+		//
+		//	}
+		//	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
+		//	for k, v := range blog.Meta {
+		//		switch t := v.(type) {
+		//		case time.Time:
+		//			blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+		//		}
+		//	}
+		//
+		//	blogs = append(blogs, ArticleTree{
+		//		Blog:     blog,
+		//		Children: nil,
+		//	})
+		//
+		//	return nil
+		//})
+		//if err != nil {
+		//	log.Errorf("get source '%s' error: %v", dir, err)
+		//	return BlogList{}
+		//}
 
 		b.cache.Add(cacheKey, blogs)
 	}
 
 	if opt.Sort != nil {
-		sort.Slice(blogs, func(i, j int) bool {
-			return opt.Sort(blogs[i], blogs[j])
-		})
+		blogs.Sort(opt.Sort)
 	}
 
 	return BlogList{

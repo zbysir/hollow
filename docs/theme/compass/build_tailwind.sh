@@ -1,0 +1,1 @@
+NODE_ENV=production npx tailwindcss -o ./statics/tailwind.css --watch --minify

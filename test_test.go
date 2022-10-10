@@ -16,13 +16,13 @@ import (
 
 func TestService(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs: osfs.New("./workspace"),
+		Fs: osfs.New("./docs"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	addr := ":8082"
+	addr := ":8083"
 	t.Logf("listening %v", addr)
 	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, addr)
 	if err != nil {

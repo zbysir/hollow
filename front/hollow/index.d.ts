@@ -1,21 +1,23 @@
 export interface Article {
     name: string
-    getContent: () => string
+    getContent?: () => string
     meta?: Record<string, any>
     ext: string // file extension
     content?: string
+    is_dir: boolean
+    children?: Article[]
 }
 
 type ThemeConfig = Record<string, any>
 
 interface GetArticlesOptions {
-    sort: (a: Article, b: Article) => boolean
-    filter: (a: Article) => boolean
-    page: number
-    size: number
+    sort?: (a: Article, b: Article) => boolean
+    filter?: (a: Article) => boolean
+    page?: number
+    size?: number
 }
 
-interface ArticleList {
+export interface ArticleList {
     total: number
     list: Article[]
 }

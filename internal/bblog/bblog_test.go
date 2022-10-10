@@ -10,24 +10,40 @@ import (
 )
 
 func TestSource(t *testing.T) {
-	b, err := NewBblog(Option{})
+	b, err := NewBblog(Option{
+		Fs: osfs.New("../../docs"),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	x := b.getArticles("../../blogs", getBlogOption{})
-	bs := x
-	for _, b := range bs.List {
-		t.Logf("%+v", b)
-
-		t.Logf("content: %s", b.GetContent())
+	as := b.getArticles("contents", getBlogOption{
+		Sort: func(a, b interface{}) bool {
+			//c := a.(ArticleTree).Meta["date"]
+			//a.(ArticleTree).Meta
+			//log.Infof("c %+v", a)
+			return false
+		},
+		Flat: false,
+	})
+	for _, b := range as.List {
+		t.Logf("%+v %v", b.Name, b.IsDir)
+		for _, b := range b.Children {
+			t.Logf("\t\t%+v %v", b.Name, b.IsDir)
+		}
 	}
+
+	//bs, err := json.MarshalIndent(as.List, " ", " ")
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//t.Logf("%s", bs)
 }
 
 func TestLoad(t *testing.T) {
 	b, err := NewBblog(Option{
-		Fs:      osfs.New("../../workspace/project"),
-		ThemeFs: osfs.New("../../workspace/theme"),
+		Fs: osfs.New("../../workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -54,11 +70,6 @@ func TestBuildFromFs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st, err := d.Open(fmt.Sprintf("project_1"), "theme")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fsTheme := gobilly.NewDbFs(st)
 
 	st2, err := d.Open(fmt.Sprintf("project_1"), "project")
 	if err != nil {
@@ -67,8 +78,7 @@ func TestBuildFromFs(t *testing.T) {
 	fs := gobilly.NewDbFs(st2)
 
 	b, err := NewBblog(Option{
-		Fs:      fs,
-		ThemeFs: fsTheme,
+		Fs: fs,
 	})
 
 	err = b.Build("docs", ExecOption{

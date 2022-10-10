@@ -37,7 +37,6 @@ import (
 type Editor struct {
 	hub              *ws.WsHub
 	projectFsFactory FsFactory
-	themeFsFactory   FsFactory
 	config           Config
 }
 
