@@ -10,9 +10,9 @@ export function sortBlog(a: Article, b: Article) {
 
 export function articleRoute(b?: Article) {
     if (!b) {
-        return '/'
+        return ''
     }
-    return '/' + (b.meta?.slug || b.name)
+    return (b.meta?.slug || b.name)
 }
 
 export function dateFormat(date, fmt,) {

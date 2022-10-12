@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@bysir/hollow@^1.0.4":
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/@bysir/hollow/-/hollow-1.0.4.tgz#ef801a0582b1274701c39840ef9f3a8426a91583"
-  integrity sha512-gq6wAfp1ZqQb44uqcHNkOxpSHCZvCOeT/9kypPrX/GhhicLEOv8elbpbBFQgb+POF2xBLQJLMy51cRGgEqUNFw==
+"@bysir/hollow@^1.0.5":
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/@bysir/hollow/-/hollow-1.0.5.tgz#cdd0dea6c19936182dad6c54c1135874dca12a44"
+  integrity sha512-tM8n65Ddfa0uWZUbWBj8kF19XwERrv3zefFVrBSr3J7XEWYiQF42owEnW8ZmlzlUqakzHuigTUO4OuWM4Uq1Yw==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"

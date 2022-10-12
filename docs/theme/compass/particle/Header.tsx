@@ -2,8 +2,8 @@ import Link from "../component/Link";
 
 export default function Header(props) {
     const menus = [
+        {href: '/docs', name: 'Docs'},
         {href: 'https://github.com/zbysir/hollow', name: 'GitHub'},
-        // {href: '/tags', name: 'Tags'},
         // {href: '/about', name: 'About'},
         // {href: '/links', name: 'Links'},
         // {href: '/gallery', name: 'Gallery'},

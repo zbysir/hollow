@@ -507,6 +507,20 @@ func (ats ArticleTrees) Sort(f func(a, b interface{}) bool) {
 	}
 }
 
+func (ats ArticleTrees) Flat(includeDir bool) ArticleTrees {
+	var s ArticleTrees
+
+	for _, v := range ats {
+		children := v.Children.Flat(includeDir)
+		if len(children) == 0 || includeDir {
+			s = append(s, v)
+		}
+		s = append(s, children...)
+	}
+
+	return s
+}
+
 type BlogLoader interface {
 	Load(fs fs.FS, filePath string, withContent bool) (Blog, bool, error)
 }
@@ -590,9 +604,72 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 	}, true, nil
 }
 
+type HtmlLoader struct {
+	//assets Assets
+}
+
+func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, bool, error) {
+	dir, name := filepath.Split(filePath)
+	if !strings.HasPrefix(dir, "/") {
+		dir = "/" + dir
+	}
+
+	ext := filepath.Ext(filePath)
+	if supportExt[ext] {
+		name = strings.TrimSuffix(name, ext)
+	} else {
+		return Blog{}, false, nil
+	}
+
+	// 读取 metadata
+	body, err := fs.ReadFile(f, filePath)
+	if err != nil {
+		return Blog{}, false, err
+	}
+
+	var meta = map[string]interface{}{}
+	if bytes.HasPrefix(body, []byte("---\n")) {
+		bbs := bytes.SplitN(body, []byte("---"), 3)
+		if len(bbs) > 2 {
+			metaByte := bbs[1]
+			err = yaml.Unmarshal(metaByte, &meta)
+			if err != nil {
+				return Blog{}, false, fmt.Errorf("parse file metadata error: %w", err)
+			}
+
+			body = bbs[2]
+		}
+	}
+
+	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
+	for k, v := range meta {
+		switch t := v.(type) {
+		case time.Time:
+			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+		}
+	}
+
+	content := ""
+	if withContent {
+		content = string(body)
+	}
+	return Blog{
+		Name: name,
+		GetContent: func() string {
+			if withContent {
+				return content
+			}
+			return string(body)
+		},
+		Meta:    meta,
+		Ext:     ext,
+		Content: content,
+	}, true, nil
+}
+
 type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
-	Flat bool                        `json:"flat"` // 如果不需要目录信息，则可以传递 flat = true
+	Tree bool                        `json:"tree"` // 传递 tree = true 则返回树结构
 	Size int                         `json:"size"`
 	Page int                         `json:"page"`
 }
@@ -616,11 +693,13 @@ func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
 		return &MDBlogLoader{
 			assets: c.Assets,
 		}, true
+	case ".html":
+		return &HtmlLoader{}, true
 	}
 	return nil, false
 }
 
-func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ArticleTree, error)) ([]ArticleTree, error) {
+func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ArticleTree, error)) (ArticleTrees, error) {
 	info, err := fs.Stat(fsys, root)
 	if err != nil {
 
@@ -770,68 +849,11 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 			return BlogList{}
 		}
 
+		if !opt.Tree {
+			ts = ts.Flat(false)
+		}
+
 		blogs = ts
-
-		//err := fs.WalkDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry, err error) error {
-		//	if err != nil {
-		//		return err
-		//	}
-		//
-		//	ext := filepath.Ext(path)
-		//	loader, ok := b.getLoader(ext)
-		//
-		//	if !ok {
-		//		return nil
-		//	}
-		//	total++
-		//
-		//	blog, ok, err := loader.Load(gobilly.NewStdFs(b.projectFs), path, false)
-		//	if err != nil {
-		//		log.Errorf("load blog (%v) file: %v", path, err)
-		//	}
-		//	if !ok {
-		//		return nil
-		//	}
-		//	// read meta
-		//	metaFileName := path + ".yaml"
-		//	bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
-		//	if err != nil {
-		//		if !errors.Is(err, fs.ErrNotExist) {
-		//			return fmt.Errorf("read meta file error: %w", err)
-		//		}
-		//		err = nil
-		//	} else {
-		//		var m = map[string]interface{}{}
-		//		err = yaml.Unmarshal(bs, &m)
-		//		if err != nil {
-		//			return fmt.Errorf("unmarshal meta file error: %w", err)
-		//		}
-		//
-		//		for k, v := range m {
-		//			blog.Meta[k] = v
-		//		}
-		//
-		//	}
-		//	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
-		//	for k, v := range blog.Meta {
-		//		switch t := v.(type) {
-		//		case time.Time:
-		//			blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-		//		}
-		//	}
-		//
-		//	blogs = append(blogs, ArticleTree{
-		//		Blog:     blog,
-		//		Children: nil,
-		//	})
-		//
-		//	return nil
-		//})
-		//if err != nil {
-		//	log.Errorf("get source '%s' error: %v", dir, err)
-		//	return BlogList{}
-		//}
-
 		b.cache.Add(cacheKey, blogs)
 	}
 

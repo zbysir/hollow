@@ -15,6 +15,7 @@ interface GetArticlesOptions {
     filter?: (a: Article) => boolean
     page?: number
     size?: number
+    tree?: boolean // return article tree if true
 }
 
 export interface ArticleList {

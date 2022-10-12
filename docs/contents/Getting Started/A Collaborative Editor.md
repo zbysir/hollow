@@ -5,8 +5,8 @@ slug: a-collaboration-editor
 sort: 1
 ---
 
-Yjs is a modular framework for syncing things in real-time - like editors!
-This guide will walk you through the main concepts of Yjs. First, we are going to create a collaborative editor and sync it with clients. You will get introduced to Yjs documents and to providers, that allow you to sync through different network protocols. Next, we talk about Awareness & Presence which are very important aspects of collaborative software. I created a separate section for Offline Support that shows you how to create offline-ready applications by just adding a few lines of code. The last section is an in-depth guide to Shared Types.
+Yjs 是一个用于实时同步事物的模块化框架——比如编辑器！
+本指南将引导您了解 Yjs 的主要概念。首先，我们将创建一个协作编辑器并将其与客户端同步。您将了解 Yjs 文档和提供程序，它们允许您通过不同的网络协议进行同步。接下来，我们将讨论协作软件的非常重要的方面的意识和存在。我为离线支持创建了一个单独的部分，向您展示如何通过添加几行代码来创建离线就绪的应用程序。最后一部分是共享类型的深入指南。
 
 > If you are impatient jump to the live demo at the bottom of the page 😉
 

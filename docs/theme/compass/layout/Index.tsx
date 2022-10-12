@@ -25,7 +25,6 @@ export default function Index(props: Props) {
         <title>{props.title || 'UnTitled'}</title>
         <link href={routerBase + '/tailwind.css'} rel="stylesheet"/>
         <link href={routerBase + '/prism/prism.css'} rel="stylesheet"/>
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;900&amp;display=swap" rel="stylesheet"/>
     </head>
     <body className="
     bg-gray-50 dark:bg-black
