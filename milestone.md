@@ -1,5 +1,8 @@
 > 优先级由上到下递减
 
+## 主要
+- [ ] 主题支持 git 协议远程获取
+
 ## 完善主题
 
 - [ ] (Doing) 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 
@@ -9,6 +12,7 @@
 
 - [x] 将 Hollow 发布为 Docker 镜像: https://hub.docker.com/r/bysir/hollow
 - [ ] GitHub CI 编译、部署源文件
+- [ ] 将主题独立为其他仓库
 
 ## 评论
 - https://github.com/gitalk/gitalk

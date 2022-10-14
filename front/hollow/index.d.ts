@@ -1,11 +1,15 @@
 export interface Article {
     name: string
-    getContent?: () => string
+    getContent?: (getContentOpt?: getContentOpt) => string
     meta?: Record<string, any>
     ext: string // file extension
     content?: string
     is_dir: boolean
     children?: Article[]
+}
+
+export interface getContentOpt {
+    pure?: boolean
 }
 
 type ThemeConfig = Record<string, any>

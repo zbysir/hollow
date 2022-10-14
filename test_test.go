@@ -9,6 +9,7 @@ import (
 	"github.com/zbysir/hollow/internal/bblog/editor"
 	"github.com/zbysir/hollow/internal/pkg/db"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
 	"sync"
 	"testing"
@@ -40,7 +41,13 @@ func TestBuildAndPublish(t *testing.T) {
 
 	dst := memfs.New()
 	err = b.BuildAndPublish(dst, bblog.ExecOption{
-		Log:   nil,
+		Log: log.New(log.Options{
+			IsDev:         false,
+			DisableCaller: true,
+			CallerSkip:    0,
+			Name:          "",
+			DisableTime:   true,
+		}),
 		IsDev: false,
 	})
 	if err != nil {

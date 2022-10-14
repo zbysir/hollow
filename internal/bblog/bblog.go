@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -78,6 +79,20 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 	}
 
 	return v, fmt.Errorf("uncased value type: %T", p["component"])
+}
+
+func (p Page) Render() (string, error) {
+	if p["component"] != nil {
+		vd, err := p.GetComponent()
+		if err != nil {
+			return "", err
+		}
+		return vd.Render(), nil
+	} else if p["body"] != nil {
+		return exportGojaValueToString(p["body"]), nil
+	}
+
+	return "", fmt.Errorf("can't render page: %+v", p)
 }
 
 type Bblog struct {
@@ -163,6 +178,8 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		l = o.Log
 	}
 
+	l = l.Named("[Build]\t")
+
 	for i, p := range themeModule.Pages {
 		var v, err = p.GetComponent()
 		if err != nil {
@@ -224,6 +241,9 @@ func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
 	if o.Log != nil {
 		l = o.Log
 	}
+
+	l = l.Named("[Git]\t")
+
 	g, err := git.NewGit(conf.Deploy.Token, dst, l)
 	if err != nil {
 		return err
@@ -434,15 +454,13 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 		reqPath := strings.Trim(request.URL.Path, "/")
 		for _, p := range themeModule.Pages {
 			if reqPath == p.GetPath() {
-				component, err := p.GetComponent()
-				writer.WriteHeader(400)
+				body, err := p.Render()
 				if err != nil {
+					writer.WriteHeader(400)
 					writer.Write([]byte(err.Error()))
 					return
 				}
-				//writer.WriteHeader(200)
-				x := component.Render()
-				writer.Write([]byte(x))
+				writer.Write([]byte(body))
 				return
 			}
 		}
@@ -482,12 +500,12 @@ var supportExt = map[string]bool{
 }
 
 type Blog struct {
-	Name       string                 `json:"name"`
-	GetContent func() string          `json:"getContent"`
-	Meta       map[string]interface{} `json:"meta"`
-	Ext        string                 `json:"ext"`
-	Content    string                 `json:"content"`
-	IsDir      bool                   `json:"is_dir"`
+	Name       string                         `json:"name"`
+	GetContent func(opt GetContentOpt) string `json:"getContent"`
+	Meta       map[string]interface{}         `json:"meta"`
+	Ext        string                         `json:"ext"`
+	Content    string                         `json:"content"`
+	IsDir      bool                           `json:"is_dir"`
 }
 
 type ArticleTree struct {
@@ -592,16 +610,31 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 	}
 	return Blog{
 		Name: name,
-		GetContent: func() string {
+		GetContent: func(opt GetContentOpt) string {
+			var s string
 			if withContent {
-				return content
+				s = content
+			} else {
+				s = string(md.Render(body))
 			}
-			return string(md.Render(body))
+			if opt.Pure {
+				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+				if err != nil {
+					return err.Error()
+				}
+
+				s = d.Text()
+			}
+			return s
 		},
 		Meta:    meta,
 		Ext:     ext,
 		Content: content,
 	}, true, nil
+}
+
+type GetContentOpt struct {
+	Pure bool `json:"pure"` // 返回纯文本，一般用于做搜索
 }
 
 type HtmlLoader struct {
@@ -655,11 +688,18 @@ func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, boo
 	}
 	return Blog{
 		Name: name,
-		GetContent: func() string {
-			if withContent {
-				return content
+		GetContent: func(opt GetContentOpt) string {
+			var s = string(body)
+			if opt.Pure {
+				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+				if err != nil {
+					return err.Error()
+				}
+
+				s = d.Text()
 			}
-			return string(body)
+
+			return s
 		},
 		Meta:    meta,
 		Ext:     ext,
@@ -791,7 +831,7 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 				}
 				return ArticleTree{Blog: Blog{
 					Name: d.Name(),
-					GetContent: func() string {
+					GetContent: func(opt GetContentOpt) string {
 						return ""
 					},
 					Meta:    mate,

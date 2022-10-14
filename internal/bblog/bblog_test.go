@@ -24,7 +24,6 @@ func TestSource(t *testing.T) {
 			//log.Infof("c %+v", a)
 			return false
 		},
-		Flat: false,
 	})
 	for _, b := range as.List {
 		t.Logf("%+v %v", b.Name, b.IsDir)
