@@ -2,28 +2,31 @@
 
 Hollow 是一个快速、简洁静态博客生成器。目前只服务于自己，还未准备好给大家使用。
 
+> 文档待完成
+
 ## Feature
 
 - **提供 Web UI 管理文章**
   - 在任何地方（如手机上）管理你的文章
   - 云端文件也支持提交到 Git 上，不怕文件丢失
 - 提供工具一键部署到 Git 仓库
-- 使用 Jsx 作为主题模板开发语言
+- **使用 Jsx/Tsx 作为主题模板开发语言**
 - 主题开发没有限制，代码即所得
 - 快速：生成 1000 篇页面只需要 2s
 
 ## Why Hollow
-Hollow 提供的工具是最简单的，代码即所得，没有复杂的规则，没有什么路由、布局概念，这极大程度的降低了主题开发成本（如果你想要开发主题的话）。
-
-同时 Hollow 也是自由的，没有归档、分类、标签概念，它们将由"主题"自己实现（有好有坏，主题会有更多可能，但写起来更复杂）。
+在 Hollow 的世界中，代码即所得，因为主题使用 JavaScript 驱动，它是图灵完备的，所以没必要再定义限制：如路由、布局、标签、归档等。不再拘谨于框架给你的概念，这次你自己创造。
 
 当你想要实现更多需求的时候，最好的方式是自己开发"主题"，而不是让某个"主题"提供给你功能。
 
-主题开发是很简单的，比如一个最简单的主题只有一个文件，他也能运行：
-
 > 在大多数时候，复制一个已有的主题再更改更简单
 
+主题只有一个入口，即 index.tsx，和一个平常的 JavaScript 项目一样，支持 import 或 require 语法，如何组织你的主题，这完全取决于你。
+
+借助于 Jsx 语法，主题开发是很简单的，比如一个最简单的主题只有一个文件：
+
 ```jsx
+// index.tsx
 function Index(props) {
   return <html lang="zh" class="dark">
   <head>
@@ -52,7 +55,20 @@ export default {
 }
 ```
 
-一个完整的主题 [看这里](./workspace/theme/hollow)
+一个完整的主题例子 [看这里](https://github.com/zbysir/hollow-theme/tree/master/hollow)
+
+## Quick Start
+### Install hollow
+```shell
+go get github.com/zbysir/hollow
+```
+
+### Create Project
+```shell
+mkdir docs
+```
+
+...
 
 ## Editor
 

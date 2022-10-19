@@ -3,7 +3,6 @@ package bblog
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -15,6 +14,7 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/git"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"github.com/zbysir/hollow/internal/pkg/http_file_server"
 	"github.com/zbysir/hollow/internal/pkg/httpsrv"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"go.uber.org/zap"
@@ -121,7 +121,6 @@ func NewBblog(o Option) (*Bblog, error) {
 	var err error
 	x, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
-		SourceFs:    gobilly.NewStdFs(o.Fs),
 		Debug:       false,
 	})
 	if err != nil {
@@ -138,6 +137,14 @@ func NewBblog(o Option) (*Bblog, error) {
 		log:       log.StdLogger,
 		cache:     cache,
 	}
+
+	x.RegisterModule("react", map[string]interface{}{
+		"useState":  func() []interface{} { return []interface{}{nil, nil} },
+		"useEffect": func() {},
+		"useRef":    func() {},
+	})
+
+	x.RegisterModule("fuse.js", map[string]interface{}{})
 
 	x.RegisterModule("@bysir/hollow", map[string]interface{}{
 		"getArticles":      b.getArticles,
@@ -168,8 +175,15 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 
-	themeIndexFile := filepath.Join(conf.Theme, "index")
-	themeModule, err := b.loadTheme(themeIndexFile)
+	themeLoader, err := b.GetThemeLoader(conf.Theme)
+	if err != nil {
+		return err
+	}
+	var themeFs fs.FS
+	themeModule, themeFs, err := themeLoader.Load(b.x, conf.Theme, true)
+	if err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -181,37 +195,39 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	l = l.Named("[Build]\t")
 
 	for i, p := range themeModule.Pages {
-		var v, err = p.GetComponent()
+		body, err := p.Render()
 		if err != nil {
 			return err
 		}
-		body := v.Render()
 		name := p.GetPath()
-		distFile := "index.html"
-		if name != "" && name != "index" {
+		var distFile string
+
+		// 如果有扩展名，则说明是文件
+		if filepath.Ext(name) != "" {
+			distFile = name
+		} else {
+			// 存入文件夹
 			distFile = filepath.Join(name, "index.html")
 		}
+
 		f, err := dst.Create(distFile)
 		if err != nil {
-			return err
+			return fmt.Errorf("create file '%v' error: %w", distFile, err)
 		}
 		_, err = f.Write([]byte(body))
 		if err != nil {
 			return err
 		}
 
-		l.Infof("create pages [%d]: %v ", i, distFile)
+		l.Infof("Create file [%03d]: %v", i, distFile)
 	}
 
 	for _, a := range themeModule.Assets {
-		d := filepath.Dir(themeIndexFile)
-
-		srcDir := filepath.Join(d, a)
-		err = copyDir(srcDir, "", gobilly.NewStdFs(b.projectFs), dst)
+		err = copyDir(a, "", themeFs, dst)
 		if err != nil {
 			return err
 		}
-		l.Infof("copy theme assets: %v ", a)
+		l.Infof("Copy theme assets: %v ", a)
 	}
 
 	for _, a := range conf.Assets {
@@ -219,7 +235,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		if err != nil {
 			return err
 		}
-		l.Infof("copy assets: %v ", a)
+		l.Infof("Copy assets: %v ", a)
 	}
 
 	l.Infof("Done in %v", time.Now().Sub(start))
@@ -387,41 +403,68 @@ func (b *Bblog) LoadConfig(env bool) (conf *Config, err error) {
 	return
 }
 
+type PrepareOpt struct {
+	NoCache bool
+}
+
+func (b *Bblog) GetThemeLoader(path string) (ThemeLoader, error) {
+	switch {
+	case strings.HasPrefix(path, "http://"), strings.HasPrefix(path, "https://"):
+		return NewGitThemeLoader(), nil
+	case strings.HasPrefix(path, "file://"):
+		abs, err := resolveFileUrl(path)
+		if err != nil {
+			return nil, err
+		}
+
+		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(abs)), "."), nil
+	default:
+		return NewLocalThemeLoader(gobilly.NewStdFs(b.projectFs), ""), nil
+	}
+}
+
 func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
 
-	var themeModule ThemeModule
-	prepare := func() error {
+	var themeModule ThemeExport
+
+	prepare := func(opt *PrepareOpt) error {
 		b.cache.Purge()
-		var conf *Config
+		var projectConf *Config
 
-		conf, err := b.LoadConfig(true)
+		projectConf, err := b.LoadConfig(true)
 		if err != nil {
 			return err
 		}
-		themeDir := conf.Theme
+		themeDir := projectConf.Theme
 
-		themeIndexFile := filepath.Join(themeDir, "index")
-		themeModule, err = b.loadTheme(themeIndexFile)
+		themeLoader, err := b.GetThemeLoader(themeDir)
 		if err != nil {
 			return err
 		}
-		configDir := filepath.Dir(themeIndexFile)
+		refresh := false
+		if opt != nil && opt.NoCache {
+			refresh = true
+		}
+		var themeFs fs.FS
+		//log.Infof("refresh: %+v", refresh)
+		themeModule, themeFs, err = themeLoader.Load(b.x, themeDir, refresh)
+		if err != nil {
+			return err
+		}
+
 		var dirs MuitDir
-		for _, i := range themeModule.Assets {
-			// 得到相对 themeFs root 的路径，e.g. dark/publish
-			dir := filepath.Join(configDir, i)
-			sub, err := fs.Sub(gobilly.NewStdFs(b.projectFs), dir)
+		for _, dir := range themeModule.Assets {
+			sub, err := fs.Sub(themeFs, dir)
 			if err != nil {
-				return fmt.Errorf("sub fs '%v' error: %w", i, err)
+				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
 
 			dirs = append(dirs, &DirFs{
 				fs: http.FS(sub),
 			})
 		}
-		for _, i := range conf.Assets {
-			dir := i
+		for _, dir := range projectConf.Assets {
 			sub, err := fs.Sub(gobilly.NewStdFs(b.projectFs), dir)
 			if err != nil {
 				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
@@ -431,27 +474,29 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 			})
 		}
 
-		assetsHandler = http.FileServer(dirs)
+		assetsHandler = http_file_server.FileServer(dirs)
 		return nil
 	}
 	if !o.IsDev {
-		err := prepare()
+		err := prepare(nil)
 		if err != nil {
 			return nil
 		}
 	}
 
 	return func(writer http.ResponseWriter, request *http.Request) {
+		reqPath := strings.Trim(request.URL.Path, "/")
+
 		if o.IsDev {
-			b.x.RefreshRegistry(nil)
-			err := prepare()
+			// TODO 优化主题刷新逻辑，不应该每次请求都刷新，需要做异步刷新
+			opt := PrepareOpt{}
+			opt.NoCache = request.Header.Get("Cache-Control") == "no-cache"
+			err := prepare(&opt)
 			if err != nil {
 				writer.Write([]byte(err.Error()))
 				return
 			}
 		}
-
-		reqPath := strings.Trim(request.URL.Path, "/")
 		for _, p := range themeModule.Pages {
 			if reqPath == p.GetPath() {
 				body, err := p.Render()
@@ -987,29 +1032,6 @@ func exportGojaValue(i interface{}) interface{} {
 }
 
 func (b *Bblog) loadTheme(configFile string) (ThemeModule, error) {
-	envBs, _ := json.Marshal(nil)
-	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
 
-	// 添加 ./ 告知 module 加载项目文件而不是 node_module
-	configFile = "./" + filepath.Clean(configFile)
-	v, err := b.x.RunJs("root.js", []byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), false)
-	if err != nil {
-		return ThemeModule{}, err
-	}
-
-	// 直接 export 会导致 function 无法捕获 panic，不好实现
-	raw := exportGojaValue(v).(map[string]interface{})
-
-	pages := raw["pages"].([]interface{})
-	ps := make(Pages, len(pages))
-	for i, p := range pages {
-		ps[i] = p.(map[string]interface{})
-	}
-	as := raw["assets"].([]interface{})
-	assets := make(Assets, len(as))
-	for k, v := range as {
-		assets[k] = exportGojaValueToString(v)
-	}
-
-	return ThemeModule{raw: raw, Pages: ps, Assets: assets}, nil
+	return ThemeModule{}, nil
 }

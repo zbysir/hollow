@@ -1,7 +1,7 @@
 ---
-title: A Collaborative Editor
+title: Quick Start
 desc: A five minute guide to make an editor collaborative
-slug: a-collaboration-editor
+slug: quick-start
 sort: 1
 ---
 

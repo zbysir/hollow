@@ -11,13 +11,14 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
+	"net/http"
 	"sync"
 	"testing"
 )
 
 func TestService(t *testing.T) {
 	b, err := bblog.NewBblog(bblog.Option{
-		Fs: osfs.New("./docs"),
+		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -112,4 +113,12 @@ func TestEditor(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
+
+func TestFile(t *testing.T) {
+	fs := http.FileServer(http.Dir("./.dist")) //去静态目录找 得到fs对象：文件服务器
+
+	http.Handle("/", fs)
+
+	http.ListenAndServe(":8090", nil)
 }

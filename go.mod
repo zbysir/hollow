@@ -3,6 +3,7 @@ module github.com/zbysir/hollow
 go 1.18
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/docker/libkv v0.2.1
 	github.com/dop251/goja v0.0.0-20220815083517-0c74f9139fd6
 	github.com/gin-gonic/gin v1.8.1
@@ -22,7 +23,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 	github.com/thoas/go-funk v0.9.2
-	github.com/zbysir/gojsx v0.0.21
+	github.com/zbysir/gojsx v0.0.26
 	go.uber.org/zap v1.22.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -30,13 +31,11 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
-	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect
-	github.com/dop251/goja_nodejs v0.0.0-20220905124449-678b33ca5009 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/evanw/esbuild v0.14.51 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
@@ -67,6 +66,7 @@ require (
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/subosito/gotenv v1.3.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect

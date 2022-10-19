@@ -46,15 +46,19 @@ func (l *logWrite) Write(p []byte) (n int, err error) {
 // NewGit return Git
 // https://docs.github.com/cn/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 func NewGit(personalAccessTokens string, dir billy.Filesystem, log *zap.SugaredLogger) (g *Git, err error) {
-	g = &Git{
-		log: log,
-		dir: dir,
-		r:   nil,
-		auth: &http.BasicAuth{
+	var auth *http.BasicAuth
+	if personalAccessTokens != "" {
+		auth = &http.BasicAuth{
 			Username: "abc123", // yes, this can be anything except an empty string
 			// https://docs.github.com/cn/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 			Password: personalAccessTokens,
-		},
+		}
+	}
+	g = &Git{
+		log:  log,
+		dir:  dir,
+		r:    nil,
+		auth: auth,
 	}
 	g.r, err = g.initRepo(dir)
 	if err != nil {
