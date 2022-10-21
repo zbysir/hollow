@@ -1,6 +1,7 @@
 package bblog
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -25,7 +26,7 @@ type ThemeExport struct {
 }
 
 type ThemeLoader interface {
-	Load(x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error)
+	Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error)
 }
 
 // GitThemeLoader
@@ -38,7 +39,7 @@ func NewGitThemeLoader() *GitThemeLoader {
 }
 
 // Load 会缓存 fs ，只有当强制刷新时更新
-func (g *GitThemeLoader) Load(x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error) {
+func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error) {
 	fileSys := osfs.New("./.themecache")
 
 	_, err := fileSys.Stat(".")
@@ -88,7 +89,7 @@ func NewLocalThemeLoader(f fs.FS, dir string) *LocalThemeLoader {
 	return &LocalThemeLoader{f: f, dir: dir}
 }
 
-func (l *LocalThemeLoader) Load(x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error) {
+func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error) {
 	filePath := filepath.Join(path, "index")
 	if l.dir != "" {
 		filePath = filepath.Join(l.dir, "index")

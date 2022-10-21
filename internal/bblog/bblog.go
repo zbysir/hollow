@@ -161,14 +161,15 @@ type ExecOption struct {
 
 	// 开发环境每次都会读取最新的文件，而生成环境会缓存
 	IsDev bool
+	Theme string
 }
 
 // Build 生成静态源文件
-func (b *Bblog) Build(distPath string, o ExecOption) error {
-	return b.BuildToFs(osfs.New(distPath), o)
+func (b *Bblog) Build(ctx context.Context, distPath string, o ExecOption) error {
+	return b.BuildToFs(ctx, osfs.New(distPath), o)
 }
 
-func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
+func (b *Bblog) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
 	conf, err := b.LoadConfig(true)
 	if err != nil {
@@ -180,7 +181,7 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 		return err
 	}
 	var themeFs fs.FS
-	themeModule, themeFs, err := themeLoader.Load(b.x, conf.Theme, true)
+	themeModule, themeFs, err := themeLoader.Load(ctx, b.x, conf.Theme, true)
 	if err != nil {
 		return err
 	}
@@ -242,8 +243,8 @@ func (b *Bblog) BuildToFs(dst billy.Filesystem, o ExecOption) error {
 	return nil
 }
 
-func (b *Bblog) BuildAndPublish(dst billy.Filesystem, o ExecOption) error {
-	err := b.BuildToFs(dst, o)
+func (b *Bblog) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
+	err := b.BuildToFs(ctx, dst, o)
 	if err != nil {
 		return err
 	}
@@ -378,14 +379,14 @@ type ConfigOss struct {
 	Prefix string `yaml:"prefix"`
 }
 
-func (b *Bblog) LoadConfig(env bool) (conf *Config, err error) {
+func (b *Bblog) LoadConfig(expandEnv bool) (conf Config, err error) {
 	f, err := easyfs.GetFile(gobilly.NewStdFs(b.projectFs), "config.yml")
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	body := f.Body
-	if env {
+	if expandEnv {
 		body = os.Expand(body, os.Getenv)
 	} else {
 		body = os.Expand(body, func(s string) string {
@@ -394,10 +395,10 @@ func (b *Bblog) LoadConfig(env bool) (conf *Config, err error) {
 		})
 	}
 
-	conf = &Config{}
-	err = yaml.Unmarshal([]byte(body), conf)
+	err = yaml.Unmarshal([]byte(body), &conf)
 	if err != nil {
-		return nil, fmt.Errorf("LoadConfig error: %w", err)
+		err = fmt.Errorf("LoadConfig error: %w", err)
+		return
 	}
 
 	return
@@ -430,13 +431,21 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 
 	prepare := func(opt *PrepareOpt) error {
 		b.cache.Purge()
-		var projectConf *Config
+		var projectConf Config
 
 		projectConf, err := b.LoadConfig(true)
 		if err != nil {
-			return err
+			if errors.Is(err, os.ErrNotExist) {
+
+			} else {
+				return err
+			}
 		}
 		themeDir := projectConf.Theme
+		if o.Theme != "" {
+			themeDir = o.Theme
+		}
+		log.Infof("d %+v", themeDir)
 
 		themeLoader, err := b.GetThemeLoader(themeDir)
 		if err != nil {
@@ -448,7 +457,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 		}
 		var themeFs fs.FS
 		//log.Infof("refresh: %+v", refresh)
-		themeModule, themeFs, err = themeLoader.Load(b.x, themeDir, refresh)
+		themeModule, themeFs, err = themeLoader.Load(context.Background(), b.x, themeDir, refresh)
 		if err != nil {
 			return err
 		}
@@ -930,7 +939,7 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 			return ArticleTree{Blog: blog}, nil
 		})
 		if err != nil {
-			log.Warnf("MapDir error: %v", err)
+			log.Warnf("getArticles MapDir error: %v", err)
 			return BlogList{}
 		}
 
@@ -971,7 +980,7 @@ func (b *Bblog) getArticleDetail(path string) Blog {
 func (b *Bblog) getConfig() interface{} {
 	c, err := b.LoadConfig(true)
 	if err != nil {
-		panic(err)
+		log.Warnf("LoadConfig error: %v", err)
 	}
 	return c.ThemeConfig
 }

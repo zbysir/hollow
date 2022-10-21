@@ -537,7 +537,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			holloLog.Infof("start publish")
 
 			dst := memfs.New()
-			err = b.BuildAndPublish(dst, bblog.ExecOption{
+			err = b.BuildAndPublish(context.Background(), dst, bblog.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
@@ -557,7 +557,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		//	return
 		//}
 
-		fs, err := a.projectFs(0, "project")
+		filesystem, err := a.projectFs(0, "project")
 		if err != nil {
 			c.AbortWithError(400, err)
 			return
@@ -565,8 +565,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := bblog.NewBblog(bblog.Option{
-			Fs: fs,
-			//ThemeFs: fsTheme,
+			Fs: filesystem,
 		})
 		if err != nil {
 			c.Error(err)

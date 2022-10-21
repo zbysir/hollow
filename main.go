@@ -20,6 +20,8 @@ func init() {
 
 func init() {
 	rootCmd.AddCommand(cmd.Editor)
+	rootCmd.AddCommand(cmd.Server)
+	rootCmd.AddCommand(cmd.Build)
 }
 
 func main() {
