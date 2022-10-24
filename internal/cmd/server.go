@@ -42,10 +42,11 @@ var Server = &cobra.Command{
 
 		addr := p.Address
 		log.Infof("listening %v", addr)
+		theme := p.Theme
 		err = b.Service(ctx, bblog.ExecOption{
 			Log:   nil,
 			IsDev: true,
-			Theme: p.Theme,
+			Theme: theme,
 		}, addr)
 		if err != nil {
 			if errors.Is(err, http.ErrServerClosed) {

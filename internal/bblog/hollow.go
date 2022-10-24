@@ -95,11 +95,11 @@ func (p Page) Render() (string, error) {
 	return "", fmt.Errorf("can't render page: %+v", p)
 }
 
-type Bblog struct {
-	x         *jsx.Jsx
-	projectFs billy.Filesystem // 文件
-	log       *zap.SugaredLogger
-	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+type Hollow struct {
+	jsx      *jsx.Jsx
+	sourceFs billy.Filesystem // 文件
+	log      *zap.SugaredLogger
+	cache    *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 }
 
 type Option struct {
@@ -113,13 +113,13 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
-func NewBblog(o Option) (*Bblog, error) {
+func NewBblog(o Option) (*Hollow, error) {
 	if o.Fs == nil {
 		o.Fs = osfs.New(".")
 	}
 
 	var err error
-	x, err := jsx.NewJsx(jsx.Option{
+	jx, err := jsx.NewJsx(jsx.Option{
 		SourceCache: jsx.NewFileCache("./.cache"),
 		Debug:       false,
 	})
@@ -131,25 +131,25 @@ func NewBblog(o Option) (*Bblog, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Bblog{
-		x:         x,
-		projectFs: o.Fs,
-		log:       log.StdLogger,
-		cache:     cache,
+	b := &Hollow{
+		jsx:      jx,
+		sourceFs: o.Fs,
+		log:      log.StdLogger,
+		cache:    cache,
 	}
 
-	x.RegisterModule("react", map[string]interface{}{
+	jx.RegisterModule("react", map[string]interface{}{
 		"useState":  func() []interface{} { return []interface{}{nil, nil} },
 		"useEffect": func() {},
 		"useRef":    func() {},
 	})
 
-	x.RegisterModule("fuse.js", map[string]interface{}{})
+	jx.RegisterModule("fuse.js", map[string]interface{}{})
 
-	x.RegisterModule("@bysir/hollow", map[string]interface{}{
-		"getArticles":      b.getArticles,
+	jx.RegisterModule("@bysir/hollow", map[string]interface{}{
+		"getContents":      b.getContents,
 		"getConfig":        b.getConfig,
-		"getArticleDetail": b.getArticleDetail,
+		"getContentDetail": b.getContentDetail,
 		"md":               b.md,
 	})
 
@@ -161,27 +161,31 @@ type ExecOption struct {
 
 	// 开发环境每次都会读取最新的文件，而生成环境会缓存
 	IsDev bool
-	Theme string
+	Theme string // 重新指定主题，可用于预览
 }
 
 // Build 生成静态源文件
-func (b *Bblog) Build(ctx context.Context, distPath string, o ExecOption) error {
+func (b *Hollow) Build(ctx context.Context, distPath string, o ExecOption) error {
 	return b.BuildToFs(ctx, osfs.New(distPath), o)
 }
 
-func (b *Bblog) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
+func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
 	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
 	}
+	themeUrl := prepareThemeUrl(conf.Theme, "source://")
+	if o.Theme != "" {
+		themeUrl = prepareThemeUrl(o.Theme, "file://")
+	}
 
-	themeLoader, err := b.GetThemeLoader(conf.Theme)
+	themeLoader, err := b.GetThemeLoader(themeUrl)
 	if err != nil {
 		return err
 	}
 	var themeFs fs.FS
-	themeModule, themeFs, err := themeLoader.Load(ctx, b.x, conf.Theme, true)
+	themeModule, themeFs, err := themeLoader.Load(ctx, b.jsx, conf.Theme, true)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func (b *Bblog) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOptio
 	}
 
 	for _, a := range conf.Assets {
-		err = copyDir(a, "", gobilly.NewStdFs(b.projectFs), dst)
+		err = copyDir(a, "", gobilly.NewStdFs(b.sourceFs), dst)
 		if err != nil {
 			return err
 		}
@@ -243,7 +247,7 @@ func (b *Bblog) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOptio
 	return nil
 }
 
-func (b *Bblog) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
+func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
 	err := b.BuildToFs(ctx, dst, o)
 	if err != nil {
 		return err
@@ -277,7 +281,7 @@ func (b *Bblog) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o Exe
 	return nil
 }
 
-func (b *Bblog) PushProject(o ExecOption) error {
+func (b *Hollow) PushProject(o ExecOption) error {
 	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
@@ -288,7 +292,7 @@ func (b *Bblog) PushProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Source.Token, b.projectFs, l)
+	g, err := git.NewGit(conf.Source.Token, b.sourceFs, l)
 	if err != nil {
 		return err
 	}
@@ -302,7 +306,7 @@ func (b *Bblog) PushProject(o ExecOption) error {
 	return nil
 }
 
-func (b *Bblog) PullProject(o ExecOption) error {
+func (b *Hollow) PullProject(o ExecOption) error {
 	conf, err := b.LoadConfig(true)
 	if err != nil {
 		return err
@@ -313,7 +317,7 @@ func (b *Bblog) PullProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Deploy.Token, b.projectFs, l)
+	g, err := git.NewGit(conf.Deploy.Token, b.sourceFs, l)
 	if err != nil {
 		return err
 	}
@@ -379,8 +383,8 @@ type ConfigOss struct {
 	Prefix string `yaml:"prefix"`
 }
 
-func (b *Bblog) LoadConfig(expandEnv bool) (conf Config, err error) {
-	f, err := easyfs.GetFile(gobilly.NewStdFs(b.projectFs), "config.yml")
+func (b *Hollow) LoadConfig(expandEnv bool) (conf Config, err error) {
+	f, err := easyfs.GetFile(gobilly.NewStdFs(b.sourceFs), "config.yml")
 	if err != nil {
 		return
 	}
@@ -408,23 +412,42 @@ type PrepareOpt struct {
 	NoCache bool
 }
 
-func (b *Bblog) GetThemeLoader(path string) (ThemeLoader, error) {
+func prepareThemeUrl(url string, defaultProtocol string) string {
 	switch {
-	case strings.HasPrefix(path, "http://"), strings.HasPrefix(path, "https://"):
-		return NewGitThemeLoader(), nil
-	case strings.HasPrefix(path, "file://"):
-		abs, err := resolveFileUrl(path)
-		if err != nil {
-			return nil, err
-		}
-
-		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(abs)), "."), nil
+	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
+		return url
+	case strings.HasPrefix(url, "file://"):
+		return url
+	case strings.HasPrefix(url, "source://"):
+		return url
 	default:
-		return NewLocalThemeLoader(gobilly.NewStdFs(b.projectFs), ""), nil
+		return defaultProtocol + url
 	}
 }
 
-func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
+// GetThemeLoader 返回主题加载器，支持以下协议的地址。
+// https:// : git
+// file:// : relative or absolute path
+// source:// : relative path of source fs
+func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
+	switch {
+	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
+		return NewGitThemeLoader(), nil
+	case strings.HasPrefix(url, "file://"):
+		relative := strings.TrimPrefix(url, "file://")
+		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(relative))), nil
+	case strings.HasPrefix(url, "source://"):
+		subFs, err := b.sourceFs.Chroot(url)
+		if err != nil {
+			return nil, err
+		}
+		return NewLocalThemeLoader(gobilly.NewStdFs(subFs)), nil
+	default:
+		return nil, fmt.Errorf("unsupported protocol, url: %v", url)
+	}
+}
+
+func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
 
 	var themeModule ThemeExport
@@ -441,23 +464,22 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 				return err
 			}
 		}
-		themeDir := projectConf.Theme
-		if o.Theme != "" {
-			themeDir = o.Theme
-		}
-		log.Infof("d %+v", themeDir)
 
-		themeLoader, err := b.GetThemeLoader(themeDir)
-		if err != nil {
-			return err
-		}
 		refresh := false
 		if opt != nil && opt.NoCache {
 			refresh = true
 		}
 		var themeFs fs.FS
-		//log.Infof("refresh: %+v", refresh)
-		themeModule, themeFs, err = themeLoader.Load(context.Background(), b.x, themeDir, refresh)
+
+		themeUrl := prepareThemeUrl(projectConf.Theme, "source://")
+		if o.Theme != "" {
+			themeUrl = prepareThemeUrl(o.Theme, "file://")
+		}
+		themeLoader, err := b.GetThemeLoader(themeUrl)
+		if err != nil {
+			return err
+		}
+		themeModule, themeFs, err = themeLoader.Load(context.Background(), b.jsx, themeUrl, refresh)
 		if err != nil {
 			return err
 		}
@@ -474,7 +496,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 			})
 		}
 		for _, dir := range projectConf.Assets {
-			sub, err := fs.Sub(gobilly.NewStdFs(b.projectFs), dir)
+			sub, err := fs.Sub(gobilly.NewStdFs(b.sourceFs), dir)
 			if err != nil {
 				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
@@ -523,7 +545,7 @@ func (b *Bblog) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, req
 }
 
 // Service 运行一个渲染程序
-func (b *Bblog) Service(ctx context.Context, o ExecOption, addr string) error {
+func (b *Hollow) Service(ctx context.Context, o ExecOption, addr string) error {
 	s, err := httpsrv.NewService(addr)
 	if err != nil {
 		return err
@@ -553,7 +575,7 @@ var supportExt = map[string]bool{
 	".html": true,
 }
 
-type Blog struct {
+type Content struct {
 	Name       string                         `json:"name"`
 	GetContent func(opt GetContentOpt) string `json:"getContent"`
 	Meta       map[string]interface{}         `json:"meta"`
@@ -562,14 +584,14 @@ type Blog struct {
 	IsDir      bool                           `json:"is_dir"`
 }
 
-type ArticleTree struct {
-	Blog
-	Children ArticleTrees `json:"children"`
+type ContentTree struct {
+	Content
+	Children ContentTrees `json:"children"`
 }
 
-type ArticleTrees []ArticleTree
+type ContentTrees []ContentTree
 
-func (ats ArticleTrees) Sort(f func(a, b interface{}) bool) {
+func (ats ContentTrees) Sort(f func(a, b interface{}) bool) {
 	sort.Slice(ats, func(i, j int) bool {
 		return f(ats[i], ats[j])
 	})
@@ -579,8 +601,8 @@ func (ats ArticleTrees) Sort(f func(a, b interface{}) bool) {
 	}
 }
 
-func (ats ArticleTrees) Flat(includeDir bool) ArticleTrees {
-	var s ArticleTrees
+func (ats ContentTrees) Flat(includeDir bool) ContentTrees {
+	var s ContentTrees
 
 	for _, v := range ats {
 		children := v.Children.Flat(includeDir)
@@ -593,15 +615,15 @@ func (ats ArticleTrees) Flat(includeDir bool) ArticleTrees {
 	return s
 }
 
-type BlogLoader interface {
-	Load(fs fs.FS, filePath string, withContent bool) (Blog, bool, error)
+type ContentLoader interface {
+	Load(fs fs.FS, filePath string, withContent bool) (Content, bool, error)
 }
 
 type MDBlogLoader struct {
 	assets Assets
 }
 
-func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, bool, error) {
+func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Content, bool, error) {
 	dir, name := filepath.Split(filePath)
 	if !strings.HasPrefix(dir, "/") {
 		dir = "/" + dir
@@ -611,13 +633,13 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 	if supportExt[ext] {
 		name = strings.TrimSuffix(name, ext)
 	} else {
-		return Blog{}, false, nil
+		return Content{}, false, nil
 	}
 
 	// 读取 metadata
 	body, err := fs.ReadFile(f, filePath)
 	if err != nil {
-		return Blog{}, false, err
+		return Content{}, false, err
 	}
 
 	var meta = map[string]interface{}{}
@@ -627,7 +649,7 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 			metaByte := bbs[1]
 			err = yaml.Unmarshal(metaByte, &meta)
 			if err != nil {
-				return Blog{}, false, fmt.Errorf("parse file metadata error: %w", err)
+				return Content{}, false, fmt.Errorf("parse file metadata error: %w", err)
 			}
 
 			body = bbs[2]
@@ -662,7 +684,7 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, b
 	if withContent {
 		content = string(md.Render(body))
 	}
-	return Blog{
+	return Content{
 		Name: name,
 		GetContent: func(opt GetContentOpt) string {
 			var s string
@@ -695,7 +717,7 @@ type HtmlLoader struct {
 	//assets Assets
 }
 
-func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, bool, error) {
+func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Content, bool, error) {
 	dir, name := filepath.Split(filePath)
 	if !strings.HasPrefix(dir, "/") {
 		dir = "/" + dir
@@ -705,13 +727,13 @@ func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, boo
 	if supportExt[ext] {
 		name = strings.TrimSuffix(name, ext)
 	} else {
-		return Blog{}, false, nil
+		return Content{}, false, nil
 	}
 
 	// 读取 metadata
 	body, err := fs.ReadFile(f, filePath)
 	if err != nil {
-		return Blog{}, false, err
+		return Content{}, false, err
 	}
 
 	var meta = map[string]interface{}{}
@@ -721,7 +743,7 @@ func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, boo
 			metaByte := bbs[1]
 			err = yaml.Unmarshal(metaByte, &meta)
 			if err != nil {
-				return Blog{}, false, fmt.Errorf("parse file metadata error: %w", err)
+				return Content{}, false, fmt.Errorf("parse file metadata error: %w", err)
 			}
 
 			body = bbs[2]
@@ -740,7 +762,7 @@ func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Blog, boo
 	if withContent {
 		content = string(body)
 	}
-	return Blog{
+	return Content{
 		Name: name,
 		GetContent: func(opt GetContentOpt) string {
 			var s = string(body)
@@ -774,10 +796,10 @@ func (g getBlogOption) cacheKey() string {
 
 type BlogList struct {
 	Total int           `json:"total"`
-	List  []ArticleTree `json:"list"`
+	List  []ContentTree `json:"list"`
 }
 
-func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
+func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 	c, err := b.LoadConfig(true)
 	if err != nil {
 		return nil, false
@@ -793,7 +815,7 @@ func (b *Bblog) getLoader(ext string) (l BlogLoader, ok bool) {
 	return nil, false
 }
 
-func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ArticleTree, error)) (ArticleTrees, error) {
+func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ContentTree, error)) (ContentTrees, error) {
 	info, err := fs.Stat(fsys, root)
 	if err != nil {
 
@@ -815,12 +837,12 @@ func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type()
 func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
 
 // walkDir recursively descends path, calling walkDirFn.
-func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, d fs.DirEntry) (ArticleTree, error)) ([]ArticleTree, error) {
+func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, d fs.DirEntry) (ContentTree, error)) ([]ContentTree, error) {
 	dirs, err := fs.ReadDir(fsys, name)
 	if err != nil {
 		return nil, err
 	}
-	var ats []ArticleTree
+	var ats []ContentTree
 	for _, d1 := range dirs {
 		name1 := path.Join(name, d1.Name())
 
@@ -831,7 +853,7 @@ func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, 
 		if a.Name == "" {
 			continue
 		}
-		var children ArticleTrees
+		var children ContentTrees
 		if d1.IsDir() {
 			children, err = mapDir(fsys, name1, d1, walkDirFn)
 			if err != nil {
@@ -839,41 +861,41 @@ func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, 
 			}
 		}
 
-		ats = append(ats, ArticleTree{
-			Blog:     a.Blog,
+		ats = append(ats, ContentTree{
+			Content:  a.Content,
 			Children: children,
 		})
 	}
 	return ats, nil
 }
 
-// getArticles 返回 dir 目录下的所有博客
-func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
-	var blogs ArticleTrees
+// getContents 返回 dir 目录下的所有内容
+func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
+	var blogs ContentTrees
 	//var total int
 	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
 	x, ok := b.cache.Get(cacheKey)
 	if ok {
-		blogs = x.(ArticleTrees)
+		blogs = x.(ContentTrees)
 	} else {
-		ts, err := MapDir(gobilly.NewStdFs(b.projectFs), dir, func(path string, d fs.DirEntry) (ArticleTree, error) {
+		ts, err := MapDir(gobilly.NewStdFs(b.sourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, error) {
 			//if err != nil {
-			//	return ArticleTree{}, err
+			//	return ContentTree{}, err
 			//}
 			if d.IsDir() {
 				// read dir meta
 				var mate = map[string]interface{}{}
 				metaFileName := filepath.Join(path, "meta.yaml")
-				bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
+				bs, err := fs.ReadFile(gobilly.NewStdFs(b.sourceFs), metaFileName)
 				if err != nil {
 					if !errors.Is(err, fs.ErrNotExist) {
-						return ArticleTree{}, fmt.Errorf("read meta file error: %w", err)
+						return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
 					}
 					err = nil
 				} else {
 					err = yaml.Unmarshal(bs, &mate)
 					if err != nil {
-						return ArticleTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
+						return ContentTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
 					}
 				}
 				// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
@@ -883,7 +905,7 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 						mate[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 					}
 				}
-				return ArticleTree{Blog: Blog{
+				return ContentTree{Content: Content{
 					Name: d.Name(),
 					GetContent: func(opt GetContentOpt) string {
 						return ""
@@ -896,32 +918,32 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 			}
 
 			ext := filepath.Ext(path)
-			loader, ok := b.getLoader(ext)
+			loader, ok := b.getContentLoader(ext)
 
 			if !ok {
-				return ArticleTree{}, nil
+				return ContentTree{}, nil
 			}
 
-			blog, ok, err := loader.Load(gobilly.NewStdFs(b.projectFs), path, false)
+			blog, ok, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, false)
 			if err != nil {
 				log.Errorf("load blog (%v) file: %v", path, err)
 			}
 			if !ok {
-				return ArticleTree{}, nil
+				return ContentTree{}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
-			bs, err := fs.ReadFile(gobilly.NewStdFs(b.projectFs), metaFileName)
+			bs, err := fs.ReadFile(gobilly.NewStdFs(b.sourceFs), metaFileName)
 			if err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
-					return ArticleTree{}, fmt.Errorf("read meta file error: %w", err)
+					return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
 				}
 				err = nil
 			} else {
 				var m = map[string]interface{}{}
 				err = yaml.Unmarshal(bs, &m)
 				if err != nil {
-					return ArticleTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
+					return ContentTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
 				}
 
 				for k, v := range m {
@@ -936,10 +958,10 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 				}
 			}
 
-			return ArticleTree{Blog: blog}, nil
+			return ContentTree{Content: blog}, nil
 		})
 		if err != nil {
-			log.Warnf("getArticles MapDir error: %v", err)
+			log.Warnf("getContents MapDir error: %v", err)
 			return BlogList{}
 		}
 
@@ -961,23 +983,23 @@ func (b *Bblog) getArticles(dir string, opt getBlogOption) BlogList {
 	}
 }
 
-// getArticleDetail 返回一个文件
-func (b *Bblog) getArticleDetail(path string) Blog {
+// getContentDetail 返回一个内容
+func (b *Hollow) getContentDetail(path string) Content {
 	ext := filepath.Ext(path)
-	loader, ok := b.getLoader(ext)
+	loader, ok := b.getContentLoader(ext)
 	if !ok {
-		return Blog{}
+		return Content{}
 	}
-	blog, ok, _ := loader.Load(gobilly.NewStdFs(b.projectFs), path, true)
+	blog, ok, _ := loader.Load(gobilly.NewStdFs(b.sourceFs), path, true)
 	if !ok {
-		return Blog{}
+		return Content{}
 	}
 
 	return blog
 }
 
 // getConfig config.yml 下的 theme_config 字段
-func (b *Bblog) getConfig() interface{} {
+func (b *Hollow) getConfig() interface{} {
 	c, err := b.LoadConfig(true)
 	if err != nil {
 		log.Warnf("LoadConfig error: %v", err)
@@ -990,7 +1012,7 @@ type MdOptions struct {
 }
 
 // getConfig config.yml 下的 params 字段
-func (b *Bblog) md(str string, options MdOptions) string {
+func (b *Hollow) md(str string, options MdOptions) string {
 	s := string(renderMd([]byte(str)))
 	if options.Unwrap {
 		s = strings.TrimPrefix(s, "<p>")
@@ -1040,7 +1062,7 @@ func exportGojaValue(i interface{}) interface{} {
 	return i
 }
 
-func (b *Bblog) loadTheme(configFile string) (ThemeModule, error) {
+func (b *Hollow) loadTheme(configFile string) (ThemeModule, error) {
 
 	return ThemeModule{}, nil
 }

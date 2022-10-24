@@ -1,6 +1,7 @@
 package bblog
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/hollow/internal/pkg/db"
@@ -17,10 +18,10 @@ func TestSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	as := b.getArticles("contents", getBlogOption{
+	as := b.getContents("contents", getBlogOption{
 		Sort: func(a, b interface{}) bool {
-			//c := a.(ArticleTree).Meta["date"]
-			//a.(ArticleTree).Meta
+			//c := a.(ContentTree).Meta["date"]
+			//a.(ContentTree).Meta
 			//log.Infof("c %+v", a)
 			return false
 		},
@@ -80,7 +81,7 @@ func TestBuildFromFs(t *testing.T) {
 		Fs: fs,
 	})
 
-	err = b.Build("docs", ExecOption{
+	err = b.Build(context.Background(), "docs", ExecOption{
 		//Out: &WsSink{hub: hub},
 	})
 	if err != nil {

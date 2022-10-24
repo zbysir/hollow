@@ -12,13 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
-
-// file://Users/bysir/front/bysir/hollow-theme/hollow
-func resolveFileUrl(u string) (absPath string, err error) {
-	return "/" + strings.TrimPrefix(u, "file://"), nil
-}
 
 type ThemeExport struct {
 	Pages  Pages
@@ -67,11 +61,11 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refr
 		}
 	}
 
-	fileSys, err = fileSys.Chroot(subPath)
+	subFs, err := fileSys.Chroot(subPath)
 	if err != nil {
 		return ThemeExport{}, nil, err
 	}
-	f := gobilly.NewStdFs(fileSys)
+	f := gobilly.NewStdFs(subFs)
 	return loadTheme(x, f, filepath.Join("index"))
 }
 
@@ -81,32 +75,26 @@ func resolveGitUrl(u string) (remote string, branch string, subPath string, err 
 }
 
 type LocalThemeLoader struct {
-	f   fs.FS
-	dir string
+	f fs.FS
 }
 
-func NewLocalThemeLoader(f fs.FS, dir string) *LocalThemeLoader {
-	return &LocalThemeLoader{f: f, dir: dir}
+func NewLocalThemeLoader(rootFs fs.FS) *LocalThemeLoader {
+	return &LocalThemeLoader{f: rootFs}
 }
 
 func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool) (ThemeExport, fs.FS, error) {
-	filePath := filepath.Join(path, "index")
-	if l.dir != "" {
-		filePath = filepath.Join(l.dir, "index")
-	}
-
-	return loadTheme(x, l.f, filePath)
+	return loadTheme(x, l.f, "index")
 }
 
-func loadTheme(x *jsx.Jsx, fs fs.FS, configFile string) (ThemeExport, fs.FS, error) {
+func loadTheme(x *jsx.Jsx, filesys fs.FS, configFile string) (ThemeExport, fs.FS, error) {
 	envBs, _ := json.Marshal(nil)
 	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
 
 	// 添加 ./ 告知 module 加载项目文件而不是 node_module
 	configFile = "./" + filepath.Clean(configFile)
-	v, err := x.RunJs([]byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), jsx.WithRunFs(fs))
+	v, err := x.RunJs([]byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), jsx.WithRunFs(filesys))
 	if err != nil {
-		return ThemeExport{}, nil, err
+		return ThemeExport{}, nil, fmt.Errorf("loadTheme '%v' error: %w", configFile, err)
 	}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现
@@ -130,5 +118,5 @@ func loadTheme(x *jsx.Jsx, fs fs.FS, configFile string) (ThemeExport, fs.FS, err
 		assets[i] = dir
 	}
 
-	return ThemeExport{Pages: ps, Assets: assets}, fs, nil
+	return ThemeExport{Pages: ps, Assets: assets}, filesys, nil
 }

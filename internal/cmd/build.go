@@ -16,8 +16,8 @@ type BuildParams struct {
 }
 
 var Build = &cobra.Command{
-	Use:   "server",
-	Short: "preview your website",
+	Use:   "build",
+	Short: "build your website",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		viper.AutomaticEnv()
 		p, err := config.Get[BuildParams]()
