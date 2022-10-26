@@ -12,8 +12,8 @@
 ## 发布
 
 - [x] 将 Hollow 发布为 Docker 镜像: https://hub.docker.com/r/bysir/hollow
-- [ ] GitHub CI 编译、部署源文件
 - [x] 将主题独立为其他仓库
+- [ ] GitHub CI 编译、部署源文件
 
 ## 评论
 - https://github.com/gitalk/gitalk

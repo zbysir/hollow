@@ -12,7 +12,11 @@ Hollow 是一个快速、简洁静态博客生成器。目前只服务于自己�
 - 提供工具一键部署到 Git 仓库
 - **使用 Jsx/Tsx 作为主题模板开发语言**
 - 主题开发没有限制，代码即所得
-- 快速：生成 1000 篇页面只需要 2s
+- 快速：生成 1000 篇页面只需要 2s (虽然没什么用)
+
+## Suitable for
+ - "想要从零开发主题、网站，但不想学习框架概念" 的人
+ - "需要使用 Web UI 写作" 的人
 
 ## Why Hollow
 在 Hollow 的世界中，代码即所得，因为主题使用 JavaScript 驱动，它是图灵完备的，所以没必要再定义限制：如路由、布局、标签、归档等。不再拘谨于框架给你的概念，这次你自己创造。
@@ -60,15 +64,58 @@ export default {
 ## Quick Start
 ### Install hollow
 ```shell
-go get github.com/zbysir/hollow
+go install github.com/zbysir/hollow
 ```
+Or use docker (recommend): https://hub.docker.com/r/bysir/hollow
 
-### Create Project
+### Preview Theme
+This is optional and is used to select your preferred theme
+
 ```shell
-mkdir docs
+docker run -p 9400:9400 bysir/hollow:master server -t https://github.com/zbysir/hollow-theme/tree/master/hollow
 ```
 
-...
+### Start your creation
+- Create a project folder, e.g. `book`
+- Into `book` folder
+- Create `contents` folder to store contents
+- Create a content, the file name is `contents/hello.md`, the content is as follows:
+  ```markdown
+  ---
+  title: "Hello Hollow"
+  date: 2022-03-22
+  ---
+  # Hello Hollow
+  write something here
+  ```
+- Now your directory structure looks like this:
+  ```
+  .
+  └── contents
+      └── hello.md
+  ```
+- Preview your website
+  - Run Hollow server
+    ```shell
+    docker run -v ${PWD}:/source -p 9400:9400 bysir/hollow:master server -t https://github.com/zbysir/hollow-theme/tree/master/hollow
+    ```
+  - Open a browser and visit `http://localhost:9400`
+
+### Publish
+
+- The following command will generate static files in `.dist` directory
+  ```shell
+  cd book
+  docker run -v ${PWD}:/source bysir/hollow:master build -o /source/.dist -t https://github.com/zbysir/hollow-theme/tree/master/hollow
+  ```
+  ```
+  .
+  ├── .dist                <- HERE
+  └── contents
+      └── hello.md
+  ```
+
+- Put files on github page
 
 ## Editor
 
