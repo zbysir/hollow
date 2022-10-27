@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func (b *BuffSink) Close() error {
 
 type Options struct {
 	IsDev         bool
-	To            zapcore.WriteSyncer
+	To            io.Writer
 	DisableTime   bool
 	DisableCaller bool
 	CallerSkip    int
@@ -78,8 +79,8 @@ func New(o Options) *zap.SugaredLogger {
 		ops = append(ops, zap.AddCallerSkip(o.CallerSkip))
 	}
 
-	sink := o.To
-	if sink == nil {
+	var sink zapcore.WriteSyncer
+	if o.To == nil {
 		var err error
 		var closeOut func()
 		sink, closeOut, err = zap.Open(config.OutputPaths...)
@@ -95,6 +96,8 @@ func New(o Options) *zap.SugaredLogger {
 		}
 
 		ops = append(ops, zap.ErrorOutput(errSink))
+	} else {
+		sink = zapcore.AddSync(o.To)
 	}
 	if !o.DisableCaller {
 		ops = append(ops, zap.AddCaller())

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thoas/go-funk"
-	"github.com/zbysir/hollow/internal/bblog/editor"
+	"github.com/zbysir/hollow/internal/hollow/editor"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"

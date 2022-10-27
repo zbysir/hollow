@@ -4,7 +4,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/hollow"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
@@ -30,14 +30,14 @@ var Build = &cobra.Command{
 		//gin.SetMode(gin.ReleaseMode)
 		log.Infof("config: %+v", p)
 
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: osfs.New(p.Source),
 		})
 		if err != nil {
 			return err
 		}
 
-		err = b.Build(ctx, p.Output, bblog.ExecOption{IsDev: true})
+		err = b.Build(ctx, p.Output, hollow.ExecOption{IsDev: true})
 		if err != nil {
 			return err
 		}

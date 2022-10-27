@@ -3,6 +3,7 @@ package ws
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -58,15 +59,39 @@ func (h *WsHub) Send(key string, body []byte) error {
 	return nil
 }
 
-func (h *WsHub) Close(key string) error {
+type sender func([]byte) error
+
+func (s sender) Write(p []byte) (n int, err error) {
+	return len(p), s(p)
+}
+
+func (h *WsHub) GetKeyWrite(key string) io.Writer {
+	return sender(func(body []byte) error {
+		h.l.Lock()
+		defer h.l.Unlock()
+
+		h.msg[key] = h.msg[key] + string(body)
+
+		if o, ok := h.conns[key]; ok {
+			err := o.WriteMessage(1, body)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (h *WsHub) Close(key string) {
 	h.l.Lock()
 	defer h.l.Unlock()
 	if o, ok := h.conns[key]; ok {
 		o.Close()
 	}
-
+	delete(h.msg, key)
 	delete(h.conns, key)
-	return nil
+	return
 }
 
 func (h *WsHub) SendAll(body []byte) error {

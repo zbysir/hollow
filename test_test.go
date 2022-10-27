@@ -5,8 +5,8 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/zbysir/hollow/internal/bblog"
-	"github.com/zbysir/hollow/internal/bblog/editor"
+	"github.com/zbysir/hollow/internal/hollow"
+	"github.com/zbysir/hollow/internal/hollow/editor"
 	"github.com/zbysir/hollow/internal/pkg/db"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/log"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestService(t *testing.T) {
-	b, err := bblog.NewBblog(bblog.Option{
+	b, err := hollow.NewHollow(hollow.Option{
 		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
@@ -26,14 +26,14 @@ func TestService(t *testing.T) {
 
 	addr := ":8083"
 	t.Logf("listening %v", addr)
-	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, addr)
+	err = b.Service(context.Background(), hollow.ExecOption{IsDev: true}, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestBuildAndPublish(t *testing.T) {
-	b, err := bblog.NewBblog(bblog.Option{
+	b, err := hollow.NewHollow(hollow.Option{
 		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestBuildAndPublish(t *testing.T) {
 	}
 
 	dst := memfs.New()
-	err = b.BuildAndPublish(dst, bblog.ExecOption{
+	err = b.BuildAndPublish(context.Background(), dst, hollow.ExecOption{
 		Log: log.New(log.Options{
 			IsDev:         false,
 			DisableCaller: true,
@@ -57,14 +57,14 @@ func TestBuildAndPublish(t *testing.T) {
 }
 
 func TestBuild(t *testing.T) {
-	b, err := bblog.NewBblog(bblog.Option{
+	b, err := hollow.NewHollow(hollow.Option{
 		Fs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.Build("./.dist", bblog.ExecOption{
+	err = b.Build(context.Background(), "./.dist", hollow.ExecOption{
 		Log:   nil,
 		IsDev: false,
 	})
@@ -84,12 +84,12 @@ func TestServiceDbFs(t *testing.T) {
 	}
 	fProject := gobilly.NewDbFs(stp)
 
-	b, err := bblog.NewBblog(bblog.Option{Fs: fProject})
+	b, err := hollow.NewHollow(hollow.Option{Fs: fProject})
 	if err != nil {
 		panic(err)
 	}
 
-	err = b.Service(context.Background(), bblog.ExecOption{IsDev: true}, ":8083")
+	err = b.Service(context.Background(), hollow.ExecOption{IsDev: true}, ":8083")
 	if err != nil {
 		panic(err)
 	}

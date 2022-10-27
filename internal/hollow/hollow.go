@@ -1,4 +1,4 @@
-package bblog
+package hollow
 
 import (
 	"bytes"
@@ -7,16 +7,21 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
+	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
+	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru"
 	jsx "github.com/zbysir/gojsx"
+	editor "github.com/zbysir/hollow/front/hollow-dev"
+	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/git"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/http_file_server"
 	"github.com/zbysir/hollow/internal/pkg/httpsrv"
 	"github.com/zbysir/hollow/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/ws"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"io/fs"
@@ -28,6 +33,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -96,10 +102,12 @@ func (p Page) Render() (string, error) {
 }
 
 type Hollow struct {
-	jsx      *jsx.Jsx
-	sourceFs billy.Filesystem // 文件
-	log      *zap.SugaredLogger
-	cache    *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+	jsx       *jsx.Jsx
+	sourceFs  billy.Filesystem // 文件
+	log       *zap.SugaredLogger
+	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+	asyncTask *asynctask.Manager
+	wsHub     *ws.WsHub
 }
 
 type Option struct {
@@ -113,14 +121,36 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
-func NewBblog(o Option) (*Hollow, error) {
+type MemJsxCache struct {
+	m *sync.Map
+}
+
+func NewMemJsxCache() *MemJsxCache {
+	return &MemJsxCache{m: &sync.Map{}}
+}
+
+func (m *MemJsxCache) Get(key string) (f *jsx.Source, exist bool, err error) {
+	i, ok := m.m.Load(key)
+	if !ok {
+		return nil, false, nil
+	}
+
+	return i.(*jsx.Source), true, nil
+}
+
+func (m *MemJsxCache) Set(key string, f *jsx.Source) (err error) {
+	m.m.Store(key, f)
+	return nil
+}
+
+func NewHollow(o Option) (*Hollow, error) {
 	if o.Fs == nil {
 		o.Fs = osfs.New(".")
 	}
 
 	var err error
 	jx, err := jsx.NewJsx(jsx.Option{
-		SourceCache: jsx.NewFileCache("./.cache"),
+		SourceCache: NewMemJsxCache(),
 		Debug:       false,
 	})
 	if err != nil {
@@ -132,11 +162,21 @@ func NewBblog(o Option) (*Hollow, error) {
 		return nil, err
 	}
 	b := &Hollow{
-		jsx:      jx,
-		sourceFs: o.Fs,
-		log:      log.StdLogger,
-		cache:    cache,
+		jsx:       jx,
+		sourceFs:  o.Fs,
+		log:       log.StdLogger,
+		cache:     cache,
+		asyncTask: asynctask.NewManager(),
+		wsHub:     ws.NewHub(),
 	}
+	b.asyncTask.AddListener(func(task *asynctask.Task, event *asynctask.Event) {
+		//log.Infof("task: %v, %+v", task.Key, event)
+		if event.IsDone {
+			b.wsHub.Close(task.Key)
+		} else {
+			b.wsHub.Send(task.Key, []byte(event.Log))
+		}
+	})
 
 	jx.RegisterModule("react", map[string]interface{}{
 		"useState":  func() []interface{} { return []interface{}{nil, nil} },
@@ -159,8 +199,7 @@ func NewBblog(o Option) (*Hollow, error) {
 type ExecOption struct {
 	Log *zap.SugaredLogger
 
-	// 开发环境每次都会读取最新的文件，而生成环境会缓存
-	IsDev bool
+	IsDev bool   // 开发环境每次都会读取最新的文件，而生成环境会缓存
 	Theme string // 重新指定主题，可用于预览
 }
 
@@ -185,7 +224,7 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 		return err
 	}
 	var themeFs fs.FS
-	themeModule, themeFs, err := themeLoader.Load(ctx, b.jsx, conf.Theme, true)
+	themeModule, themeFs, _, err := themeLoader.Load(ctx, b.jsx, conf.Theme, true, false)
 	if err != nil {
 		return err
 	}
@@ -427,15 +466,21 @@ func prepareThemeUrl(url string, defaultProtocol string) string {
 
 // GetThemeLoader 返回主题加载器，支持以下协议的地址。
 // https:// : git
-// file:// : relative or absolute path
+// file:// : relative or absolute path, e.g. file://usr/bysir/xx , file://./bysir/xx
 // source:// : relative path of source fs
 func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 	switch {
 	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
-		return NewGitThemeLoader(), nil
+		return NewGitThemeLoader(b.asyncTask), nil
 	case strings.HasPrefix(url, "file://"):
-		relative := strings.TrimPrefix(url, "file://")
-		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(relative))), nil
+		pa := strings.TrimPrefix(url, "file://")
+		if strings.HasPrefix(pa, ".") {
+			// 相对路径
+		} else {
+			// 绝对路径
+			pa = "/" + pa
+		}
+		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
 	case strings.HasPrefix(url, "source://"):
 		subFs, err := b.sourceFs.Chroot(url)
 		if err != nil {
@@ -447,21 +492,35 @@ func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 	}
 }
 
+func handleAsyncTask(task string, writer http.ResponseWriter, request *http.Request) {
+	body := fmt.Sprintf(`
+<html>
+<head>
+<link href="/_dev_/static/index.css" rel="stylesheet"/>
+</head>
+<script>
+window.taskKey = '%s'
+</script>
+<script src="/_dev_/static/index.js"></script>
+</html>
+`, task)
+	writer.Write([]byte(body))
+}
+
 func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
-
 	var themeModule ThemeExport
 
-	prepare := func(opt *PrepareOpt) error {
+	prepare := func(opt *PrepareOpt) (asyncTaskKey string, err error) {
 		b.cache.Purge()
 		var projectConf Config
 
-		projectConf, err := b.LoadConfig(true)
+		projectConf, err = b.LoadConfig(true)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 
 			} else {
-				return err
+				return "", err
 			}
 		}
 
@@ -469,7 +528,6 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		if opt != nil && opt.NoCache {
 			refresh = true
 		}
-		var themeFs fs.FS
 
 		themeUrl := prepareThemeUrl(projectConf.Theme, "source://")
 		if o.Theme != "" {
@@ -477,18 +535,23 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		}
 		themeLoader, err := b.GetThemeLoader(themeUrl)
 		if err != nil {
-			return err
+			return "", err
 		}
-		themeModule, themeFs, err = themeLoader.Load(context.Background(), b.jsx, themeUrl, refresh)
+		var themeFs fs.FS
+		var task *asynctask.Task
+		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, themeUrl, refresh, true)
 		if err != nil {
-			return err
+			return "", err
+		}
+		if task != nil {
+			return task.Key, nil
 		}
 
 		var dirs MuitDir
 		for _, dir := range themeModule.Assets {
 			sub, err := fs.Sub(themeFs, dir)
 			if err != nil {
-				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
+				return "", fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
 
 			dirs = append(dirs, &DirFs{
@@ -498,7 +561,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		for _, dir := range projectConf.Assets {
 			sub, err := fs.Sub(gobilly.NewStdFs(b.sourceFs), dir)
 			if err != nil {
-				return fmt.Errorf("sub fs '%v' error: %w", dir, err)
+				return "", fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
 			dirs = append(dirs, &DirFs{
 				fs: http.FS(sub),
@@ -506,12 +569,18 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		}
 
 		assetsHandler = http_file_server.FileServer(dirs)
-		return nil
+		return "", nil
 	}
 	if !o.IsDev {
-		err := prepare(nil)
+		task, err := prepare(nil)
 		if err != nil {
 			return nil
+		}
+
+		if task != "" {
+			return func(writer http.ResponseWriter, request *http.Request) {
+				handleAsyncTask(task, writer, request)
+			}
 		}
 	}
 
@@ -522,9 +591,13 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			// TODO 优化主题刷新逻辑，不应该每次请求都刷新，需要做异步刷新
 			opt := PrepareOpt{}
 			opt.NoCache = request.Header.Get("Cache-Control") == "no-cache"
-			err := prepare(&opt)
+			task, err := prepare(&opt)
 			if err != nil {
 				writer.Write([]byte(err.Error()))
+				return
+			}
+			if task != "" {
+				handleAsyncTask(task, writer, request)
 				return
 			}
 		}
@@ -544,13 +617,38 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 	}
 }
 
+var upgrader = websocket.Upgrader{
+	// 解决跨域问题
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
 // Service 运行一个渲染程序
 func (b *Hollow) Service(ctx context.Context, o ExecOption, addr string) error {
 	s, err := httpsrv.NewService(addr)
 	if err != nil {
 		return err
 	}
-	s.Handler("/", b.ServiceHandle(o))
+	r := gin.Default()
+	r.GET("/_dev_/ws/:key", func(c *gin.Context) {
+		key := c.Param("key")
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		b.wsHub.Add(key, conn)
+	})
+
+	sub, _ := fs.Sub(editor.HollowDevFront, "dist")
+	r.StaticFS("/_dev_/static", http.FS(sub))
+	//r.StaticFileFS("/_dev_/index.js", "dist/index.js", http.FS(editor.HollowDevFront))
+	r.NoRoute(func(c *gin.Context) {
+		b.ServiceHandle(o)(c.Writer, c.Request)
+	})
+
+	s.Handler("/", r.Handler().ServeHTTP)
 
 	return s.Start(ctx)
 }
@@ -624,9 +722,9 @@ type MDBlogLoader struct {
 }
 
 func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Content, bool, error) {
-	dir, name := filepath.Split(filePath)
-	if !strings.HasPrefix(dir, "/") {
-		dir = "/" + dir
+	fileDir, name := filepath.Split(filePath)
+	if !strings.HasPrefix(fileDir, "/") {
+		fileDir = "/" + fileDir
 	}
 
 	ext := filepath.Ext(filePath)
@@ -667,7 +765,7 @@ func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Content
 	md := newMdRender(func(p string) string {
 		if filepath.IsAbs(p) {
 		} else {
-			p = filepath.Join(dir, p)
+			p = filepath.Join(fileDir, p)
 		}
 
 		// 移除 assets 文件夹前缀
@@ -1060,9 +1158,4 @@ func exportGojaValue(i interface{}) interface{} {
 	}
 
 	return i
-}
-
-func (b *Hollow) loadTheme(configFile string) (ThemeModule, error) {
-
-	return ThemeModule{}, nil
 }

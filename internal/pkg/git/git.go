@@ -262,6 +262,7 @@ func (g *Git) Pull(remote string, branch string, force bool) error {
 	})
 	if err != nil {
 		if err == git.NoErrAlreadyUpToDate {
+			g.log.Infof("AlreadyUpToDate")
 			err = nil
 		} else if err == git.ErrNonFastForwardUpdate {
 			if force {

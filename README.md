@@ -89,9 +89,9 @@ docker run -p 9400:9400 bysir/hollow:master server -t https://github.com/zbysir/
   write something here
   ```
 - Now your directory structure looks like this:
-  ```
-  .
-  └── contents
+  ```treeview
+  ./
+  └── contents/
       └── hello.md
   ```
 - Preview your website
@@ -105,13 +105,12 @@ docker run -p 9400:9400 bysir/hollow:master server -t https://github.com/zbysir/
 
 - The following command will generate static files in `.dist` directory
   ```shell
-  cd book
   docker run -v ${PWD}:/source bysir/hollow:master build -o /source/.dist -t https://github.com/zbysir/hollow-theme/tree/master/hollow
   ```
-  ```
-  .
-  ├── .dist                <- HERE
-  └── contents
+  ```treeview
+  ./
+  ├── .dist/
+  └── contents/
       └── hello.md
   ```
 

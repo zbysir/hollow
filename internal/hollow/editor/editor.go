@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thoas/go-funk"
 	"github.com/zbysir/hollow/front/editor"
-	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/hollow"
 	"github.com/zbysir/hollow/internal/pkg/auth"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
@@ -187,11 +187,11 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.Error(err)
 			return
 		}
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: fsSource,
 		})
 
-		b.ServiceHandle(bblog.ExecOption{
+		b.ServiceHandle(hollow.ExecOption{
 			Log:   nil,
 			IsDev: true,
 		})(c.Writer, c.Request)
@@ -275,7 +275,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			c.Error(err)
 			return
 		}
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: fsSource,
 			//ThemeFs: fsTheme,
 		})
@@ -503,12 +503,6 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 
-		//fsTheme, err := a.projectFs(p.ProjectId, "theme")
-		//if err != nil {
-		//	c.AbortWithError(400, err)
-		//	return
-		//}
-
 		fs, err := a.projectFs(p.ProjectId, "project")
 		if err != nil {
 			c.AbortWithError(400, err)
@@ -516,7 +510,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 		key := funk.RandomString(6)
 
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: fs,
 			//ThemeFs: fsTheme,
 		})
@@ -528,23 +522,21 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		start := time.Now()
 
 		go func() {
-			defer func() {
-				a.hub.Close(key)
-			}()
+			defer a.hub.Close(key)
 
 			logWs := NewWsLog(a.hub, key)
-			holloLog := logWs.Named("[Hollow]")
-			holloLog.Infof("start publish")
+			hollowLog := logWs.Named("[Hollow]")
+			hollowLog.Infof("start publish")
 
 			dst := memfs.New()
-			err = b.BuildAndPublish(context.Background(), dst, bblog.ExecOption{
+			err = b.BuildAndPublish(context.Background(), dst, hollow.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
-				holloLog.Errorf("publish fail: %v", err)
+				hollowLog.Errorf("publish fail: %v", err)
 				return
 			}
-			holloLog.Infof("publish success in %s", time.Now().Sub(start))
+			hollowLog.Infof("publish success in %s", time.Now().Sub(start))
 		}()
 
 		c.JSON(200, key)
@@ -564,7 +556,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 		key := funk.RandomString(6)
 
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: filesystem,
 		})
 		if err != nil {
@@ -583,7 +575,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			holloLog := logWs.Named("[Hollow]")
 			holloLog.Infof("start pull")
 
-			err = b.PullProject(bblog.ExecOption{
+			err = b.PullProject(hollow.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
@@ -610,7 +602,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		}
 		key := funk.RandomString(6)
 
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: fs,
 			//ThemeFs: fsTheme,
 		})
@@ -630,7 +622,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			holloLog := logWs.Named("[Hollow]")
 			holloLog.Infof("start push")
 
-			err = b.PushProject(bblog.ExecOption{
+			err = b.PushProject(hollow.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
@@ -660,34 +652,10 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 	return nil
 }
 
-// WsSink 将 log 写入到 WS
-type WsSink struct {
-	hub *ws.WsHub
-	key string
-}
-
-func (w *WsSink) Write(p []byte) (n int, err error) {
-	err = w.hub.Send(w.key, p)
-	if err != nil {
-		return 0, err
-	}
-
-	return len(p), nil
-}
-
-func (w *WsSink) Sync() error {
-	return nil
-}
-
-func (w *WsSink) Close() error {
-	return nil
-}
-
 func NewWsLog(hub *ws.WsHub, key string) *zap.SugaredLogger {
-	out := &WsSink{hub: hub, key: key}
 	logWs := log.New(log.Options{
 		IsDev:         false,
-		To:            out,
+		To:            hub.GetKeyWrite(key),
 		DisableCaller: true,
 		CallerSkip:    0,
 		Name:          "",

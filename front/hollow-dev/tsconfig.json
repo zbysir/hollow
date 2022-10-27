@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    // https://iqcode.com/code/javascript/consider-using-resolvejsonmodule
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    // https://github.com/Microsoft/vscode/issues/15814
+    "jsx": "react-jsx",
+  }
+}

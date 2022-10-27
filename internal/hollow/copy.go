@@ -1,4 +1,4 @@
-package bblog
+package hollow
 
 import (
 	"fmt"

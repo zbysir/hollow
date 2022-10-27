@@ -5,7 +5,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zbysir/hollow/internal/bblog"
+	"github.com/zbysir/hollow/internal/hollow"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
@@ -33,7 +33,7 @@ var Server = &cobra.Command{
 		//gin.SetMode(gin.ReleaseMode)
 		log.Infof("config: %+v", p)
 
-		b, err := bblog.NewBblog(bblog.Option{
+		b, err := hollow.NewHollow(hollow.Option{
 			Fs: osfs.New(p.Source),
 		})
 		if err != nil {
@@ -43,7 +43,7 @@ var Server = &cobra.Command{
 		addr := p.Address
 		log.Infof("listening %v", addr)
 		theme := p.Theme
-		err = b.Service(ctx, bblog.ExecOption{
+		err = b.Service(ctx, hollow.ExecOption{
 			Log:   nil,
 			IsDev: true,
 			Theme: theme,
