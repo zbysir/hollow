@@ -1,4 +1,4 @@
-package hollowdev
+package mdx
 
 import "embed"
 

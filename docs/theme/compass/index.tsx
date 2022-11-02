@@ -2,12 +2,12 @@ import Index from "./layout/Index"
 
 import BlogDetail from "./page/BlogDetail";
 
-import hollow, {Article, getArticles} from "@bysir/hollow"
+import hollow, {Content, getContents} from "@bysir/hollow"
 import {articleRoute, sortBlog} from "./utilx";
 import Menu from "./particle/Menu";
 import ArticlePage from "./page/Md";
 
-const articles = getArticles('contents',
+const articles = getContents('contents',
     {
         sort: sortBlog,
         page: 1,
@@ -30,7 +30,7 @@ let global = {
     footer_links: params.footer_links,
 }
 
-function flatArticles(as: Article[]): Article[] {
+function flatArticles(as: Content[]): Content[] {
     let s = []
     as.forEach(i => {
         if (!i.is_dir) {
@@ -65,7 +65,7 @@ export default {
                 path: path,
                 component: () => {
                     let content = b.getContent()
-                    let appendLink = function (b: Article): any {
+                    let appendLink = function (b: Content): any {
                         return {
                             ...b,
                             link: '/docs/' + (b === first ? '' : articleRoute(b)),

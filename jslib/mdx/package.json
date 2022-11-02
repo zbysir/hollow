@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "dev": "node ./build.js",
+    "build": "MODE=prod node ./build.js",
+    "test": "node test/index.js"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^2.1.5",
+    "acorn": "^8.8.1",
+    "esbuild": "^0.15.10"
+  }
+}

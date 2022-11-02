@@ -41,4 +41,4 @@ theme_config:
     - link: https://github.com/zbysir
       name: GitHub
       icon: GitHub
-  home_page: 'pages/home.html'
+  home_page: 'pages/home.tsx'

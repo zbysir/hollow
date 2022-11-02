@@ -142,7 +142,7 @@ func execTheme(x *jsx.Jsx, filesys fs.FS, configFile string) (ThemeExport, error
 	configFile = "./" + filepath.Clean(configFile)
 	v, err := x.RunJs([]byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), jsx.WithRunFs(filesys))
 	if err != nil {
-		return ThemeExport{}, fmt.Errorf("execTheme '%v%v' error: %w", configFile, err)
+		return ThemeExport{}, fmt.Errorf("execTheme '%v' error: %w", configFile, err)
 	}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现

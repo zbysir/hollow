@@ -2,12 +2,17 @@
 
 ## 主要
 - [x] 主题支持 git 协议远程获取
-- [x] 静态文件 304，而不是默认的 200
+- [x] Server 静态文件 304，而不是默认的 200
 
 ## 完善主题
 
 - [ ] (Doing) 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 
 - [x] 实现模糊搜索，React 与 https://github.com/krisk/Fuse
+
+## 扩展
+
+- [x] 项目文件考虑支持 Jsx
+- [ ] 考虑支持 MDX https://mdxjs.com/packages/mdx/（经过实验，由于兼容问题，使用 Goja 运行 mdx 项目是不容易实现的，考虑自己实现子集）
 
 ## 发布
 

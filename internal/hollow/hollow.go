@@ -1,11 +1,9 @@
 package hollow
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5"
@@ -13,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru"
 	jsx "github.com/zbysir/gojsx"
-	editor "github.com/zbysir/hollow/front/hollow-dev"
+	"github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/git"
@@ -386,7 +384,6 @@ func (d *DirFs) Open(name string) (http.File, error) {
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
 	fullName = strings.TrimPrefix(fullName, d.stripPrefix)
 
-	log.Infof("try open %v", fullName)
 	f, err := d.fs.Open(fullName)
 	if err != nil {
 		return nil, err
@@ -482,7 +479,8 @@ func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 		}
 		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
 	case strings.HasPrefix(url, "source://"):
-		subFs, err := b.sourceFs.Chroot(url)
+		pa := strings.TrimPrefix(url, "source://")
+		subFs, err := b.sourceFs.Chroot(pa)
 		if err != nil {
 			return nil, err
 		}
@@ -641,7 +639,7 @@ func (b *Hollow) Service(ctx context.Context, o ExecOption, addr string) error {
 		b.wsHub.Add(key, conn)
 	})
 
-	sub, _ := fs.Sub(editor.HollowDevFront, "dist")
+	sub, _ := fs.Sub(hollowdev.Dist, "dist")
 	r.StaticFS("/_dev_/static", http.FS(sub))
 	//r.StaticFileFS("/_dev_/index.js", "dist/index.js", http.FS(editor.HollowDevFront))
 	r.NoRoute(func(c *gin.Context) {
@@ -666,11 +664,6 @@ func (m MuitDir) Open(name string) (http.File, error) {
 	}
 
 	return nil, fs.ErrNotExist
-}
-
-var supportExt = map[string]bool{
-	".md":   true,
-	".html": true,
 }
 
 type Content struct {
@@ -713,174 +706,6 @@ func (ats ContentTrees) Flat(includeDir bool) ContentTrees {
 	return s
 }
 
-type ContentLoader interface {
-	Load(fs fs.FS, filePath string, withContent bool) (Content, bool, error)
-}
-
-type MDBlogLoader struct {
-	assets Assets
-}
-
-func (m *MDBlogLoader) Load(f fs.FS, filePath string, withContent bool) (Content, bool, error) {
-	fileDir, name := filepath.Split(filePath)
-	if !strings.HasPrefix(fileDir, "/") {
-		fileDir = "/" + fileDir
-	}
-
-	ext := filepath.Ext(filePath)
-	if supportExt[ext] {
-		name = strings.TrimSuffix(name, ext)
-	} else {
-		return Content{}, false, nil
-	}
-
-	// 读取 metadata
-	body, err := fs.ReadFile(f, filePath)
-	if err != nil {
-		return Content{}, false, err
-	}
-
-	var meta = map[string]interface{}{}
-	if bytes.HasPrefix(body, []byte("---\n")) {
-		bbs := bytes.SplitN(body, []byte("---"), 3)
-		if len(bbs) > 2 {
-			metaByte := bbs[1]
-			err = yaml.Unmarshal(metaByte, &meta)
-			if err != nil {
-				return Content{}, false, fmt.Errorf("parse file metadata error: %w", err)
-			}
-
-			body = bbs[2]
-		}
-	}
-
-	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
-	for k, v := range meta {
-		switch t := v.(type) {
-		case time.Time:
-			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-		}
-	}
-
-	md := newMdRender(func(p string) string {
-		if filepath.IsAbs(p) {
-		} else {
-			p = filepath.Join(fileDir, p)
-		}
-
-		// 移除 assets 文件夹前缀
-		for _, a := range m.assets {
-			if strings.HasPrefix(p, "/"+a) {
-				p = strings.TrimPrefix(p, "/"+a)
-				break
-			}
-		}
-		return p
-	})
-
-	content := ""
-	if withContent {
-		content = string(md.Render(body))
-	}
-	return Content{
-		Name: name,
-		GetContent: func(opt GetContentOpt) string {
-			var s string
-			if withContent {
-				s = content
-			} else {
-				s = string(md.Render(body))
-			}
-			if opt.Pure {
-				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
-				if err != nil {
-					return err.Error()
-				}
-
-				s = d.Text()
-			}
-			return s
-		},
-		Meta:    meta,
-		Ext:     ext,
-		Content: content,
-	}, true, nil
-}
-
-type GetContentOpt struct {
-	Pure bool `json:"pure"` // 返回纯文本，一般用于做搜索
-}
-
-type HtmlLoader struct {
-	//assets Assets
-}
-
-func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Content, bool, error) {
-	dir, name := filepath.Split(filePath)
-	if !strings.HasPrefix(dir, "/") {
-		dir = "/" + dir
-	}
-
-	ext := filepath.Ext(filePath)
-	if supportExt[ext] {
-		name = strings.TrimSuffix(name, ext)
-	} else {
-		return Content{}, false, nil
-	}
-
-	// 读取 metadata
-	body, err := fs.ReadFile(f, filePath)
-	if err != nil {
-		return Content{}, false, err
-	}
-
-	var meta = map[string]interface{}{}
-	if bytes.HasPrefix(body, []byte("---\n")) {
-		bbs := bytes.SplitN(body, []byte("---"), 3)
-		if len(bbs) > 2 {
-			metaByte := bbs[1]
-			err = yaml.Unmarshal(metaByte, &meta)
-			if err != nil {
-				return Content{}, false, fmt.Errorf("parse file metadata error: %w", err)
-			}
-
-			body = bbs[2]
-		}
-	}
-
-	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
-	for k, v := range meta {
-		switch t := v.(type) {
-		case time.Time:
-			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-		}
-	}
-
-	content := ""
-	if withContent {
-		content = string(body)
-	}
-	return Content{
-		Name: name,
-		GetContent: func(opt GetContentOpt) string {
-			var s = string(body)
-			if opt.Pure {
-				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
-				if err != nil {
-					return err.Error()
-				}
-
-				s = d.Text()
-			}
-
-			return s
-		},
-		Meta:    meta,
-		Ext:     ext,
-		Content: content,
-	}, true, nil
-}
-
 type getBlogOption struct {
 	Sort func(a, b interface{}) bool `json:"sort"`
 	Tree bool                        `json:"tree"` // 传递 tree = true 则返回树结构
@@ -900,12 +725,21 @@ type BlogList struct {
 func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 	c, err := b.LoadConfig(true)
 	if err != nil {
+		log.Warnf("LoadConfig error: %v", err)
 		return nil, false
 	}
 	switch ext {
 	case ".md":
-		return &MDBlogLoader{
+		return &MDLoader{
 			assets: c.Assets,
+		}, true
+	case ".mdx":
+		return &MDLoader{
+			assets: c.Assets,
+		}, true
+	case ".tsx":
+		return &JsxLoader{
+			x: b.jsx,
 		}, true
 	case ".html":
 		return &HtmlLoader{}, true
@@ -1022,12 +856,9 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 				return ContentTree{}, nil
 			}
 
-			blog, ok, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, false)
+			blog, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, false)
 			if err != nil {
 				log.Errorf("load blog (%v) file: %v", path, err)
-			}
-			if !ok {
-				return ContentTree{}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
@@ -1086,9 +917,14 @@ func (b *Hollow) getContentDetail(path string) Content {
 	ext := filepath.Ext(path)
 	loader, ok := b.getContentLoader(ext)
 	if !ok {
+		log.Warnf("can't loader '%v' file", ext)
 		return Content{}
 	}
-	blog, ok, _ := loader.Load(gobilly.NewStdFs(b.sourceFs), path, true)
+	blog, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, true)
+	if err != nil {
+		log.Warnf("can't loader file, error: %v", err)
+		return Content{}
+	}
 	if !ok {
 		return Content{}
 	}
@@ -1117,12 +953,6 @@ func (b *Hollow) md(str string, options MdOptions) string {
 		s = strings.TrimSuffix(s, "</p>")
 	}
 	return s
-}
-
-type ThemeModule struct {
-	raw    map[string]interface{}
-	Pages  Pages
-	Assets Assets
 }
 
 type Assets []string
