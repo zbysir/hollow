@@ -11,7 +11,7 @@ import (
 
 func TestSource(t *testing.T) {
 	b, err := NewHollow(Option{
-		Fs: osfs.New("../../docs"),
+		SourceFs: osfs.New("../../docs"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestBuildFromFs(t *testing.T) {
 	fs := gobilly.NewDbFs(st2)
 
 	b, err := NewHollow(Option{
-		Fs: fs,
+		SourceFs: fs,
 	})
 
 	err = b.Build(context.Background(), "docs", ExecOption{

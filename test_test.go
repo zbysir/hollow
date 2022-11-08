@@ -18,7 +18,7 @@ import (
 
 func TestService(t *testing.T) {
 	b, err := hollow.NewHollow(hollow.Option{
-		Fs: osfs.New("./workspace"),
+		SourceFs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestService(t *testing.T) {
 
 func TestBuildAndPublish(t *testing.T) {
 	b, err := hollow.NewHollow(hollow.Option{
-		Fs: osfs.New("./workspace"),
+		SourceFs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestBuildAndPublish(t *testing.T) {
 
 func TestBuild(t *testing.T) {
 	b, err := hollow.NewHollow(hollow.Option{
-		Fs: osfs.New("./workspace"),
+		SourceFs: osfs.New("./workspace"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestServiceDbFs(t *testing.T) {
 	}
 	fProject := gobilly.NewDbFs(stp)
 
-	b, err := hollow.NewHollow(hollow.Option{Fs: fProject})
+	b, err := hollow.NewHollow(hollow.Option{SourceFs: fProject})
 	if err != nil {
 		panic(err)
 	}

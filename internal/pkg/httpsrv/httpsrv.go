@@ -2,6 +2,7 @@ package httpsrv
 
 import (
 	"context"
+	"errors"
 	"net/http"
 )
 
@@ -39,6 +40,9 @@ func (s *Service) Start(ctx context.Context) error {
 	}()
 	err = s.s.ListenAndServe()
 	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
 		return err
 	}
 

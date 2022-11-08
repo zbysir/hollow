@@ -22,21 +22,22 @@ type ThemeExport struct {
 }
 
 type ThemeLoader interface {
-	Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error)
+	Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error)
 }
 
 // GitThemeLoader
 // e.g. https:/github.com/zbysir/hollow-theme/tree/master/hollow/index
 type GitThemeLoader struct {
 	asyncTask *asynctask.Manager
+	path      string
 }
 
-func NewGitThemeLoader(asyncTask *asynctask.Manager) *GitThemeLoader {
-	return &GitThemeLoader{asyncTask: asyncTask}
+func NewGitThemeLoader(asyncTask *asynctask.Manager, path string) *GitThemeLoader {
+	return &GitThemeLoader{asyncTask: asyncTask, path: path}
 }
 
 // Load 会缓存 fs ，只有当强制刷新时更新
-func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
+func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
 	fileSys := osfs.New("./.themecache")
 
 	_, err := fileSys.Stat(".")
@@ -47,14 +48,14 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refr
 			return ThemeExport{}, nil, nil, err
 		}
 	}
-	remote, branch, subPath, err := resolveGitUrl(path)
+	remote, branch, subPath, err := resolveGitUrl(g.path)
 	if err != nil {
 		return ThemeExport{}, nil, nil, err
 	}
 
 	if refresh {
 		if enableAsync {
-			task, isNew := g.asyncTask.NewTask(util.MD5(path))
+			task, isNew := g.asyncTask.NewTask(util.MD5(g.path))
 			if isNew {
 				go func() {
 					var err error
@@ -121,11 +122,11 @@ type LocalThemeLoader struct {
 	f fs.FS
 }
 
-func NewLocalThemeLoader(rootFs fs.FS) *LocalThemeLoader {
+func NewFsThemeLoader(rootFs fs.FS) *LocalThemeLoader {
 	return &LocalThemeLoader{f: rootFs}
 }
 
-func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, path string, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
+func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
 	theme, err := execTheme(x, l.f, "index")
 	if err != nil {
 		return ThemeExport{}, nil, nil, err

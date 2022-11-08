@@ -188,7 +188,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: fsSource,
+			SourceFs: fsSource,
 		})
 
 		b.ServiceHandle(hollow.ExecOption{
@@ -276,7 +276,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			return
 		}
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: fsSource,
+			SourceFs: fsSource,
 			//ThemeFs: fsTheme,
 		})
 
@@ -511,7 +511,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: fs,
+			SourceFs: fs,
 			//ThemeFs: fsTheme,
 		})
 		if err != nil {
@@ -557,7 +557,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: filesystem,
+			SourceFs: filesystem,
 		})
 		if err != nil {
 			c.Error(err)
@@ -603,7 +603,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		key := funk.RandomString(6)
 
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: fs,
+			SourceFs: fs,
 			//ThemeFs: fsTheme,
 		})
 		if err != nil {

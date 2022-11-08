@@ -12,9 +12,9 @@ type Context struct {
 	Cancel  func()
 }
 
-// 等待信号量
+// NewContext 等待信号量
 func NewContext(sig ...os.Signal) (ctx context.Context, cancel func()) {
-	ctx, cancel = context.WithCancel(context.TODO())
+	ctx, cancel = context.WithCancel(context.Background())
 
 	if len(sig) == 0 {
 		sig = []os.Signal{syscall.SIGINT, syscall.SIGTERM}

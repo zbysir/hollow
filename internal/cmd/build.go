@@ -31,7 +31,7 @@ var Build = &cobra.Command{
 		log.Infof("config: %+v", p)
 
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: osfs.New(p.Source),
+			SourceFs: osfs.New(p.Source),
 		})
 		if err != nil {
 			return err

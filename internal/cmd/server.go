@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -9,7 +8,7 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
-	"net/http"
+	"sync"
 )
 
 type ServerParams struct {
@@ -33,28 +32,43 @@ var Server = &cobra.Command{
 		//gin.SetMode(gin.ReleaseMode)
 		log.Infof("config: %+v", p)
 
-		b, err := hollow.NewHollow(hollow.Option{
-			Fs: osfs.New(p.Source),
+		h, err := hollow.NewHollow(hollow.Option{
+			SourceFs:   osfs.New(p.Source),
+			FixedTheme: p.Theme,
 		})
 		if err != nil {
-			return err
+			panic(err)
 		}
 
-		addr := p.Address
-		log.Infof("listening %v", addr)
-		theme := p.Theme
-		err = b.Service(ctx, hollow.ExecOption{
-			Log:   nil,
-			IsDev: true,
-			Theme: theme,
-		}, addr)
-		if err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
-				return nil
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			addr := p.Address
+			log.Infof("listening %v", addr)
+			err = h.Service(ctx, hollow.ExecOption{
+				Log:   nil,
+				IsDev: true,
+			}, addr)
+
+			if err != nil {
+
+				panic(err)
 			}
-			return err
-		}
+		}()
 
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			err = h.DevService(ctx)
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		wg.Wait()
 		return nil
 	},
 }

@@ -17,7 +17,7 @@ var AssetsUpload = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir := viper.GetString("d")
 		b, err := hollow.NewHollow(hollow.Option{
-			Fs: osfs.New(dir),
+			SourceFs: osfs.New(dir),
 			//ThemeFs: nil,
 		})
 		if err != nil {

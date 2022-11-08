@@ -8,12 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
+	"github.com/gookit/color"
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru"
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
+	"github.com/zbysir/hollow/internal/pkg/execcmd"
 	"github.com/zbysir/hollow/internal/pkg/git"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/http_file_server"
@@ -100,16 +102,18 @@ func (p Page) Render() (string, error) {
 }
 
 type Hollow struct {
-	jsx       *jsx.Jsx
-	sourceFs  billy.Filesystem // 文件
-	log       *zap.SugaredLogger
-	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
-	asyncTask *asynctask.Manager
-	wsHub     *ws.WsHub
+	jsx        *jsx.Jsx
+	sourceFs   billy.Filesystem // 文件
+	fixedTheme string           // 重新指定主题，可用于预览
+	log        *zap.SugaredLogger
+	cache      *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+	asyncTask  *asynctask.Manager
+	wsHub      *ws.WsHub
 }
 
 type Option struct {
-	Fs billy.Filesystem
+	SourceFs   billy.Filesystem
+	FixedTheme string // 重新指定主题，可用于预览
 }
 
 type StdFileSystem struct {
@@ -142,8 +146,8 @@ func (m *MemJsxCache) Set(key string, f *jsx.Source) (err error) {
 }
 
 func NewHollow(o Option) (*Hollow, error) {
-	if o.Fs == nil {
-		o.Fs = osfs.New(".")
+	if o.SourceFs == nil {
+		o.SourceFs = osfs.New(".")
 	}
 
 	var err error
@@ -160,15 +164,15 @@ func NewHollow(o Option) (*Hollow, error) {
 		return nil, err
 	}
 	b := &Hollow{
-		jsx:       jx,
-		sourceFs:  o.Fs,
-		log:       log.StdLogger,
-		cache:     cache,
-		asyncTask: asynctask.NewManager(),
-		wsHub:     ws.NewHub(),
+		jsx:        jx,
+		sourceFs:   o.SourceFs,
+		fixedTheme: o.FixedTheme,
+		log:        log.StdLogger,
+		cache:      cache,
+		asyncTask:  asynctask.NewManager(),
+		wsHub:      ws.NewHub(),
 	}
 	b.asyncTask.AddListener(func(task *asynctask.Task, event *asynctask.Event) {
-		//log.Infof("task: %v, %+v", task.Key, event)
 		if event.IsDone {
 			b.wsHub.Close(task.Key)
 		} else {
@@ -197,8 +201,7 @@ func NewHollow(o Option) (*Hollow, error) {
 type ExecOption struct {
 	Log *zap.SugaredLogger
 
-	IsDev bool   // 开发环境每次都会读取最新的文件，而生成环境会缓存
-	Theme string // 重新指定主题，可用于预览
+	IsDev bool // 开发环境每次都会读取最新的文件，而生成环境会缓存
 }
 
 // Build 生成静态源文件
@@ -212,17 +215,13 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 	if err != nil {
 		return err
 	}
-	themeUrl := prepareThemeUrl(conf.Theme, "source://")
-	if o.Theme != "" {
-		themeUrl = prepareThemeUrl(o.Theme, "file://")
-	}
-
+	themeUrl := b.prepareThemeUrl(conf.Theme, b.fixedTheme)
 	themeLoader, err := b.GetThemeLoader(themeUrl)
 	if err != nil {
 		return err
 	}
 	var themeFs fs.FS
-	themeModule, themeFs, _, err := themeLoader.Load(ctx, b.jsx, conf.Theme, true, false)
+	themeModule, themeFs, _, err := themeLoader.Load(ctx, b.jsx, true, false)
 	if err != nil {
 		return err
 	}
@@ -468,7 +467,7 @@ func prepareThemeUrl(url string, defaultProtocol string) string {
 func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 	switch {
 	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
-		return NewGitThemeLoader(b.asyncTask), nil
+		return NewGitThemeLoader(b.asyncTask, url), nil
 	case strings.HasPrefix(url, "file://"):
 		pa := strings.TrimPrefix(url, "file://")
 		if strings.HasPrefix(pa, ".") {
@@ -477,14 +476,14 @@ func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 			// 绝对路径
 			pa = "/" + pa
 		}
-		return NewLocalThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
+		return NewFsThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
 	case strings.HasPrefix(url, "source://"):
 		pa := strings.TrimPrefix(url, "source://")
 		subFs, err := b.sourceFs.Chroot(pa)
 		if err != nil {
 			return nil, err
 		}
-		return NewLocalThemeLoader(gobilly.NewStdFs(subFs)), nil
+		return NewFsThemeLoader(gobilly.NewStdFs(subFs)), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol, url: %v", url)
 	}
@@ -503,6 +502,14 @@ window.taskKey = '%s'
 </html>
 `, task)
 	writer.Write([]byte(body))
+}
+
+func (b *Hollow) prepareThemeUrl(projectTheme string, fixedTheme string) string {
+	themeUrl := prepareThemeUrl(projectTheme, "source://")
+	if b.fixedTheme != "" {
+		themeUrl = prepareThemeUrl(fixedTheme, "file://")
+	}
+	return themeUrl
 }
 
 func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
@@ -527,17 +534,14 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			refresh = true
 		}
 
-		themeUrl := prepareThemeUrl(projectConf.Theme, "source://")
-		if o.Theme != "" {
-			themeUrl = prepareThemeUrl(o.Theme, "file://")
-		}
+		themeUrl := b.prepareThemeUrl(projectConf.Theme, b.fixedTheme)
 		themeLoader, err := b.GetThemeLoader(themeUrl)
 		if err != nil {
 			return "", err
 		}
 		var themeFs fs.FS
 		var task *asynctask.Task
-		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, themeUrl, refresh, true)
+		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, refresh, true)
 		if err != nil {
 			return "", err
 		}
@@ -620,6 +624,70 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
+}
+
+// DevService 运行前端开发逻辑
+func (b *Hollow) DevService(ctx context.Context) error {
+	config, err := b.LookupConfig()
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	if config.ThemePath != "" {
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			green := color.Green
+			log.Infof(green.Render("start theme dev service [%v]"), config.ThemePath)
+			log.Infof(green.Render("------ theme -----"))
+
+			logger := log.New(log.Options{
+				IsDev:         false,
+				To:            nil,
+				DisableCaller: true,
+				CallerSkip:    0,
+				Name:          green.Render("[Theme]"),
+				DisableTime:   true,
+			})
+			err = execcmd.Run(ctx, config.ThemePath, logger, "yarn", "dev")
+			if err != nil {
+				panic(err)
+				return
+			}
+		}()
+	}
+
+	if config.SourcePath != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			green := color.Magenta
+			log.Infof(green.Render("start source dev service [%v]"), config.SourcePath)
+			log.Infof(green.Render("------ source -----"))
+
+			logger := log.New(log.Options{
+				IsDev:         false,
+				To:            nil,
+				DisableCaller: true,
+				CallerSkip:    0,
+				Name:          green.Render("[Source]"),
+				DisableTime:   true,
+			})
+			err = execcmd.Run(ctx, config.SourcePath, logger, "yarn", "dev")
+			if err != nil {
+				panic(err)
+				return
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	return nil
 }
 
 // Service 运行一个渲染程序
@@ -953,6 +1021,49 @@ func (b *Hollow) md(str string, options MdOptions) string {
 		s = strings.TrimSuffix(s, "</p>")
 	}
 	return s
+}
+
+type LookupConfig struct {
+	ThemePath  string // 主题绝对路径
+	SourcePath string // 源文件绝对路径
+}
+
+// LookupConfig 返回配置信息
+func (b *Hollow) LookupConfig() (LookupConfig, error) {
+	sourcePath := b.sourceFs.Root()
+
+	conf, err := b.LoadConfig(true)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return LookupConfig{}, nil
+		}
+		return LookupConfig{}, err
+	}
+
+	themeUrl := b.prepareThemeUrl(conf.Theme, b.fixedTheme)
+
+	if strings.HasPrefix(themeUrl, "file://") {
+		themeUrl = strings.TrimPrefix(themeUrl, "file://")
+		if strings.HasPrefix(themeUrl, ".") {
+			// 相对路径
+		} else {
+			// 绝对路径
+			themeUrl = "/" + themeUrl
+		}
+	} else if strings.HasPrefix(themeUrl, "source://") {
+		themeUrl = path.Join(sourcePath, strings.TrimPrefix(themeUrl, "source://"))
+	} else {
+		themeUrl = ""
+	}
+	switch {
+	case strings.HasPrefix(themeUrl, "file://"):
+		themeUrl = strings.TrimPrefix(themeUrl, "file://")
+	}
+
+	return LookupConfig{
+		ThemePath:  themeUrl,
+		SourcePath: sourcePath,
+	}, nil
 }
 
 type Assets []string
