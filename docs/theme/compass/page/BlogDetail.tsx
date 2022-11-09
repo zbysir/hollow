@@ -30,8 +30,8 @@ export default function BlogDetail(props: Props) {
                             {
                                 tags?.map(i => (
                                     <div
-                                        className="bg-gray-600 flex items-center px-3 py-1.5 leading-none rounded-full text-xs font-medium text-white inline-block">
-                                        <span>{i}</span>
+                                        className="flex items-center text-gray-400">
+                                        <span>#{i}</span>
                                     </div>
                                 ))
                             }

@@ -16,7 +16,7 @@ export default function About() {
     return <div>
         <section>
             <div
-                class="max-w-6xl mx-auto w-full
+                className="max-w-6xl mx-auto w-full
                 px-5 py-6 sm:py-8 md:py-12
                 space-y-8 md:space-y-12
                 dark:text-white

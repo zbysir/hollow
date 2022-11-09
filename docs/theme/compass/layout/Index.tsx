@@ -16,14 +16,14 @@ import hollow from "@bysir/hollow"
 let params = hollow.getConfig();
 
 export default function Index(props: Props) {
-    let routerBase = params.base || ''
+    let routerBase = params?.base || ''
 
-    return <html lang="zh" class="">
+    return <html lang="zh">
     <head>
         <meta charSet="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{props.title || 'UnTitled'}</title>
-        <link href={routerBase + '/tailwind.css'} rel="stylesheet"/>
+        <link href={routerBase + '/main.css'} rel="stylesheet"/>
         <link href={routerBase + '/prism/prism.css'} rel="stylesheet"/>
     </head>
     <body className="
