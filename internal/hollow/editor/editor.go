@@ -14,6 +14,7 @@ import (
 	"github.com/zbysir/hollow/front/editor"
 	"github.com/zbysir/hollow/internal/hollow"
 	"github.com/zbysir/hollow/internal/pkg/auth"
+	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/httpsrv"
@@ -173,6 +174,9 @@ func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
 
 // localhost:9090/api/file/tree
 func (a *Editor) Run(ctx context.Context, addr string) (err error) {
+	if !config.IsDebug() {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.Default()
 	r.Use(Cors())
 	var handleEditorFront = func(c *gin.Context) {

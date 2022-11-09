@@ -89,7 +89,7 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, ena
 
 			return ThemeExport{}, nil, task, nil
 		} else {
-			gt, err := git.NewGit("", fileSys, log.StdLogger)
+			gt, err := git.NewGit("", fileSys, log.Logger())
 			if err != nil {
 				return ThemeExport{}, nil, nil, nil
 			}

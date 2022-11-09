@@ -4,6 +4,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 func DeclareFlag(c *cobra.Command, name string, shorthand string, defaultVal any, usage string) {
@@ -33,4 +34,13 @@ func Get[T any]() (T, error) {
 		return t, err
 	}
 	return t, nil
+}
+
+func IsDebug() bool {
+	s, ok := os.LookupEnv("DEBUG")
+	if ok && s != "false" {
+		return true
+	}
+
+	return false
 }

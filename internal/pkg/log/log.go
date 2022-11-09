@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"github.com/zbysir/hollow/internal/pkg/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"io"
@@ -10,7 +11,6 @@ import (
 
 func Debugf(template string, args ...interface{}) { innerLogger.Debugf(template, args...) }
 
-// Infof uses fmt.Sprintf To log a templated message.
 func Infof(template string, args ...interface{})  { innerLogger.Infof(template, args...) }
 func Warnf(template string, args ...interface{})  { innerLogger.Warnf(template, args...) }
 func Errorf(template string, args ...interface{}) { innerLogger.Errorf(template, args...) }
@@ -18,7 +18,6 @@ func Fatalf(template string, args ...interface{}) { innerLogger.Fatalf(template,
 func Panicf(template string, args ...interface{}) { innerLogger.Panicf(template, args...) }
 
 var innerLogger *zap.SugaredLogger
-var StdLogger *zap.SugaredLogger
 
 func Logger() *zap.SugaredLogger {
 	return innerLogger
@@ -26,12 +25,21 @@ func Logger() *zap.SugaredLogger {
 
 func init() {
 	SetDev(false)
-	StdLogger = New(Options{IsDev: false})
 }
 
-// SetDev 会影响颜色 和 最低等级
+// SetDev 会影响最低等级
 func SetDev(logDebug bool) {
-	innerLogger = New(Options{IsDev: logDebug, CallerSkip: 1})
+	// 如果开启了 env  DEBUG=true，才会打印 Caller
+	disableCaller := !config.IsDebug()
+
+	innerLogger = New(Options{
+		IsDev:         logDebug,
+		To:            nil,
+		DisableTime:   false,
+		DisableCaller: disableCaller,
+		CallerSkip:    1,
+		Name:          "",
+	})
 }
 
 type BuffSink struct {
@@ -54,22 +62,28 @@ type Options struct {
 	IsDev         bool
 	To            io.Writer
 	DisableTime   bool
+	DisableLevel  bool
 	DisableCaller bool
 	CallerSkip    int
 	Name          string
 }
 
 func New(o Options) *zap.SugaredLogger {
-	config := zap.NewDevelopmentConfig()
+	zapconfig := zap.NewDevelopmentConfig()
 	if !o.IsDev {
-		config.Level.SetLevel(zap.InfoLevel)
+		zapconfig.Level.SetLevel(zap.InfoLevel)
 	}
 
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	//config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	if o.DisableTime {
-		config.EncoderConfig.EncodeTime = nil
+		zapconfig.EncoderConfig.EncodeTime = nil
 	} else {
-		config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.StampMilli)
+		zapconfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.StampMilli)
+	}
+	if o.DisableLevel {
+		zapconfig.EncoderConfig.EncodeLevel = nil
+	} else {
+		zapconfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
 	var ops []zap.Option
@@ -83,16 +97,15 @@ func New(o Options) *zap.SugaredLogger {
 	if o.To == nil {
 		var err error
 		var closeOut func()
-		sink, closeOut, err = zap.Open(config.OutputPaths...)
+		sink, closeOut, err = zap.Open(zapconfig.OutputPaths...)
 		if err != nil {
 			panic(err)
 
 		}
-		errSink, _, err := zap.Open(config.ErrorOutputPaths...)
+		errSink, _, err := zap.Open(zapconfig.ErrorOutputPaths...)
 		if err != nil {
 			closeOut()
 			panic(err)
-
 		}
 
 		ops = append(ops, zap.ErrorOutput(errSink))
@@ -102,7 +115,7 @@ func New(o Options) *zap.SugaredLogger {
 	if !o.DisableCaller {
 		ops = append(ops, zap.AddCaller())
 	}
-	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(config.EncoderConfig), sink, config.Level), ops...)
+	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(zapconfig.EncoderConfig), sink, zapconfig.Level), ops...)
 
 	sugar := logger.Sugar()
 	if o.Name != "" {

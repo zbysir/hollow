@@ -15,6 +15,7 @@ import (
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
+	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
 	"github.com/zbysir/hollow/internal/pkg/execcmd"
 	"github.com/zbysir/hollow/internal/pkg/git"
@@ -168,7 +169,7 @@ func NewHollow(o Option) (*Hollow, error) {
 		jsx:        jx,
 		sourceFs:   o.SourceFs,
 		fixedTheme: o.FixedTheme,
-		log:        log.StdLogger,
+		log:        log.Logger(),
 		cache:      cache,
 		asyncTask:  asynctask.NewManager(),
 		wsHub:      ws.NewHub(),
@@ -723,6 +724,7 @@ func (b *Hollow) runDevServer(ctx context.Context, name string, col color.Color,
 		CallerSkip:    0,
 		Name:          col.Render(fmt.Sprintf("[%v]", name)),
 		DisableTime:   true,
+		DisableLevel:  true,
 	})
 	err = execcmd.Run(ctx, dir, logger, "yarn", "dev")
 	if err != nil {
@@ -736,6 +738,9 @@ func (b *Hollow) Service(ctx context.Context, o ExecOption, addr string) error {
 	s, err := httpsrv.NewService(addr)
 	if err != nil {
 		return err
+	}
+	if !config.IsDebug() {
+		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.Default()
 	r.GET("/_dev_/ws/:key", func(c *gin.Context) {

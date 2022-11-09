@@ -12,7 +12,7 @@ func TestPush(t *testing.T) {
 	if !ok {
 		t.Fatal("can't get token from env")
 	}
-	g, err := NewGit(token, osfs.New("./testdata"), log.StdLogger)
+	g, err := NewGit(token, osfs.New("./testdata"), log.Logger())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestPull(t *testing.T) {
 	if !ok {
 		t.Fatal("can't get token from env")
 	}
-	g, err := NewGit(token, osfs.New("./testdata"), log.StdLogger)
+	g, err := NewGit(token, osfs.New("./testdata"), log.Logger())
 	if err != nil {
 		t.Fatal(err)
 	}
