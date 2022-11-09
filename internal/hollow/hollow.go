@@ -2,6 +2,7 @@ package hollow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dop251/goja"
@@ -418,6 +419,7 @@ type ConfigOss struct {
 	Prefix string `yaml:"prefix"`
 }
 
+// LoadConfig 加载 source 下的 config 文件
 func (b *Hollow) LoadConfig(expandEnv bool) (conf Config, err error) {
 	f, err := easyfs.GetFile(gobilly.NewStdFs(b.sourceFs), "config.yml")
 	if err != nil {
@@ -626,7 +628,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// DevService 运行前端开发逻辑
+// DevService 运行前端开发逻辑，如 yarn dev
 func (b *Hollow) DevService(ctx context.Context) error {
 	config, err := b.LookupConfig()
 	if err != nil {
@@ -641,22 +643,20 @@ func (b *Hollow) DevService(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 
-			green := color.Green
-			log.Infof(green.Render("start theme dev service [%v]"), config.ThemePath)
-			log.Infof(green.Render("------ theme -----"))
-
-			logger := log.New(log.Options{
-				IsDev:         false,
-				To:            nil,
-				DisableCaller: true,
-				CallerSkip:    0,
-				Name:          green.Render("[Theme]"),
-				DisableTime:   true,
-			})
-			err = execcmd.Run(ctx, config.ThemePath, logger, "yarn", "dev")
+			ok, err := b.checkPackageJsonScript(config.ThemePath, "dev")
 			if err != nil {
 				panic(err)
+			}
+			if !ok {
 				return
+			}
+
+			name := "Theme "
+			col := color.Green
+			log.Infof(col.Render("Running dev service for [%v] [%v]"), name, config.ThemePath)
+			err = b.runDevServer(ctx, name, col, config.ThemePath)
+			if err != nil {
+				log.Errorf(col.Render("RunDevServer [%v] error: %v"), name, err)
 			}
 		}()
 	}
@@ -665,28 +665,69 @@ func (b *Hollow) DevService(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			green := color.Magenta
-			log.Infof(green.Render("start source dev service [%v]"), config.SourcePath)
-			log.Infof(green.Render("------ source -----"))
 
-			logger := log.New(log.Options{
-				IsDev:         false,
-				To:            nil,
-				DisableCaller: true,
-				CallerSkip:    0,
-				Name:          green.Render("[Source]"),
-				DisableTime:   true,
-			})
-			err = execcmd.Run(ctx, config.SourcePath, logger, "yarn", "dev")
+			ok, err := b.checkPackageJsonScript(config.SourcePath, "dev")
 			if err != nil {
 				panic(err)
+			}
+			if !ok {
 				return
+			}
+
+			name := "Source"
+			col := color.Magenta
+			log.Infof(col.Render("Running dev service for [%v] [%v]"), name, config.ThemePath)
+
+			err = b.runDevServer(ctx, name, col, config.SourcePath)
+			if err != nil {
+				log.Errorf(col.Render("RunDevServer [%v] error: %v"), name, err)
 			}
 		}()
 	}
 
 	wg.Wait()
 
+	return nil
+}
+
+func (b *Hollow) checkPackageJsonScript(dir string, script string) (ok bool, err error) {
+	bs, err := os.ReadFile(path.Join(dir, "package.json"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		err = fmt.Errorf("read package.json error: %w", err)
+		return
+	}
+
+	var j packageJson
+	err = json.Unmarshal(bs, &j)
+	if err != nil {
+		err = fmt.Errorf("unmarshal package.json error: %w", err)
+		return
+	}
+
+	_, ok = j.Scripts[script]
+	return
+}
+
+type packageJson struct {
+	Scripts map[string]string `json:"scripts"`
+}
+
+func (b *Hollow) runDevServer(ctx context.Context, name string, col color.Color, dir string) (err error) {
+	logger := log.New(log.Options{
+		IsDev:         false,
+		To:            nil,
+		DisableCaller: true,
+		CallerSkip:    0,
+		Name:          col.Render(fmt.Sprintf("[%v]", name)),
+		DisableTime:   true,
+	})
+	err = execcmd.Run(ctx, dir, logger, "yarn", "dev")
+	if err != nil {
+		return
+	}
 	return nil
 }
 
@@ -1035,9 +1076,9 @@ func (b *Hollow) LookupConfig() (LookupConfig, error) {
 	conf, err := b.LoadConfig(true)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return LookupConfig{}, nil
+		} else {
+			return LookupConfig{}, err
 		}
-		return LookupConfig{}, err
 	}
 
 	themeUrl := b.prepareThemeUrl(conf.Theme, b.fixedTheme)
