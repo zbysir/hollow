@@ -71,7 +71,7 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 	var v jsx.VDom
 	switch t := p["component"].(type) {
 	case *goja.Object:
-		c, ok := goja.AssertFunction(t)
+		c, ok := jsx.AssertFunction(t)
 		if ok {
 			// for: component: () => Index(props)
 			val, err := c(nil)
@@ -498,13 +498,30 @@ func handleAsyncTask(task string, writer http.ResponseWriter, request *http.Requ
 <head>
 <link href="/_dev_/static/index.css" rel="stylesheet"/>
 </head>
-<script>
-window.taskKey = '%s'
-</script>
 <script src="/_dev_/static/index.js"></script>
+<script>
+window.onload = function(){window.RenderTask({taskKey: '%s'})}
+</script>
 </html>
 `, task)
 	writer.Write([]byte(body))
+}
+
+func handleError(err error, writer http.ResponseWriter, request *http.Request) {
+	bs, _ := json.Marshal(err.Error())
+	body := fmt.Sprintf(`
+<html>
+<head>
+<link href="/_dev_/static/index.css" rel="stylesheet"/>
+</head>
+<script src="/_dev_/static/index.js"></script>
+<script>
+window.onload = function(){ window.RenderError({msg: %s})}
+</script>
+</html>
+`, bs)
+	writer.Write([]byte(body))
+	writer.WriteHeader(400)
 }
 
 func (b *Hollow) prepareThemeUrl(projectTheme string, fixedTheme string) string {
@@ -579,7 +596,9 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 	if !o.IsDev {
 		task, err := prepare(nil)
 		if err != nil {
-			return nil
+			return func(writer http.ResponseWriter, request *http.Request) {
+				handleError(err, writer, request)
+			}
 		}
 
 		if task != "" {
@@ -593,12 +612,11 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		reqPath := strings.Trim(request.URL.Path, "/")
 
 		if o.IsDev {
-			// TODO 优化主题刷新逻辑，不应该每次请求都刷新，需要做异步刷新
 			opt := PrepareOpt{}
 			opt.NoCache = request.Header.Get("Cache-Control") == "no-cache"
 			task, err := prepare(&opt)
 			if err != nil {
-				writer.Write([]byte(err.Error()))
+				handleError(err, writer, request)
 				return
 			}
 			if task != "" {
@@ -610,8 +628,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			if reqPath == p.GetPath() {
 				body, err := p.Render()
 				if err != nil {
-					writer.WriteHeader(400)
-					writer.Write([]byte(err.Error()))
+					handleError(err, writer, request)
 					return
 				}
 				writer.Write([]byte(body))

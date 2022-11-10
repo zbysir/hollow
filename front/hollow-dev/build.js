@@ -19,7 +19,6 @@ if (process.env.MODE !== 'prod') {
 esbuild
   .build({
     entryPoints: [
-      // "index.css",
       "index.tsx",
     ],
     bundle: true,

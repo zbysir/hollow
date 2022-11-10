@@ -4,7 +4,7 @@ import {AttachAddon} from 'xterm-addon-attach';
 
 import "node_modules/xterm/css/xterm.css"
 
-window.onload = () => {
+window['RenderTask'] = ({taskKey}: { taskKey: string }) => {
     const box = document.createElement("div")
     box.className = " max-w-5xl mx-auto"
     box.innerHTML = '<div class="flex justify-center items-center my-12">' +
@@ -27,8 +27,7 @@ window.onload = () => {
 
     setStatus("Loading...", false)
 
-    // @ts-ignore
-    const ws = new WebSocket("ws://localhost:8083/_dev_/ws/" + window.taskKey);
+    const ws = new WebSocket("ws://localhost:8083/_dev_/ws/" + taskKey);
     ws.onclose = function () {
         setStatus("Done, Refresh page after a second", true)
         setTimeout(() => {
@@ -44,3 +43,18 @@ window.onload = () => {
     const attachAddon = new AttachAddon(ws);
     term?.loadAddon(attachAddon);
 }
+
+
+window['RenderError'] = ({msg}: { msg: string }) => {
+    const box = document.createElement("div")
+    box.className = " max-w-5xl mx-auto"
+    box.innerHTML = '<div class="flex justify-center items-center my-12">' +
+        '<div class="prose w-full">' +
+        '<code> <pre>' +
+        msg +
+        '</pre></code>' +
+        '</div>' +
+        '</div>'
+    document.body.append(box)
+}
+
