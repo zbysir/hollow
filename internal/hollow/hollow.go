@@ -631,6 +631,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 					handleError(err, writer, request)
 					return
 				}
+				writer.WriteHeader(200)
 				writer.Write([]byte(body))
 				return
 			}

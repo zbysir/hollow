@@ -41,8 +41,5 @@ https://ui.toast.com/tui-editor
 - https://vanschneider.com/ 字体 颜色
 - https://iconmoon.com/ 好看的纯文字排版
 
-![](./note/needle.tools.png)
-
-
 - https://collectui.com/
 - https://dribbble.com/
