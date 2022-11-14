@@ -75,6 +75,6 @@ var Server = &cobra.Command{
 
 func init() {
 	config.DeclareFlag(Server, "address", "a", ":9400", "server listen address")
-	config.DeclareFlag(Server, "source", "s", "source", "source file dir")
+	config.DeclareFlag(Server, "source", "s", ".", "source file dir")
 	config.DeclareFlag(Server, "theme", "t", "", "Specify Theme")
 }

@@ -48,5 +48,5 @@ var Build = &cobra.Command{
 
 func init() {
 	config.DeclareFlag(Build, "output", "o", "./dist", "output dir")
-	config.DeclareFlag(Build, "source", "s", "source", "source file dir")
+	config.DeclareFlag(Build, "source", "s", ".", "source file dir")
 }

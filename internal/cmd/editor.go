@@ -56,7 +56,7 @@ var Editor = &cobra.Command{
 
 func init() {
 	config.DeclareFlag(Editor, "address", "a", ":9432", "service listen address")
-	config.DeclareFlag(Editor, "source", "s", "source", "source file dir")
+	config.DeclareFlag(Editor, "source", "s", ".", "source file dir")
 	config.DeclareFlag(Editor, "preview_domain", "p", "", "preview website with the domain ")
 	config.DeclareFlag(Editor, "secret", "c", "", "secret for web ui")
 }
