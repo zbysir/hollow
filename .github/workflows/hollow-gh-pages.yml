@@ -37,8 +37,8 @@ jobs:
           OUTPUT: ./dist
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
-        env:
-          INPUT_PATH: "./dist"
+        with:
+          path: "./dist"
 
   # Deployment job
   deploy:
