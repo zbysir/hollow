@@ -115,6 +115,68 @@ docker run -p 9400:9400 bysir/hollow:master server -t https://github.com/zbysir/
 
 - 然后将文件部署到 Github page 上
 
+## 使用 Github Action 发布
+如果你的源文件托管在 Github 上，并且网站也想发布在 Github page 上，那么使用 Github Action 发布网站是最佳选择。
+
+在 项目根目录下新建 .github/workflows/hollow.yaml，内容如下
+```yaml
+name: Deploy Hollow with GitHub Pages 
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ["master"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v2
+      - name: Build with Hollow
+        uses: docker://bysir/hollow:master
+        with:
+          args: build
+        env:
+          SOURCE: .
+          OUTPUT: ./dist
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: "./dist"
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
+```
+
+现在只需要将源文件提交到 Github 上，等 30s 网站就自动上线了。
+
 ## Editor
 
 hollow 支持在服务器上运行一个 Web Editor，现在我们写 blog 不用再打开笨重的编辑器了，甚至可以在手机上进行。
