@@ -31,10 +31,11 @@ jobs:
       - name: Build with Hollow
         uses: docker://bysir/hollow:master
         with:
-          source: ./workspace
-          dist: ./.dist
+          args: build -s workspace
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
+        env:
+          INPUT_PATH: "./dist"
 
   # Deployment job
   deploy:
