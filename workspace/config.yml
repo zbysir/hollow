@@ -1,4 +1,6 @@
-theme: theme/hollow
+#theme: theme/hollow
+theme: https://github.com/zbysir/hollow-theme/tree/master/hollow
+#theme: file://Users/bysir/front/bysir/hollow-theme/hollow
 
 deploy:
   type: git
@@ -36,28 +38,83 @@ theme_config:
   base: ''
   title: Bysir 的博客
   logo: "bysir"
+
+  fonts:
+    # builtin "Noto Serif SC" and 'LXGW WenKai'
+    - selector: "body"
+      family: "Noto Serif SC"
+    - selector: ".hollow-content"
+      # 设置为默认字体，参考：https://zhuanlan.zhihu.com/p/313284552
+      family: 'Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","WenQuanYi Micro Hei",sans-serif'
+
   stack: Tailwindcss + <a href="https://github.com/zbysir/hollow">Hollow</a> + <a href="https://github.com/zbysir/gojsx">Jsx</a>
   footer_links:
     - url: https://github.com/zbysir
       name: GitHub
       icon: GitHub
   links_page: 'pages/links.md'
-  about:
-    - title: 关于博客
-      desc: 建立这个博客的目的是分享经验、记录思维
-      content: |
-        很久以前就想自己搭建一个博客，记录下自己的东西，但一直没找到合适的工具来搭建博客，故 [写了一个优先满足自己需求的工具](https://github.com/zbysir/hollow)，希望它能承载我所有灵感。
-        
-        我想在这里记录我灵感和想法，积少成多，连点成线。
-    - title: 关于我
-      desc: 认真打工，努力不打工
-      content: |
-        喜欢有逻辑的事物，如编程、悬疑电影。对编程略知一二，更多的是在 Web 领域学习；Golang 作为主力语言，也会一点 Vue、React。
-        
-        做过有趣的事情是将 Golang 与 Vue、React 结合，比如 [这个项目](https://github.com/zbysir/gojsx)，和 [这个](https://github.com/zbysir/go-vue-ssr)。
-        
-        还想让编程与“艺术”结合，如音乐、画画、游戏，我也想搞搞艺术。
-        
-        这还有一些项目是我做的 😉：
-        
-        - [音乐舞台](https://github.com/zbysir/bgm-stage)
+  about_page: 'pages/about.md'
+  gallery:
+    items:
+      - text: "好朋友婚礼"
+        url: "https://blog-static.bysir.top/1667181934593-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/1667181934593-01.jpeg?imageView2/2/w/200"
+      - text: "再一次去重庆，还是很好玩"
+        url: "https://blog-static.bysir.top/DSC08656-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC08656-01.jpeg?imageView2/2/w/200"
+      - text: "金顶，站在悟空才能到达的地方"
+        url: "https://blog-static.bysir.top/DSC06061-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC06061-01.jpeg?imageView2/2/w/200"
+      - text: "川大的银杏"
+        url: "https://blog-static.bysir.top/DSC05625-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC05625-01.jpeg?imageView2/2/w/200"
+      - text: "哈根达斯有点甜"
+        url: "https://blog-static.bysir.top/IMG_20190215_155754-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/IMG_20190215_155754-01.jpeg?imageView2/2/w/200"
+      - text: "打卡网红城市 - 重庆"
+        url: "https://blog-static.bysir.top/DSC06462-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC06462-01.jpeg?imageView2/2/w/200"
+      - text: "打卡网红游乐园 - 重庆奥陶纪"
+        url: "https://blog-static.bysir.top/DSC06410-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC06410-01.jpeg?imageView2/2/w/200"
+      - text: "魔都的迪士尼，由于不是假期去的，人少不用排队，每个项目可以玩好几遍"
+        url: "https://blog-static.bysir.top/DSC05367-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC05367-01.jpeg?imageView2/2/w/200"
+      - text: "音乐节至少还是参加一次，感受感受（去听水星记）"
+        url: "https://blog-static.bysir.top/DSC04833-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC04833-01.jpeg?imageView2/2/w/200"
+      - text: "音乐节至少还是参加一次，感受感受"
+        url: "https://blog-static.bysir.top/DSC04915-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC04915-01.jpeg?imageView2/2/w/200"
+      - text: "拼一个圣诞装扮（其实卖家秀好看多了）"
+        url: "https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC00553.JPG?imageView2/2/w/200"
+      - text: "云南天气真好，还想再去一次"
+        url: "https://blog-static.bysir.top/DSC03185-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC03185-01.jpeg?imageView2/2/w/200"
+      - text: "云南天气真好，还想再去一次"
+        url: "https://blog-static.bysir.top/DSC03039-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC03039-01.jpeg?imageView2/2/w/200"
+      - text: "拼了一下午，这种东西只会买一次"
+        url: "https://blog-static.bysir.top/DSC06864.JPG?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC06864.JPG?imageView2/2/w/200"
+      - text: "天气好，工作都轻松一点"
+        url: "https://blog-static.bysir.top/IMG_20190611_191053-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/IMG_20190611_191053-01.jpeg?imageView2/2/w/200"
+      - text: "扫街 - 成都"
+        url: "https://blog-static.bysir.top/DSC02369-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC02369-01.jpeg?imageView2/2/w/200"
+      - text: "喜欢这个颜色"
+        url: "https://blog-static.bysir.top/mmexport1555770029553.jpg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/mmexport1555770029553.jpg?imageView2/2/w/200"
+      - text: "扫街 - 春熙路，那时候大家还不用戴口罩"
+        url: "https://blog-static.bysir.top/DSC02288-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC02288-01.jpeg?imageView2/2/w/200"
+      - text: "安静的周末，安静的🌧"
+        url: "https://blog-static.bysir.top/IMG_20180714_223519-01.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/IMG_20180714_223519-01.jpeg?imageView2/2/w/200"
+      - text: "沉浸在海拉鲁无法自拔"
+        url: "https://blog-static.bysir.top/DSC04245-02.jpeg?imageView2/2/w/1200"
+        thumb: "https://blog-static.bysir.top/DSC04245-02.jpeg?imageView2/2/w/200"
+
+    title: '照片与故事'
