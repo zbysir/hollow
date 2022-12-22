@@ -4,6 +4,9 @@
 - [x] 主题支持 git 协议远程获取
 - [x] Server 静态文件 304，而不是默认的 200
 
+## 优化
+- [ ] config 支持 js 脚本（部分数据结构，如列表使用 js 能更好表达）
+
 ## 完善主题
 
 - [ ] (Doing) 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 

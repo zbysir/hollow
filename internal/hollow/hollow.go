@@ -657,7 +657,6 @@ func (b *Hollow) DevService(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	if config.ThemePath != "" {
-
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -680,7 +679,7 @@ func (b *Hollow) DevService(ctx context.Context) error {
 		}()
 	}
 
-	if config.SourcePath != "" {
+	if config.SourcePath != "" && config.ThemePath != config.SourcePath {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
