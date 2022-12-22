@@ -671,10 +671,10 @@ func (b *Hollow) DevService(ctx context.Context) error {
 
 			name := "Theme "
 			col := color.Green
-			log.Infof(col.Render("Running dev service for [%v] [%v]"), name, config.ThemePath)
+			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%s] [%s]", name, config.ThemePath)))
 			err = b.runDevServer(ctx, name, col, config.ThemePath)
 			if err != nil {
-				log.Errorf(col.Render("RunDevServer [%v] error: %v"), name, err)
+				log.Errorf(col.Render(fmt.Sprintf("RunDevServer [%v] error: %v", name, err)))
 			}
 		}()
 	}
@@ -694,11 +694,11 @@ func (b *Hollow) DevService(ctx context.Context) error {
 
 			name := "Source"
 			col := color.Magenta
-			log.Infof(col.Render("Running dev service for [%v] [%v]"), name, config.ThemePath)
+			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%v] [%v]", name, config.ThemePath)))
 
 			err = b.runDevServer(ctx, name, col, config.SourcePath)
 			if err != nil {
-				log.Errorf(col.Render("RunDevServer [%v] error: %v"), name, err)
+				log.Errorf(col.Render(fmt.Sprintf("RunDevServer [%v] error: %v", name, err)))
 			}
 		}()
 	}

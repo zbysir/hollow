@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ThemeExport struct {
@@ -115,7 +116,23 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, ena
 
 // https://github.com/zbysir/hollow-theme/tree/master/hollow
 func resolveGitUrl(u string) (remote string, branch string, subPath string, err error) {
-	return "https://github.com/zbysir/hollow-theme", "master", "hollow", nil
+	ss := strings.Split(u, "/tree/")
+	if len(ss) != 2 {
+		err = fmt.Errorf("bas url: '%v', support url like 'https://github.com/zbysir/hollow-theme/tree/master/hollow'", u)
+		return
+	}
+	remote = ss[0]
+	b := strings.Split(ss[1], "/")
+	branch = b[0]
+	if branch == "" {
+		err = fmt.Errorf("bas url: '%v', support url like 'https://github.com/zbysir/hollow-theme/tree/master/hollow'", u)
+		return
+	}
+	if len(b) > 1 {
+		subPath = strings.Join(b[1:], "/")
+	}
+
+	return
 }
 
 type LocalThemeLoader struct {
