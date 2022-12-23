@@ -813,20 +813,34 @@ type ContentTree struct {
 
 type ContentTrees []ContentTree
 
-func (ats ContentTrees) Sort(f func(a, b interface{}) bool) {
-	sort.Slice(ats, func(i, j int) bool {
-		return f(ats[i], ats[j])
+func (cs ContentTrees) Sort(f func(a, b interface{}) bool) {
+	sort.Slice(cs, func(i, j int) bool {
+		return f(cs[i], cs[j])
 	})
 
-	for _, v := range ats {
+	for _, v := range cs {
 		v.Children.Sort(f)
 	}
 }
 
-func (ats ContentTrees) Flat(includeDir bool) ContentTrees {
+func (cs ContentTrees) Filter(f func(a interface{}) bool) ContentTrees {
+	if f == nil {
+		return cs
+	}
+	var s ContentTrees
+	for _, v := range cs {
+		if f(v) {
+			s = append(s, v)
+		}
+	}
+
+	return s
+}
+
+func (cs ContentTrees) Flat(includeDir bool) ContentTrees {
 	var s ContentTrees
 
-	for _, v := range ats {
+	for _, v := range cs {
 		children := v.Children.Flat(includeDir)
 		if len(children) == 0 || includeDir {
 			s = append(s, v)
@@ -838,10 +852,11 @@ func (ats ContentTrees) Flat(includeDir bool) ContentTrees {
 }
 
 type getBlogOption struct {
-	Sort func(a, b interface{}) bool `json:"sort"`
-	Tree bool                        `json:"tree"` // 传递 tree = true 则返回树结构
-	Size int                         `json:"size"`
-	Page int                         `json:"page"`
+	Sort   func(a, b interface{}) bool `json:"sort"`
+	Tree   bool                        `json:"tree"` // 传递 tree = true 则返回树结构
+	Size   int                         `json:"size"`
+	Page   int                         `json:"page"`
+	Filter func(a interface{}) bool    `json:"filter"`
 }
 
 func (g getBlogOption) cacheKey() string {
@@ -1036,6 +1051,8 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	if opt.Sort != nil {
 		blogs.Sort(opt.Sort)
 	}
+
+	blogs = blogs.Filter(opt.Filter)
 
 	return BlogList{
 		Total: 0,
