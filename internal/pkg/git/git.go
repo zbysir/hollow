@@ -278,6 +278,20 @@ func (g *Git) Pull(remote string, branch string, force bool) error {
 		}
 	}
 
+	// reset Head
+	head, err := g.r.Head()
+	if err != nil {
+		return fmt.Errorf("get Head error: %v", err)
+	}
+	err = wt.Reset(&git.ResetOptions{
+		Commit: head.Hash(),
+		Mode:   git.HardReset,
+	})
+	if err != nil {
+		return fmt.Errorf("reset error: %v", err)
+	}
+	g.log.Infof("reset success")
+
 	return nil
 }
 

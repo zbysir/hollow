@@ -182,14 +182,6 @@ func NewHollow(o Option) (*Hollow, error) {
 		}
 	})
 
-	jx.RegisterModule("react", map[string]interface{}{
-		"useState":  func() []interface{} { return []interface{}{nil, nil} },
-		"useEffect": func() {},
-		"useRef":    func() {},
-	})
-
-	jx.RegisterModule("fuse.js", map[string]interface{}{})
-
 	jx.RegisterModule("@bysir/hollow", map[string]interface{}{
 		"getContents":      b.getContents,
 		"getConfig":        b.getConfig,
@@ -492,7 +484,7 @@ func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 	}
 }
 
-func handleAsyncTask(task string, writer http.ResponseWriter, request *http.Request) {
+func handleAsyncTask(task string, name string, writer http.ResponseWriter, request *http.Request) {
 	body := fmt.Sprintf(`
 <html>
 <head>
@@ -500,10 +492,10 @@ func handleAsyncTask(task string, writer http.ResponseWriter, request *http.Requ
 </head>
 <script src="/_dev_/static/index.js"></script>
 <script>
-window.onload = function(){window.RenderTask({taskKey: '%s'})}
+window.onload = function(){window.RenderTask({taskKey: '%s', name: '%s'})}
 </script>
 </html>
-`, task)
+`, task, name)
 	writer.Write([]byte(body))
 }
 
@@ -593,6 +585,8 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		assetsHandler = http_file_server.FileServer(dirs)
 		return "", nil
 	}
+
+	// 不是 dev 环境只会加载一次主题，而不是每次刷新页面都加载
 	if !o.IsDev {
 		task, err := prepare(nil)
 		if err != nil {
@@ -603,7 +597,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 
 		if task != "" {
 			return func(writer http.ResponseWriter, request *http.Request) {
-				handleAsyncTask(task, writer, request)
+				handleAsyncTask(task, "", writer, request)
 			}
 		}
 	}
@@ -612,15 +606,16 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		reqPath := strings.Trim(request.URL.Path, "/")
 
 		if o.IsDev {
-			opt := PrepareOpt{}
-			opt.NoCache = request.Header.Get("Cache-Control") == "no-cache"
+			opt := PrepareOpt{
+				NoCache: request.Header.Get("Cache-Control") == "no-cache",
+			}
 			task, err := prepare(&opt)
 			if err != nil {
 				handleError(err, writer, request)
 				return
 			}
 			if task != "" {
-				handleAsyncTask(task, writer, request)
+				handleAsyncTask(task, "", writer, request)
 				return
 			}
 		}

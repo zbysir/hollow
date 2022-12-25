@@ -26,6 +26,14 @@ module.exports = {
     require("daisyui")
   ],
   daisyui:{
-    'themes':['wireframe', 'dark']
+    'themes': [
+      {
+        wireframe: {
+          ...require("daisyui/src/colors/themes")["[data-theme=wireframe]"],
+          fontFamily: null,
+        },
+        dark: {}
+      }
+    ]
   }
 }
