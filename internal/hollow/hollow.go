@@ -866,17 +866,18 @@ type BlogList struct {
 func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 	c, err := b.LoadConfig(true)
 	if err != nil {
-		log.Warnf("LoadConfig error: %v", err)
-		return nil, false
+		log.Warnf("LoadConfig for getContentLoader error: %v", err)
 	}
 	switch ext {
 	case ".md":
 		return &MDLoader{
 			assets: c.Assets,
+			jsx:    b.jsx,
 		}, true
 	case ".mdx":
 		return &MDLoader{
 			assets: c.Assets,
+			jsx:    b.jsx,
 		}, true
 	case ".tsx":
 		return &JsxLoader{
@@ -1031,7 +1032,7 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 			return ContentTree{Content: blog}, nil
 		})
 		if err != nil {
-			log.Warnf("getContents MapDir error: %v", err)
+			log.Warnf("getContents error: %v", err)
 			return BlogList{}
 		}
 
@@ -1079,7 +1080,7 @@ func (b *Hollow) getContentDetail(path string) Content {
 func (b *Hollow) getConfig() interface{} {
 	c, err := b.LoadConfig(true)
 	if err != nil {
-		log.Warnf("LoadConfig error: %v", err)
+		log.Warnf("LoadConfig for js error: %v", err)
 	}
 	return c.ThemeConfig
 }

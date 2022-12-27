@@ -23,9 +23,12 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
+	github.com/tdewolff/parse/v2 v2.6.5
 	github.com/thoas/go-funk v0.9.2
-	github.com/zbysir/gojsx v0.0.34
+	github.com/yuin/goldmark v1.5.3
+	github.com/zbysir/gojsx v0.0.35
 	go.uber.org/zap v1.22.0
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -83,5 +86,4 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

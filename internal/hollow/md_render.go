@@ -13,7 +13,7 @@ type mdRender struct {
 	assetsUrlProcess func(string) string
 }
 
-func (m *mdRender) RenderNode(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+func (m *mdRender) renderNode(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	switch t := node.(type) {
 	case *ast.Image:
 		t.Destination = []byte(m.assetsUrlProcess(string(t.Destination)))
@@ -29,7 +29,7 @@ func newMdRender(assetsUrlProcess func(string) string) *mdRender {
 	}
 }
 
-func (m *mdRender) Render(src []byte) []byte {
+func (m *mdRender) Render(src []byte) ([]byte, error) {
 	extensions := parser.CommonExtensions | parser.AutoHeadingIDs
 	pars := parser.NewWithExtensions(extensions)
 	return markdown.ToHTML(src, pars, html.NewRenderer(html.RendererOptions{
@@ -44,15 +44,20 @@ func (m *mdRender) Render(src []byte) []byte {
 		Icon:                       "",
 		Head:                       nil,
 		Flags:                      0,
-		RenderNodeHook:             m.RenderNode,
+		RenderNodeHook:             m.renderNode,
 		Comments:                   nil,
 		Generator:                  "",
-	}))
+	})), nil
 }
 
 // renderMd 渲染 md 片段，不会处理其中的图片 url（因为没有上下文）
 func renderMd(src []byte) []byte {
-	return newMdRender(func(s string) string {
+	c, err := newMdRender(func(s string) string {
 		return s
 	}).Render(src)
+	if err != nil {
+		return []byte(err.Error())
+	}
+
+	return c
 }
