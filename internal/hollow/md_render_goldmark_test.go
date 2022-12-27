@@ -5,11 +5,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
-	"path/filepath"
 	"testing"
 )
 
-func TestGoldmark(t *testing.T) {
+func TestJsx(t *testing.T) {
 	jx, err := jsx.NewJsx(jsx.Option{
 		SourceCache: nil,
 		Debug:       false,
@@ -22,7 +21,11 @@ func TestGoldmark(t *testing.T) {
 	file, _ := f.Create("index.tsx")
 	file.Write([]byte(`export default function HelloJSX({name}){ return <>{name}</> }`))
 
-	m := newGoldMdRender(jx, gobilly.NewStdFs(f))
+	m := NewGoldMdRender(GoldMdRenderOptions{
+		jsx:              jx,
+		fs:               gobilly.NewStdFs(f),
+		assetsUrlProcess: nil,
+	})
 
 	cases := []struct {
 		Name string
@@ -181,13 +184,40 @@ Hello
 			if err2 != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, string(c.Get), string(s))
+			assert.Equal(t, string(c.Get), string(s.Body))
 		})
 	}
 
 }
 
-func TestX(t *testing.T) {
-	r := filepath.Join("contents/vue", "../../component/SearchBtn")
-	t.Logf("%s", r)
+func TestAssert(t *testing.T) {
+	jx, err := jsx.NewJsx(jsx.Option{
+		SourceCache: nil,
+		Debug:       false,
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	f := memfs.New()
+	file, _ := f.Create("index.tsx")
+	file.Write([]byte(`export default function HelloJSX({name}){ return <>{name}</> }`))
+
+	m := NewGoldMdRender(GoldMdRenderOptions{
+		jsx: jx,
+		fs:  gobilly.NewStdFs(f),
+		assetsUrlProcess: func(s string) string {
+			return "1"
+		},
+	})
+
+	a, _ := m.Render([]byte(`## h2
+![在 Golang 中尝试“干净架构”](../../static/img/在%20Golang%20中尝试干净架构_1.png)
+![在 Golang 中尝试“干净架构”](/static/img/在%20Golang%20中尝试干净架构_1.png)
+
+在[文中](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)，他提出的干净架构是这样的：
+
+<HelloJSX></HelloJSX>
+`))
+	t.Logf("%s", a.Body)
 }

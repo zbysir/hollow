@@ -2,14 +2,11 @@ package hollow
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	jsx "github.com/zbysir/gojsx"
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type ContentLoader interface {
@@ -19,6 +16,10 @@ type ContentLoader interface {
 type MDLoader struct {
 	assets Assets
 	jsx    *jsx.Jsx
+}
+
+func NewMDLoader(assets Assets, jsx *jsx.Jsx) *MDLoader {
+	return &MDLoader{assets: assets, jsx: jsx}
 }
 
 type GetContentOpt struct {
@@ -41,6 +42,10 @@ func (r *relativeFs) Open(name string) (fs.File, error) {
 	re := filepath.Join(r.relative, name)
 	return r.sub.Open(re)
 }
+func trapBOM(fileBytes []byte) []byte {
+	trimmedBytes := bytes.Trim(fileBytes, "\xef\xbb\xbf")
+	return trimmedBytes
+}
 
 func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
 	fileDir, name := filepath.Split(filePath)
@@ -50,44 +55,16 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 
 	ext := filepath.Ext(filePath)
 
-	// 读取 metadata
 	body, err := fs.ReadFile(f, filePath)
 	if err != nil {
 		return Content{}, err
 	}
+	body = trapBOM(body)
 
-	var meta = map[string]interface{}{}
-	if bytes.HasPrefix(body, []byte("---\n")) {
-		bbs := bytes.SplitN(body, []byte("---"), 3)
-		if len(bbs) > 2 {
-			metaByte := bbs[1]
-			err = yaml.Unmarshal(metaByte, &meta)
-			if err != nil {
-				return Content{}, fmt.Errorf("parse file metadata error: %w", err)
-			}
-
-			body = bbs[2]
-		}
-	}
-
-	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
-	for k, v := range meta {
-		switch t := v.(type) {
-		case time.Time:
-			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-		}
-	}
-
-	var mdRender interface{ Render([]byte) ([]byte, error) }
-	switch ext {
-	case ".mdx":
-		x := RelativeFs(f, fileDir)
-		if err != nil {
-			panic(err)
-		}
-		mdRender = newGoldMdRender(m.jsx, x)
-	default:
-		mdRender = newMdRender(func(p string) string {
+	mdRender := NewGoldMdRender(GoldMdRenderOptions{
+		jsx: m.jsx,
+		fs:  RelativeFs(f, fileDir),
+		assetsUrlProcess: func(p string) string {
 			if filepath.IsAbs(p) {
 			} else {
 				p = filepath.Join(fileDir, p)
@@ -101,30 +78,23 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 				}
 			}
 			return p
-		})
+		},
+	})
+
+	mdr, err := mdRender.Render(body)
+	if err != nil {
+		return Content{}, err
 	}
 
 	content := ""
 	if withContent {
-		c, err := mdRender.Render(body)
-		if err != nil {
-			return Content{}, err
-		}
-		content = string(c)
+		content = string(mdr.Body)
 	}
+
 	return Content{
 		Name: name,
 		GetContent: func(opt GetContentOpt) string {
-			var s string
-			if withContent {
-				s = content
-			} else {
-				c, err := mdRender.Render(body)
-				if err != nil {
-					return err.Error()
-				}
-				s = string(c)
-			}
+			s := string(mdr.Body)
 			if opt.Pure {
 				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 				if err != nil {
@@ -135,95 +105,8 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 			}
 			return s
 		},
-		Meta:    meta,
+		Meta:    mdr.Meta,
 		Ext:     ext,
 		Content: content,
-	}, nil
-}
-
-type HtmlLoader struct {
-	//assets Assets
-}
-
-func (m *HtmlLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
-	dir, name := filepath.Split(filePath)
-	if !strings.HasPrefix(dir, "/") {
-		dir = "/" + dir
-	}
-
-	ext := filepath.Ext(filePath)
-
-	// 读取 metadata
-	body, err := fs.ReadFile(f, filePath)
-	if err != nil {
-		return Content{}, err
-	}
-
-	var meta = map[string]interface{}{}
-	if bytes.HasPrefix(body, []byte("---\n")) {
-		bbs := bytes.SplitN(body, []byte("---"), 3)
-		if len(bbs) > 2 {
-			metaByte := bbs[1]
-			err = yaml.Unmarshal(metaByte, &meta)
-			if err != nil {
-				return Content{}, fmt.Errorf("parse file metadata error: %w", err)
-			}
-
-			body = bbs[2]
-		}
-	}
-
-	// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式。在 js 中好处理
-	for k, v := range meta {
-		switch t := v.(type) {
-		case time.Time:
-			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-		}
-	}
-
-	content := ""
-	if withContent {
-		content = string(body)
-	}
-	return Content{
-		Name: name,
-		GetContent: func(opt GetContentOpt) string {
-			var s = string(body)
-			if opt.Pure {
-				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
-				if err != nil {
-					return err.Error()
-				}
-
-				s = d.Text()
-			}
-
-			return s
-		},
-		Meta:    meta,
-		Ext:     ext,
-		Content: content,
-	}, nil
-}
-
-type JsxLoader struct {
-	//assets Assets
-	x *jsx.Jsx
-}
-
-func (m *JsxLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
-	body, err := m.x.Render("./"+filePath, nil, jsx.WithRenderFs(f))
-	//log.Errorf("filePath %+v %v", body, err)
-	if err != nil {
-		return Content{}, err
-	}
-
-	return Content{
-		Name:       "",
-		GetContent: nil,
-		Meta:       nil,
-		Ext:        "",
-		Content:    body,
-		IsDir:      false,
 	}, nil
 }

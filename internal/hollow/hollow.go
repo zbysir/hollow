@@ -518,7 +518,7 @@ window.onload = function(){ window.RenderError({msg: %s})}
 
 func (b *Hollow) prepareThemeUrl(projectTheme string, fixedTheme string) string {
 	themeUrl := prepareThemeUrl(projectTheme, "source://")
-	if b.fixedTheme != "" {
+	if fixedTheme != "" {
 		themeUrl = prepareThemeUrl(fixedTheme, "file://")
 	}
 	return themeUrl
@@ -869,22 +869,8 @@ func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 		log.Warnf("LoadConfig for getContentLoader error: %v", err)
 	}
 	switch ext {
-	case ".md":
-		return &MDLoader{
-			assets: c.Assets,
-			jsx:    b.jsx,
-		}, true
-	case ".mdx":
-		return &MDLoader{
-			assets: c.Assets,
-			jsx:    b.jsx,
-		}, true
-	case ".tsx":
-		return &JsxLoader{
-			x: b.jsx,
-		}, true
-	case ".html":
-		return &HtmlLoader{}, true
+	case ".md", ".mdx":
+		return NewMDLoader(c.Assets, b.jsx), true
 	}
 	return nil, false
 }
@@ -1001,6 +987,7 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 			blog, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, false)
 			if err != nil {
 				log.Errorf("load blog (%v) file: %v", path, err)
+				return ContentTree{}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
@@ -1091,7 +1078,16 @@ type MdOptions struct {
 
 // getConfig config.yml 下的 params 字段
 func (b *Hollow) md(str string, options MdOptions) string {
-	s := string(renderMd([]byte(str)))
+	md := NewGoldMdRender(GoldMdRenderOptions{
+		jsx:              b.jsx,
+		fs:               gobilly.NewStdFs(b.sourceFs),
+		assetsUrlProcess: nil,
+	})
+	r, err := md.Render([]byte(str))
+	if err != nil {
+		return err.Error()
+	}
+	s := string(r.Body)
 	if options.Unwrap {
 		s = strings.TrimPrefix(s, "<p>")
 		s = strings.TrimSuffix(s, "</p>")
