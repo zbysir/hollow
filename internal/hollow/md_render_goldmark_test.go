@@ -137,6 +137,25 @@ Hello
 			Get: []byte(`<p>Hello</p>
 bysir<p>!</p>
 `),
+		}, {
+			Name: "A",
+
+			In: []byte(`---
+a: 1
+---
+
+import A from './index.tsx'
+
+Hello
+
+<A name={'bysir'}>
+</A>
+
+!
+`),
+			Get: []byte(`<p>Hello</p>
+bysir<p>!</p>
+`),
 		},
 		{
 			Name: "WithOutImport",
@@ -158,7 +177,11 @@ Hello
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			assert.Equal(t, string(c.Get), string(m.Render(c.In)))
+			s, err2 := m.Render(c.In)
+			if err2 != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, string(c.Get), string(s))
 		})
 	}
 

@@ -123,7 +123,7 @@ func (j *jsxParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	code := GetJsCode(pc)
 
 	// 简单判断 变量是否存在于 code，如果存在则说明是 JsxElement
-	tr := regexp.MustCompile(fmt.Sprintf(`\b%v\b`, tagName))
+	tr := regexp.MustCompile(fmt.Sprintf(`\b%s\b`, tagName))
 	if !tr.MatchString(code) {
 		return nil, parser.NoChildren
 	}
