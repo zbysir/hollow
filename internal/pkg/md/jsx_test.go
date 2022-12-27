@@ -54,10 +54,15 @@ func TestNewTokenizer(t *testing.T) {
 			Out: "<Name name={'bysir'}>333\n<Name></Name>\n<a></a>\n</Name>",
 		},
 		{
-			Name: "ok",
+			Name: "Pure",
 			In: `
 <searchbtn></searchbtn>`,
 			Out: "<searchbtn></searchbtn>",
+		},
+		{
+			Name: "ok",
+			In:   `<A></A>`,
+			Out:  "<A></A>",
 		},
 	}
 

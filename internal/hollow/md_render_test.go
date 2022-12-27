@@ -11,7 +11,7 @@ func TestMdRender(t *testing.T) {
 	m := newMdRender(func(s string) string {
 		return s
 	})
-	a := m.Render([]byte(`## h2
+	a, _ := m.Render([]byte(`## h2
 ![在 Golang 中尝试“干净架构”](../../static/img/在%20Golang%20中尝试干净架构_1.png)
 ![在 Golang 中尝试“干净架构”](/static/img/在%20Golang%20中尝试干净架构_1.png)
 
@@ -26,7 +26,7 @@ func TestMDXRender(t *testing.T) {
 	m := newMdRender(func(s string) string {
 		return s
 	})
-	a := m.Render([]byte(`
+	a, _ := m.Render([]byte(`
 <div>
   <h1></h1>
 </div>
