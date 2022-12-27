@@ -11,6 +11,7 @@ Hollow 是一个快速、简洁静态博客生成器。目前只服务于自己�
   - 云端文件也支持提交到 Git 上，不怕文件丢失
 - 提供工具一键部署到 Git 仓库
 - **使用 Jsx/Tsx 作为主题模板开发语言**
+- 支持 [MDX](https://mdxjs.com/packages/mdx/)
 - 主题开发没有限制，代码即所得
 - 快速：生成 1000 篇页面只需要 2s (虽然没什么用)
 
@@ -64,7 +65,7 @@ export default {
 ## 快速开始
 ### 安装 Hollow
 ```shell
-go install github.com/zbysir/hollow
+go install github.com/zbysir/hollow@latest
 ```
 或者直接使用 Docker (更推荐): https://hub.docker.com/r/bysir/hollow
 
