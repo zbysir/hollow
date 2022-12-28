@@ -11,20 +11,16 @@ import (
 
 func TestSource(t *testing.T) {
 	b, err := NewHollow(Option{
-		SourceFs: osfs.New("../../docs"),
+		SourceFs: osfs.New("./testdata"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	as := b.getContents("contents", getBlogOption{
-		Sort: func(a, b interface{}) bool {
-			//c := a.(ContentTree).Meta["date"]
-			//a.(ContentTree).Meta
-			//log.Infof("c %+v", a)
-			return false
-		},
+		Tree: false,
 	})
+
 	for _, b := range as.List {
 		t.Logf("%+v %v", b.Name, b.IsDir)
 		for _, b := range b.Children {

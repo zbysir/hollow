@@ -22,7 +22,7 @@ func init() {
 	rootCmd.AddCommand(cmd.Editor)
 	rootCmd.AddCommand(cmd.Server)
 	rootCmd.AddCommand(cmd.Build)
-	rootCmd.AddCommand(cmd.Version("v0.1.2"))
+	rootCmd.AddCommand(cmd.Version("v0.1.3"))
 }
 
 func main() {

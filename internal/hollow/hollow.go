@@ -841,7 +841,11 @@ func (cs ContentTrees) Flat(includeDir bool) ContentTrees {
 
 	for _, v := range cs {
 		children := v.Children.Flat(includeDir)
-		if len(children) == 0 || includeDir {
+		if v.IsDir {
+			if includeDir {
+				s = append(s, v)
+			}
+		} else {
 			s = append(s, v)
 		}
 		s = append(s, children...)
