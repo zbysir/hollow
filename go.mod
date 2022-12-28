@@ -10,7 +10,6 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/gomarkdown/markdown v0.0.0-20221013030248-663e2500819c
 	github.com/google/martian v2.1.0+incompatible
 	github.com/gookit/color v1.5.2
 	github.com/gorilla/websocket v1.5.0
@@ -26,9 +25,9 @@ require (
 	github.com/tdewolff/parse/v2 v2.6.5
 	github.com/thoas/go-funk v0.9.2
 	github.com/yuin/goldmark v1.5.3
+	github.com/yuin/goldmark-meta v1.1.0
 	github.com/zbysir/gojsx v0.0.35
 	go.uber.org/zap v1.22.0
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -86,4 +85,5 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

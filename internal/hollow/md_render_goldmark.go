@@ -3,11 +3,13 @@ package hollow
 import (
 	"bytes"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark-meta"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/util"
 	jsx "github.com/zbysir/gojsx"
-	md2 "github.com/zbysir/hollow/internal/pkg/md"
+	"github.com/zbysir/hollow/internal/pkg/mdext"
 	"io/fs"
 )
 
@@ -38,11 +40,12 @@ func (m *mdRenderGold) Render(src []byte) (MdResult, error) {
 			html.WithUnsafe(),
 		),
 		goldmark.WithExtensions(
-			md2.Meta,
-			md2.NewJsx(m.jsx, m.fs),
+			meta.Meta,
+			mdext.NewJsx(m.jsx, m.fs),
+			extension.GFM,
 		),
 		goldmark.WithParserOptions(parser.WithASTTransformers(
-			util.Prioritized(md2.NewImageUrlReplace(m.assetsUrlProcess), 0),
+			util.Prioritized(mdext.NewImageUrlReplace(m.assetsUrlProcess), 0),
 		)),
 	)
 
@@ -50,11 +53,11 @@ func (m *mdRenderGold) Render(src []byte) (MdResult, error) {
 		return MdResult{}, err
 	}
 
-	meta, err := md2.TryGet(context)
+	mt, err := meta.TryGet(context)
 	if err != nil {
 		return MdResult{}, err
 	}
-	strMap := ToStrMap(meta).(map[string]interface{})
+	strMap := ToStrMap(mt).(map[string]interface{})
 
 	return MdResult{
 		Body: buf.Bytes(),

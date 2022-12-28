@@ -1,4 +1,4 @@
-package md
+package mdext
 
 import (
 	"github.com/yuin/goldmark/ast"
