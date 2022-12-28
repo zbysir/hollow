@@ -67,8 +67,9 @@ func TestNewTokenizer(t *testing.T) {
 		{
 			Name: "fragment",
 			In: `<>
+  <p> {1} </p>
 </>`,
-			Out: "<>\n</>",
+			Out: "<>\n  <p> {1} </p>\n</>",
 		},
 	}
 

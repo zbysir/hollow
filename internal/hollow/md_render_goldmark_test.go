@@ -179,11 +179,12 @@ Hello
 		{
 			Name: "Empty",
 
-			In: []byte(`<>
-{1}
+			In: []byte(`
+<>
+	{[1,2].map((i)=><p> {i} </p>)}
 </>
 `),
-			Get: []byte(`1`),
+			Get: []byte(`<p> 1 </p><p> 2 </p>`),
 		},
 		{
 			Name: "Inline",

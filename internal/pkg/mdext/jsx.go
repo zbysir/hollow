@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/util"
 	jsx2 "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/htmlparser"
+	"github.com/zbysir/hollow/internal/pkg/log"
 	"io"
 	"io/fs"
 	"regexp"
@@ -210,14 +211,14 @@ func ParseToClose(buf *bytes.Buffer) (start, end int, ok bool, err error) {
 
 		tp, bs := l.Next()
 
-		//log.Infof("%s %s", tp, bs)
+		log.Infof("%s %s", tp, bs)
 
 		begin := pos
 		pos += len(bs)
 		switch tp {
 		case htmlparser.StartTagToken:
 			currTag = bs[1:]
-			if len(matchTag) == 0 {
+			if matchTag == nil {
 				matchTag = bs[1:]
 				nesting += 1
 				start = begin
