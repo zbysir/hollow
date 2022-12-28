@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,6 +17,7 @@ type ServerParams struct {
 	Address string `json:"address"`
 	Source  string `json:"source"`
 	Theme   string `json:"theme"`
+	Cache   string `json:"cache"`
 }
 
 var Server = &cobra.Command{
@@ -32,9 +35,18 @@ var Server = &cobra.Command{
 		//gin.SetMode(gin.ReleaseMode)
 		log.Infof("config: %+v", p)
 
+		var cacheFs billy.Filesystem
+		switch p.Cache {
+		case "memory":
+			cacheFs = memfs.New()
+		default:
+			cacheFs = osfs.New(p.Cache)
+		}
+
 		h, err := hollow.NewHollow(hollow.Option{
 			SourceFs:   osfs.New(p.Source),
 			FixedTheme: p.Theme,
+			CacheFs:    cacheFs,
 		})
 		if err != nil {
 			panic(err)
@@ -76,5 +88,6 @@ var Server = &cobra.Command{
 func init() {
 	config.DeclareFlag(Server, "address", "a", ":9400", "server listen address")
 	config.DeclareFlag(Server, "source", "s", ".", "source file dir")
-	config.DeclareFlag(Server, "theme", "t", "", "Specify Theme")
+	config.DeclareFlag(Server, "theme", "t", "", "specify theme")
+	config.DeclareFlag(Server, "cache", "c", "memory", "cache file path, default in memory")
 }

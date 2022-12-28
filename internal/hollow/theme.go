@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-git/go-billy/v5/osfs"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/helper/chroot"
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	git "github.com/zbysir/hollow/internal/pkg/git"
@@ -31,17 +32,18 @@ type ThemeLoader interface {
 type GitThemeLoader struct {
 	asyncTask *asynctask.Manager
 	path      string
+	cacheFs   billy.Filesystem
 }
 
-func NewGitThemeLoader(asyncTask *asynctask.Manager, path string) *GitThemeLoader {
-	return &GitThemeLoader{asyncTask: asyncTask, path: path}
+func NewGitThemeLoader(asyncTask *asynctask.Manager, path string, cacheFs billy.Filesystem) *GitThemeLoader {
+	return &GitThemeLoader{asyncTask: asyncTask, path: path, cacheFs: cacheFs}
 }
 
 // Load 会缓存 fs ，只有当强制刷新时更新
 func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
-	fileSys := osfs.New("./.themecache")
+	fileSys := chroot.New(g.cacheFs, "theme")
 
-	_, err := fileSys.Stat(".")
+	_, err := fileSys.Stat(".git")
 	if err != nil {
 		if os.IsNotExist(err) {
 			refresh = true

@@ -8,6 +8,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/gookit/color"
 	"github.com/gorilla/websocket"
@@ -104,18 +105,19 @@ func (p Page) Render() (string, error) {
 }
 
 type Hollow struct {
-	jsx        *jsx.Jsx
-	sourceFs   billy.Filesystem // 文件
-	fixedTheme string           // 重新指定主题，可用于预览
-	log        *zap.SugaredLogger
-	cache      *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
-	asyncTask  *asynctask.Manager
-	wsHub      *ws.WsHub
+	jsx       *jsx.Jsx
+	log       *zap.SugaredLogger
+	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+	asyncTask *asynctask.Manager
+	wsHub     *ws.WsHub
+
+	Option
 }
 
 type Option struct {
 	SourceFs   billy.Filesystem
-	FixedTheme string // 重新指定主题，可用于预览
+	FixedTheme string           // 重新指定主题，可用于预览
+	CacheFs    billy.Filesystem // 缓存文件系统，默认为 memory
 }
 
 type StdFileSystem struct {
@@ -151,6 +153,9 @@ func NewHollow(o Option) (*Hollow, error) {
 	if o.SourceFs == nil {
 		o.SourceFs = osfs.New(".")
 	}
+	if o.CacheFs == nil {
+		o.CacheFs = memfs.New()
+	}
 
 	var err error
 	jx, err := jsx.NewJsx(jsx.Option{
@@ -166,13 +171,12 @@ func NewHollow(o Option) (*Hollow, error) {
 		return nil, err
 	}
 	b := &Hollow{
-		jsx:        jx,
-		sourceFs:   o.SourceFs,
-		fixedTheme: o.FixedTheme,
-		log:        log.Logger(),
-		cache:      cache,
-		asyncTask:  asynctask.NewManager(),
-		wsHub:      ws.NewHub(),
+		jsx:       jx,
+		Option:    o,
+		log:       log.Logger(),
+		cache:     cache,
+		asyncTask: asynctask.NewManager(),
+		wsHub:     ws.NewHub(),
 	}
 	b.asyncTask.AddListener(func(task *asynctask.Task, event *asynctask.Event) {
 		if event.IsDone {
@@ -209,7 +213,7 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 	if err != nil {
 		return err
 	}
-	themeUrl := b.prepareThemeUrl(conf.Theme, b.fixedTheme)
+	themeUrl := b.prepareThemeUrl(conf.Theme, b.FixedTheme)
 	themeLoader, err := b.GetThemeLoader(themeUrl)
 	if err != nil {
 		return err
@@ -266,7 +270,7 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 	}
 
 	for _, a := range conf.Assets {
-		err = copyDir(a, "", gobilly.NewStdFs(b.sourceFs), dst)
+		err = copyDir(a, "", gobilly.NewStdFs(b.SourceFs), dst)
 		if err != nil {
 			return err
 		}
@@ -322,7 +326,7 @@ func (b *Hollow) PushProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Source.Token, b.sourceFs, l)
+	g, err := git.NewGit(conf.Source.Token, b.SourceFs, l)
 	if err != nil {
 		return err
 	}
@@ -347,7 +351,7 @@ func (b *Hollow) PullProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Deploy.Token, b.sourceFs, l)
+	g, err := git.NewGit(conf.Deploy.Token, b.SourceFs, l)
 	if err != nil {
 		return err
 	}
@@ -414,7 +418,7 @@ type ConfigOss struct {
 
 // LoadConfig 加载 source 下的 config 文件
 func (b *Hollow) LoadConfig(expandEnv bool) (conf Config, err error) {
-	f, err := easyfs.GetFile(gobilly.NewStdFs(b.sourceFs), "config.yml")
+	f, err := easyfs.GetFile(gobilly.NewStdFs(b.SourceFs), "config.yml")
 	if err != nil {
 		return
 	}
@@ -462,7 +466,7 @@ func prepareThemeUrl(url string, defaultProtocol string) string {
 func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 	switch {
 	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
-		return NewGitThemeLoader(b.asyncTask, url), nil
+		return NewGitThemeLoader(b.asyncTask, url, b.CacheFs), nil
 	case strings.HasPrefix(url, "file://"):
 		pa := strings.TrimPrefix(url, "file://")
 		if strings.HasPrefix(pa, ".") {
@@ -474,7 +478,7 @@ func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
 		return NewFsThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
 	case strings.HasPrefix(url, "source://"):
 		pa := strings.TrimPrefix(url, "source://")
-		subFs, err := b.sourceFs.Chroot(pa)
+		subFs, err := b.SourceFs.Chroot(pa)
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +550,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			refresh = true
 		}
 
-		themeUrl := b.prepareThemeUrl(projectConf.Theme, b.fixedTheme)
+		themeUrl := b.prepareThemeUrl(projectConf.Theme, b.FixedTheme)
 		themeLoader, err := b.GetThemeLoader(themeUrl)
 		if err != nil {
 			return "", err
@@ -573,7 +577,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			})
 		}
 		for _, dir := range projectConf.Assets {
-			sub, err := fs.Sub(gobilly.NewStdFs(b.sourceFs), dir)
+			sub, err := fs.Sub(gobilly.NewStdFs(b.SourceFs), dir)
 			if err != nil {
 				return "", fmt.Errorf("sub fs '%v' error: %w", dir, err)
 			}
@@ -938,7 +942,7 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	if ok {
 		blogs = x.(ContentTrees)
 	} else {
-		ts, err := MapDir(gobilly.NewStdFs(b.sourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, error) {
+		ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, error) {
 			//if err != nil {
 			//	return ContentTree{}, err
 			//}
@@ -946,7 +950,7 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 				// read dir meta
 				var mate = map[string]interface{}{}
 				metaFileName := filepath.Join(path, "meta.yaml")
-				bs, err := fs.ReadFile(gobilly.NewStdFs(b.sourceFs), metaFileName)
+				bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
 				if err != nil {
 					if !errors.Is(err, fs.ErrNotExist) {
 						return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
@@ -984,14 +988,14 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 				return ContentTree{}, nil
 			}
 
-			blog, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, false)
+			blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
 			if err != nil {
 				log.Errorf("load blog (%v) file: %v", path, err)
 				return ContentTree{}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
-			bs, err := fs.ReadFile(gobilly.NewStdFs(b.sourceFs), metaFileName)
+			bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
 			if err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
 					return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
@@ -1051,7 +1055,7 @@ func (b *Hollow) getContentDetail(path string) Content {
 		log.Warnf("can't loader '%v' file", ext)
 		return Content{}
 	}
-	blog, err := loader.Load(gobilly.NewStdFs(b.sourceFs), path, true)
+	blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
 	if err != nil {
 		log.Warnf("can't loader file, error: %v", err)
 		return Content{}
@@ -1080,7 +1084,7 @@ type MdOptions struct {
 func (b *Hollow) md(str string, options MdOptions) string {
 	md := NewGoldMdRender(GoldMdRenderOptions{
 		jsx:              b.jsx,
-		fs:               gobilly.NewStdFs(b.sourceFs),
+		fs:               gobilly.NewStdFs(b.SourceFs),
 		assetsUrlProcess: nil,
 	})
 	r, err := md.Render([]byte(str))
@@ -1102,7 +1106,7 @@ type LookupConfig struct {
 
 // LookupConfig 返回配置信息
 func (b *Hollow) LookupConfig() (LookupConfig, error) {
-	sourcePath := b.sourceFs.Root()
+	sourcePath := b.SourceFs.Root()
 
 	conf, err := b.LoadConfig(true)
 	if err != nil {
@@ -1112,7 +1116,7 @@ func (b *Hollow) LookupConfig() (LookupConfig, error) {
 		}
 	}
 
-	themeUrl := b.prepareThemeUrl(conf.Theme, b.fixedTheme)
+	themeUrl := b.prepareThemeUrl(conf.Theme, b.FixedTheme)
 
 	if strings.HasPrefix(themeUrl, "file://") {
 		themeUrl = strings.TrimPrefix(themeUrl, "file://")
