@@ -84,7 +84,8 @@ func (j *jsxParser) Trigger() []byte {
 	return []byte{'<'}
 }
 
-var htmlTagReg = regexp.MustCompile(`^[ ]{0,3}<(/[ ]*)?([a-zA-Z]+[a-zA-Z0-9\-]*)`)
+// 匹配 <A> or <>
+var htmlTagStartReg = regexp.MustCompile(`^ {0,3}<(([A-Z]+[a-zA-Z0-9\-]*)|>)`)
 
 func (j *jsxParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	node := &jsxNode{
@@ -95,16 +96,12 @@ func (j *jsxParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	if pos := pc.BlockOffset(); pos < 0 || line[pos] != '<' {
 		return nil, parser.NoChildren
 	}
-	match := htmlTagReg.FindAllSubmatch(line, -1)
+	match := htmlTagStartReg.FindAllSubmatch(line, -1)
 	if match == nil {
 		return nil, parser.NoChildren
 	}
 
-	tagName := match[0][2]
-	// 大写首字母
-	if !(tagName[0] >= 'A' && tagName[0] <= 'Z') {
-		return nil, parser.NoChildren
-	}
+	tagName := string(match[0][2])
 
 	_, s := reader.Position()
 	offset := s.Start
@@ -119,13 +116,15 @@ func (j *jsxParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 		return nil, parser.NoChildren
 	}
 
-	node.tag = string(tagName)
+	node.tag = tagName
 	code := GetJsCode(pc)
 
-	// 简单判断 变量是否存在于 code，如果存在则说明是 JsxElement
-	tr := regexp.MustCompile(fmt.Sprintf(`\b%s\b`, tagName))
-	if !tr.MatchString(code) {
-		return nil, parser.NoChildren
+	if tagName != "" {
+		// 简单判断 变量是否存在于 code，如果存在则说明是 JsxElement
+		tr := regexp.MustCompile(fmt.Sprintf(`\b%s\b`, tagName))
+		if !tr.MatchString(code) {
+			return nil, parser.NoChildren
+		}
 	}
 
 	segment = text.NewSegment(start+offset, end+offset)
@@ -169,12 +168,14 @@ func (j *jsxRender) Render(w util.BufWriter, src []byte, node ast.Node, entering
 
 	jsxNode := node.(*jsxNode)
 	code := GetJsCode(jsxNode.pc)
-	code += "\n"
+	code += ";\n"
 	code += b.String()
+
+	//log.Infof("%+s", code)
 
 	v, err := j.x.RunJs([]byte(code), jsx2.WithTransform(true), jsx2.WithRunFileName("root.tsx"), jsx2.WithRunFs(j.fs))
 	if err != nil {
-		return ast.WalkContinue, err
+		return ast.WalkStop, fmt.Errorf("render jsx error: %v", err)
 	}
 	vd := jsx2.VDom(v.Export().(map[string]interface{}))
 

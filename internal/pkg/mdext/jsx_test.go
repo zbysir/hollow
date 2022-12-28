@@ -60,15 +60,20 @@ func TestNewTokenizer(t *testing.T) {
 			Out: "<searchbtn></searchbtn>",
 		},
 		{
-			Name: "ok",
+			Name: "OneLetter",
 			In:   `<A></A>`,
 			Out:  "<A></A>",
+		},
+		{
+			Name: "fragment",
+			In: `<>
+</>`,
+			Out: "<>\n</>",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-
 			buf := bytes.NewBuffer([]byte(c.In))
 			s, e, ok, err := ParseToClose(buf)
 			if err != nil {

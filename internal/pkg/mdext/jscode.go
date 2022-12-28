@@ -12,8 +12,7 @@ import (
 type jsCodeParser struct {
 }
 
-// NewJsCodeParser returns a new BlockParser that
-// parses paragraphs.
+// NewJsCodeParser 解析在最开始的 js 代码，支持 import、function、const、let 开头的代码，已空行结束
 func NewJsCodeParser() parser.BlockParser {
 	return &jsCodeParser{}
 }
@@ -63,14 +62,11 @@ func (b *jsCodeParser) Open(parent ast.Node, reader text.Reader, pc parser.Conte
 	return node, parser.NoChildren
 }
 
-var jsCodeRegexp = regexp.MustCompile("^(import )")
+var jsCodeRegexp = regexp.MustCompile("^(import )|(const )|(let )|(export )|(function )")
 
 func (b *jsCodeParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, segment := reader.PeekLine()
 	if util.IsBlank(line) {
-		return parser.Close | parser.NoChildren
-	}
-	if !jsCodeRegexp.Match(line) {
 		return parser.Close | parser.NoChildren
 	}
 
@@ -83,11 +79,19 @@ var jsCodeKey = parser.NewContextKey()
 
 func (b *jsCodeParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
 	lines := node.Lines()
+	before := GetJsCode(pc)
+
 	var buf bytes.Buffer
+	if before != "" {
+		buf.WriteString(before)
+		buf.WriteString(";\n")
+	}
+
 	for i := 0; i < lines.Len(); i++ {
 		segment := lines.At(i)
 		buf.Write(segment.Value(reader.Source()))
 	}
+
 	pc.Set(jsCodeKey, buf.String())
 
 	// remove self

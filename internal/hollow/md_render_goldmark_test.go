@@ -176,12 +176,32 @@ Hello
 </Name></p>
 `),
 		},
+		{
+			Name: "Empty",
+
+			In: []byte(`<>
+{1}
+</>
+`),
+			Get: []byte(`1`),
+		},
+		{
+			Name: "Inline",
+
+			In: []byte(`
+const A = ({name}) => <>Hello {name}</>
+const name = 1
+
+<A name={name}></A>
+`),
+			Get: []byte(`Hello 1`),
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			s, err2 := m.Render(c.In)
-			if err2 != nil {
+			s, err := m.Render(c.In)
+			if err != nil {
 				t.Fatal(err)
 			}
 			assert.Equal(t, string(c.Get), string(s.Body))

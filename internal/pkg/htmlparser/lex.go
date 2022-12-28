@@ -134,7 +134,8 @@ func (l *Lexer) Next() (TokenType, []byte) {
 		c = l.r.Peek(0)
 		if c == '<' {
 			c = l.r.Peek(1)
-			isEndTag := c == '/' && l.r.Peek(2) != '>' && (l.r.Peek(2) != 0 || l.r.PeekErr(2) == nil)
+			isEndTag := c == '/' && (l.r.Peek(2) != 0 || l.r.PeekErr(2) == nil)
+
 			if l.r.Pos() > 0 {
 				if isEndTag || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '!' || c == '?' {
 					// return currently buffered texttoken so that we can return tag next iteration
@@ -144,11 +145,11 @@ func (l *Lexer) Next() (TokenType, []byte) {
 			} else if isEndTag {
 				l.r.Move(2)
 				// only endtags that are not followed by > or EOF arrive here
-				if c = l.r.Peek(0); !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+				if c = l.r.Peek(0); !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') && c != '>' {
 					return CommentToken, l.shiftBogusComment()
 				}
 				return EndTagToken, l.shiftEndTag()
-			} else if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+			} else if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '>' {
 				l.r.Move(1)
 				l.inTag = true
 				return l.shiftStartTag()

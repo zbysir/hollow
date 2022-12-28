@@ -15,7 +15,10 @@ func TestGoJsx(t *testing.T) {
 		return
 	}
 
-	v, err := jx.RunJs([]byte(`import {Chart} from './snowfall.js'; const HelloJSX = ({a}) => <>Hello {a}</>; <HelloJSX a={1}></HelloJSX>;<Chart/>;`), jsx.WithTransform(true), jsx.WithRunFileName("index.tsx"))
+	v, err := jx.RunJs([]byte(`const A = ({name}) => <>Hello {name}</>
+const B = ({name}) => <p>HH</p>;
+
+<A name={<B/>}></A>`), jsx.WithTransform(true), jsx.WithRunFileName("index.tsx"))
 	if err != nil {
 		t.Fatal(err)
 	}

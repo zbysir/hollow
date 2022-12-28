@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru"
 	jsx "github.com/zbysir/gojsx"
-	"github.com/zbysir/hollow/front/hollow-dev"
+	hollowdev "github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/easyfs"
@@ -840,7 +840,6 @@ func (cs ContentTrees) Flat(includeDir bool) ContentTrees {
 	var s ContentTrees
 
 	for _, v := range cs {
-		children := v.Children.Flat(includeDir)
 		if v.IsDir {
 			if includeDir {
 				s = append(s, v)
@@ -848,6 +847,7 @@ func (cs ContentTrees) Flat(includeDir bool) ContentTrees {
 		} else {
 			s = append(s, v)
 		}
+		children := v.Children.Flat(includeDir)
 		s = append(s, children...)
 	}
 
@@ -884,28 +884,19 @@ func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 }
 
 func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ContentTree, error)) (ContentTrees, error) {
-	info, err := fs.Stat(fsys, root)
+	_, err := fs.Stat(fsys, root)
 	if err != nil {
 
 	} else {
-		at, err := mapDir(fsys, root, &statDirEntry{info}, fn)
+		at, err := mapDir(fsys, root, fn)
 		return at, err
 	}
 
 	return nil, err
 }
 
-type statDirEntry struct {
-	info fs.FileInfo
-}
-
-func (d *statDirEntry) Name() string               { return d.info.Name() }
-func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
-func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
-func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
-
 // walkDir recursively descends path, calling walkDirFn.
-func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, d fs.DirEntry) (ContentTree, error)) ([]ContentTree, error) {
+func mapDir(fsys fs.FS, name string, walkDirFn func(path string, d fs.DirEntry) (ContentTree, error)) ([]ContentTree, error) {
 	dirs, err := fs.ReadDir(fsys, name)
 	if err != nil {
 		return nil, err
@@ -923,7 +914,7 @@ func mapDir(fsys fs.FS, name string, d fs.DirEntry, walkDirFn func(path string, 
 		}
 		var children ContentTrees
 		if d1.IsDir() {
-			children, err = mapDir(fsys, name1, d1, walkDirFn)
+			children, err = mapDir(fsys, name1, walkDirFn)
 			if err != nil {
 				return nil, err
 			}
@@ -947,9 +938,6 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 		blogs = x.(ContentTrees)
 	} else {
 		ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, error) {
-			//if err != nil {
-			//	return ContentTree{}, err
-			//}
 			if d.IsDir() {
 				// read dir meta
 				var mate = map[string]interface{}{}

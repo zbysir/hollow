@@ -1,7 +1,7 @@
 package gobilly
 
 import (
-	"github.com/zbysir/hollow/internal/pkg/db"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"io/fs"
 	"path/filepath"
@@ -11,20 +11,11 @@ import (
 func TestStdFs(t *testing.T) {
 	log.SetDev(true)
 
-	d, err := db.NewKvDb("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	st, err := d.Open("test", "theme")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f := NewDbFs(st)
+	f := osfs.New("../")
 	std := NewStdFs(f)
 
 	t.Run("walk", func(t *testing.T) {
-		err = fs.WalkDir(std, "", func(path string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(std, "", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -37,7 +28,7 @@ func TestStdFs(t *testing.T) {
 	})
 
 	t.Run("walkos", func(t *testing.T) {
-		err = filepath.WalkDir("./", func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir("../", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				t.Fatal(err)
 			}
