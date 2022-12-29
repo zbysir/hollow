@@ -1,4 +1,5 @@
-theme: theme/compass
+#theme: https://github.com/zbysir/hollow-theme/tree/master/compass
+theme: file://Users/bysir/front/bysir/hollow-theme/compass
 
 deploy:
   type: git
@@ -41,4 +42,4 @@ theme_config:
     - link: https://github.com/zbysir
       name: GitHub
       icon: GitHub
-  home_page: 'pages/home.tsx'
+  home_page: 'pages/home.mdx'

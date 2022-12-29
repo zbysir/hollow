@@ -9,12 +9,12 @@
 
 ## 完善主题
 
-- [ ] (Doing) 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 
+- [ ] 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 
 - [x] 实现模糊搜索，React 与 https://github.com/krisk/Fuse
 
 ## 扩展
 
-- [x] 项目文件考虑支持 Jsx
+- [x] 项目文件考虑支持 Jsx（废弃，使用 mdx 就好）
 - [x] 考虑支持 MDX https://mdxjs.com/packages/mdx/（经过实验，由于兼容问题，使用 Goja 运行 mdx 项目是不容易实现的，考虑自己实现子集）
 
 ## 发布

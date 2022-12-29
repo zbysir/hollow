@@ -693,7 +693,7 @@ func (b *Hollow) DevService(ctx context.Context) error {
 
 			name := "Source"
 			col := color.Magenta
-			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%v] [%v]", name, config.ThemePath)))
+			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%v] [%v]", name, config.SourcePath)))
 
 			err = b.runDevServer(ctx, name, col, config.SourcePath)
 			if err != nil {
@@ -1044,12 +1044,12 @@ func (b *Hollow) getContentDetail(path string) Content {
 	ext := filepath.Ext(path)
 	loader, ok := b.getContentLoader(ext)
 	if !ok {
-		log.Warnf("can't loader '%v' file", ext)
+		log.Warnf("unsupported load '%v' file", ext)
 		return Content{}
 	}
 	blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
 	if err != nil {
-		log.Warnf("can't loader file, error: %v", err)
+		log.Warnf("load file '%v' error: %v", path, err)
 		return Content{}
 	}
 	if !ok {
