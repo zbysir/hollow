@@ -43,3 +43,4 @@ theme_config:
       name: GitHub
       icon: GitHub
   home_page: 'pages/home.mdx'
+  assets: ['/index.css','./app.js']

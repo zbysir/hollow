@@ -27,6 +27,7 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/ws"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"html"
 	"io/fs"
 	"net/http"
 	"os"
@@ -191,6 +192,7 @@ func NewHollow(o Option) (*Hollow, error) {
 		"getConfig":        b.getConfig,
 		"getContentDetail": b.getContentDetail,
 		"md":               b.md,
+		"mdx":              b.mdx,
 	})
 
 	return b, nil
@@ -209,11 +211,11 @@ func (b *Hollow) Build(ctx context.Context, distPath string, o ExecOption) error
 
 func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
-	conf, err := b.LoadConfig(true)
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
-	themeUrl := b.prepareThemeUrl(conf.Theme, b.FixedTheme)
+	themeUrl := b.prepareThemeUrl(conf.Hollow.Theme, b.FixedTheme)
 	themeLoader, err := b.GetThemeLoader(themeUrl)
 	if err != nil {
 		return err
@@ -269,7 +271,7 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 		l.Infof("Copy theme assets: %v ", a)
 	}
 
-	for _, a := range conf.Assets {
+	for _, a := range conf.Hollow.Assets {
 		err = copyDir(a, "", gobilly.NewStdFs(b.SourceFs), dst)
 		if err != nil {
 			return err
@@ -287,7 +289,7 @@ func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o Ex
 		return err
 	}
 
-	conf, err := b.LoadConfig(true)
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
@@ -299,16 +301,16 @@ func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o Ex
 
 	l = l.Named("[Git]\t")
 
-	g, err := git.NewGit(conf.Deploy.Token, dst, l)
+	g, err := git.NewGit(conf.Hollow.Deploy.Token, dst, l)
 	if err != nil {
 		return err
 	}
 
-	branch := conf.Deploy.Branch
+	branch := conf.Hollow.Deploy.Branch
 	if branch == "" {
 		branch = "docs"
 	}
-	err = g.Push(conf.Deploy.Remote, branch, "by hollow", true)
+	err = g.Push(conf.Hollow.Deploy.Remote, branch, "by hollow", true)
 	if err != nil {
 		return err
 	}
@@ -316,7 +318,7 @@ func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o Ex
 }
 
 func (b *Hollow) PushProject(o ExecOption) error {
-	conf, err := b.LoadConfig(true)
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
@@ -326,13 +328,13 @@ func (b *Hollow) PushProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Source.Token, b.SourceFs, l)
+	g, err := git.NewGit(conf.Hollow.Source.Token, b.SourceFs, l)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("config %+v", conf.Source)
-	err = g.Push(conf.Source.Remote, conf.Source.Branch, "-", true)
+	log.Infof("config %+v", conf.Hollow.Source)
+	err = g.Push(conf.Hollow.Source.Remote, conf.Hollow.Source.Branch, "-", true)
 	if err != nil {
 		return err
 	}
@@ -341,7 +343,7 @@ func (b *Hollow) PushProject(o ExecOption) error {
 }
 
 func (b *Hollow) PullProject(o ExecOption) error {
-	conf, err := b.LoadConfig(true)
+	conf, err := b.LoadConfig()
 	if err != nil {
 		return err
 	}
@@ -351,12 +353,12 @@ func (b *Hollow) PullProject(o ExecOption) error {
 		l = o.Log
 	}
 
-	g, err := git.NewGit(conf.Deploy.Token, b.SourceFs, l)
+	g, err := git.NewGit(conf.Hollow.Deploy.Token, b.SourceFs, l)
 	if err != nil {
 		return err
 	}
 
-	err = g.Pull(conf.Source.Remote, conf.Source.Branch, true)
+	err = g.Pull(conf.Hollow.Source.Remote, conf.Hollow.Source.Branch, true)
 	if err != nil {
 		return err
 	}
@@ -388,14 +390,20 @@ func (d *DirFs) Open(name string) (http.File, error) {
 	return f, nil
 }
 
-type Config struct {
-	Theme       string      `json:"theme" yaml:"theme"`
-	Deploy      GitRepo     `json:"deploy" yaml:"deploy"`
-	Source      GitRepo     `json:"source" yaml:"source"`
-	Oss         ConfigOss   `json:"oss" yaml:"oss"`
-	Assets      Assets      `json:"assets" yaml:"assets"`
-	ThemeConfig interface{} `json:"theme_config" yaml:"theme_config"`
+type HollowConfig struct {
+	Theme  string    `json:"theme"`
+	Deploy GitRepo   `json:"deploy"`
+	Source GitRepo   `json:"source"`
+	Oss    ConfigOss `json:"oss"`
+	Assets Assets    `json:"assets"`
 }
+
+type Config struct {
+	Hollow HollowConfig
+	Theme  ThemeConfig
+}
+
+type ThemeConfig interface{}
 
 type GitRepo struct {
 	Token  string `json:"token" yaml:"token"`
@@ -416,14 +424,7 @@ type ConfigOss struct {
 	Prefix string `yaml:"prefix"`
 }
 
-// LoadConfig 加载 source 下的 config 文件
-func (b *Hollow) LoadConfig(expandEnv bool) (conf Config, err error) {
-	f, err := easyfs.GetFile(gobilly.NewStdFs(b.SourceFs), "config.yml")
-	if err != nil {
-		return
-	}
-
-	body := f.Body
+func loadYamlConfig(body string, expandEnv bool) (con Config, err error) {
 	if expandEnv {
 		body = os.Expand(body, os.Getenv)
 	} else {
@@ -433,9 +434,71 @@ func (b *Hollow) LoadConfig(expandEnv bool) (conf Config, err error) {
 		})
 	}
 
-	err = yaml.Unmarshal([]byte(body), &conf)
+	type YamlConfig struct {
+		Theme       string      `yaml:"theme"`
+		Deploy      GitRepo     `yaml:"deploy"`
+		Source      GitRepo     `yaml:"source"`
+		Oss         ConfigOss   `yaml:"oss"`
+		Assets      Assets      `yaml:"assets"`
+		ThemeConfig interface{} `yaml:"theme_config"`
+	}
+
+	var yc YamlConfig
+
+	err = yaml.Unmarshal([]byte(body), &yc)
 	if err != nil {
 		err = fmt.Errorf("LoadConfig error: %w", err)
+		return
+	}
+
+	con = Config{
+		Hollow: HollowConfig{
+			Theme:  yc.Theme,
+			Deploy: yc.Deploy,
+			Source: yc.Source,
+			Oss:    yc.Oss,
+			Assets: yc.Assets,
+		},
+		Theme: yc.ThemeConfig,
+	}
+
+	return
+}
+
+// LoadConfig 加载 source 下的 config 文件
+// TODO env
+func (b *Hollow) LoadConfig() (conf Config, err error) {
+	stdFs := gobilly.NewStdFs(b.SourceFs)
+	_, err = easyfs.GetFile(stdFs, "config.ts")
+	if err == nil {
+		var exports jsx.ModuleExport
+		exports, err = b.jsx.ExecCode("root.js", []byte(fmt.Sprintf("module.exports = require('./config.ts')")), nil, jsx.WithFs(stdFs))
+		if err != nil {
+			return
+		}
+
+		bs, _ := json.Marshal(exports.Exports["hollow"])
+		json.Unmarshal(bs, &conf.Hollow)
+
+		bs, _ = json.Marshal(exports.Exports["theme"])
+		json.Unmarshal(bs, &conf.Theme)
+
+		return
+	}
+
+	f, err := easyfs.GetFile(stdFs, "config.yml")
+	if err != nil {
+		return
+	}
+	if err == nil {
+		conf, err = loadYamlConfig(f.Body, true)
+		if err != nil {
+			return
+		}
+		return conf, err
+	} else if err == os.ErrNotExist {
+		err = nil
+	} else {
 		return
 	}
 
@@ -536,7 +599,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		b.cache.Purge()
 		var projectConf Config
 
-		projectConf, err = b.LoadConfig(true)
+		projectConf, err = b.LoadConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 
@@ -550,7 +613,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			refresh = true
 		}
 
-		themeUrl := b.prepareThemeUrl(projectConf.Theme, b.FixedTheme)
+		themeUrl := b.prepareThemeUrl(projectConf.Hollow.Theme, b.FixedTheme)
 		themeLoader, err := b.GetThemeLoader(themeUrl)
 		if err != nil {
 			return "", err
@@ -576,7 +639,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 				fs: http.FS(sub),
 			})
 		}
-		for _, dir := range projectConf.Assets {
+		for _, dir := range projectConf.Hollow.Assets {
 			sub, err := fs.Sub(gobilly.NewStdFs(b.SourceFs), dir)
 			if err != nil {
 				return "", fmt.Errorf("sub fs '%v' error: %w", dir, err)
@@ -803,6 +866,7 @@ type Content struct {
 	Ext        string                         `json:"ext"`
 	Content    string                         `json:"content"`
 	IsDir      bool                           `json:"is_dir"`
+	Toc        interface{}                    `json:"toc"`
 }
 
 type ContentTree struct {
@@ -872,13 +936,13 @@ type BlogList struct {
 }
 
 func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
-	c, err := b.LoadConfig(true)
+	c, err := b.LoadConfig()
 	if err != nil {
 		log.Warnf("LoadConfig for getContentLoader error: %v", err)
 	}
 	switch ext {
 	case ".md", ".mdx":
-		return NewMDLoader(c.Assets, b.jsx), true
+		return NewMDLoader(c.Hollow.Assets, b.jsx), true
 	}
 	return nil, false
 }
@@ -909,6 +973,8 @@ func mapDir(fsys fs.FS, name string, walkDirFn func(path string, d fs.DirEntry) 
 		if err != nil {
 			return nil, err
 		}
+
+		// 忽略没有名字的文件夹或者文件
 		if a.Name == "" {
 			continue
 		}
@@ -975,7 +1041,6 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 
 			ext := filepath.Ext(path)
 			loader, ok := b.getContentLoader(ext)
-
 			if !ok {
 				return ContentTree{}, nil
 			}
@@ -1011,6 +1076,7 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 					blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 				}
 			}
+			//log.Infof("bs: %+v", blog)
 
 			return ContentTree{Content: blog}, nil
 		})
@@ -1049,8 +1115,16 @@ func (b *Hollow) getContentDetail(path string) Content {
 	}
 	blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
 	if err != nil {
-		log.Warnf("load file '%v' error: %v", path, err)
-		return Content{}
+		info := fmt.Sprintf("load file '%v' error: %v", path, err)
+		log.Warnf(info)
+		errHtml := fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(info))
+		return Content{
+			Name: "error page",
+			GetContent: func(opt GetContentOpt) string {
+				return errHtml
+			},
+			Content: errHtml,
+		}
 	}
 	if !ok {
 		return Content{}
@@ -1061,23 +1135,40 @@ func (b *Hollow) getContentDetail(path string) Content {
 
 // getConfig config.yml 下的 theme_config 字段
 func (b *Hollow) getConfig() interface{} {
-	c, err := b.LoadConfig(true)
+	c, err := b.LoadConfig()
 	if err != nil {
 		log.Warnf("LoadConfig for js error: %v", err)
 	}
-	return c.ThemeConfig
+	return c.Theme
 }
 
 type MdOptions struct {
 	Unwrap bool `json:"unwrap"`
 }
 
-// getConfig config.yml 下的 params 字段
+// TODO use jsx ExecCode 代替
 func (b *Hollow) md(str string, options MdOptions) string {
 	md := NewGoldMdRender(GoldMdRenderOptions{
-		jsx:              b.jsx,
-		fs:               gobilly.NewStdFs(b.SourceFs),
-		assetsUrlProcess: nil,
+		JsxRender:        nil,
+		AssetsUrlProcess: nil,
+	})
+	r, err := md.Render([]byte(str))
+	if err != nil {
+		return err.Error()
+	}
+	s := string(r.Body)
+	if options.Unwrap {
+		s = strings.TrimPrefix(s, "<p>")
+		s = strings.TrimSuffix(s, "</p>")
+	}
+	return s
+}
+
+// TODO use jsx ExecCode 代替
+func (b *Hollow) mdx(str string, options MdOptions) string {
+	md := NewGoldMdRender(GoldMdRenderOptions{
+		//JsxRender:        mdxrender.NewJsxRender(b.jsx, gobilly.NewStdFs(b.SourceFs)),
+		AssetsUrlProcess: nil,
 	})
 	r, err := md.Render([]byte(str))
 	if err != nil {
@@ -1100,7 +1191,7 @@ type LookupConfig struct {
 func (b *Hollow) LookupConfig() (LookupConfig, error) {
 	sourcePath := b.SourceFs.Root()
 
-	conf, err := b.LoadConfig(true)
+	conf, err := b.LoadConfig()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 		} else {
@@ -1108,7 +1199,7 @@ func (b *Hollow) LookupConfig() (LookupConfig, error) {
 		}
 	}
 
-	themeUrl := b.prepareThemeUrl(conf.Theme, b.FixedTheme)
+	themeUrl := b.prepareThemeUrl(conf.Hollow.Theme, b.FixedTheme)
 
 	if strings.HasPrefix(themeUrl, "file://") {
 		themeUrl = strings.TrimPrefix(themeUrl, "file://")

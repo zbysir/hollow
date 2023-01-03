@@ -7,6 +7,7 @@ esbuild
   .build({
     entryPoints: [
       "src/index.css",
+      "src/app.js",
     ],
     bundle: true,
     plugins: [

@@ -5,7 +5,7 @@
 - [x] Server 静态文件 304，而不是默认的 200
 
 ## 优化
-- [ ] config 支持 js 脚本（部分数据结构，如列表使用 js 能更好表达）
+- [x] config 支持 js 脚本（部分数据结构，如列表使用 js 能更好表达）
 
 ## 完善主题
 
@@ -15,7 +15,10 @@
 ## 扩展
 
 - [x] 项目文件考虑支持 Jsx（废弃，使用 mdx 就好）
-- [x] 考虑支持 MDX https://mdxjs.com/packages/mdx/（经过实验，由于兼容问题，使用 Goja 运行 mdx 项目是不容易实现的，考虑自己实现子集）
+- [x] 支持 [MDX](https://mdxjs.com/packages/mdx/)（经过实验，由于兼容问题，使用 Goja 运行 mdx 项目是不容易实现的，考虑自己实现子集）
+  - 两个实现方案：
+    - [x] 先将 整个 markdown 转换成 jsx node（需要写插件特殊处理），然后整个文件交由 jsx 运行。这有个好处，mdx 可以做成 loader（做到 gojsx 里），支持 import A from "a.mdx"。
+    - 只处理 markdown 中的 jsx block。更快的性能，但是如果要处理 {}, inline 的语法会特别麻烦。不适用。
 
 ## 发布
 

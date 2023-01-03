@@ -1,7 +1,7 @@
 {
   "version": 3,
-  "sources": ["temp_stylePlugin:ni:sha-256;ZN1ChFYi7UuoIOwncCJcHjsBRAltp6YK9zlxvVvb2Ic"],
-  "sourcesContent": ["/* \u4E3B\u9898\u5DF2\u7ECF\u5305\u542B\u4E86 base\uFF0C\u9879\u76EE\u53EA\u9700\u8981\u4F7F\u7528 utilities*/\n.pt-1 {\n    padding-top: 0.25rem\n}\n.text-center {\n    text-align: center\n}"],
-  "mappings": "AACA,MACI,mBAEJ,aACI",
+  "sources": ["temp_stylePlugin:ni:sha-256;WzjthpyUjRXxjJunWv4UhECPwPfc9bPKFeaqiWR_yx8"],
+  "sourcesContent": ["/* \u4E3B\u9898\u5DF2\u7ECF\u5305\u542B\u4E86 base\uFF0C\u9879\u76EE\u53EA\u9700\u8981\u4F7F\u7528 utilities*/\n.mt-4{\n    margin-top: 1rem;\n}\n.ml-\\[300px\\]{\n    margin-left: 300px;\n}\n.grid{\n    display: grid;\n}\n.grid-cols-4{\n    grid-template-columns: repeat(4, minmax(0, 1fr));\n}\n.gap-4{\n    gap: 1rem;\n}\n.rounded-md{\n    border-radius: 0.375rem;\n}\n.border{\n    border-width: 1px;\n}\n.border-slate-200{\n    --tw-border-opacity: 1;\n    border-color: rgb(226 232 240 / var(--tw-border-opacity));\n}\n.bg-slate-100{\n    --tw-bg-opacity: 1;\n    background-color: rgb(241 245 249 / var(--tw-bg-opacity));\n}\n.p-4{\n    padding: 1rem;\n}\n.text-center{\n    text-align: center;\n}\n.text-sm{\n    font-size: 0.875rem;\n    line-height: 1.25rem;\n}\n.text-7xl{\n    font-size: 4.5rem;\n    line-height: 1;\n}\n.text-xl{\n    font-size: 1.25rem;\n    line-height: 1.75rem;\n}\n.text-5xl{\n    font-size: 3rem;\n    line-height: 1;\n}\n.font-bold{\n    font-weight: 700;\n}\n\n#element{\n    -webkit-transform-style: preserve-3d;\n            transform-style: preserve-3d;\n    -webkit-transition: all .1s;\n    -o-transition: all .1s;\n    -moz-transition: all .1s;\n    transition: all .1s;\n}"],
+  "mappings": "AACA,MACI,gBAEJ,cACI,kBAEJ,MACI,aAEJ,aACI,8CAEJ,OACI,SAEJ,YAhBA,sBAmBA,QACI,iBAEJ,kBACI,uBACA,yDAEJ,cACI,mBACA,yDAEJ,KA9BA,aAiCA,aACI,kBAEJ,SACI,kBACA,oBAEJ,UACI,iBACA,cAEJ,SACI,kBACA,oBAEJ,UACI,eACA,cAEJ,WACI,gBAGJ,SACI,oCACQ,4BACR,2BACA,sBACA,wBACA",
   "names": []
 }

@@ -3,28 +3,17 @@ package hollow
 import (
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/stretchr/testify/assert"
-	jsx "github.com/zbysir/gojsx"
-	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"testing"
 )
 
-func TestJsx(t *testing.T) {
-	jx, err := jsx.NewJsx(jsx.Option{
-		SourceCache: nil,
-		Debug:       false,
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+func TestMdx(t *testing.T) {
+
 	f := memfs.New()
 	file, _ := f.Create("index.tsx")
 	file.Write([]byte(`export default function HelloJSX({name}){ return <>{name}</> }`))
 
 	m := NewGoldMdRender(GoldMdRenderOptions{
-		jsx:              jx,
-		fs:               gobilly.NewStdFs(f),
-		assetsUrlProcess: nil,
+		AssetsUrlProcess: nil,
 	})
 
 	cases := []struct {
@@ -46,7 +35,7 @@ Hello
 bysir`),
 		},
 		{
-			Name: "Empty(Currently not supported)",
+			Name: "Empty",
 			In: []byte(`
 import Name from './index.tsx'
 
@@ -58,7 +47,7 @@ Hello
 <Name name={'bysir'}>
 </Name>
 `),
-			Get: []byte("<p>Hello</p>\n<p>&lt;&gt;\n&lt;/&gt;</p>\nbysir"),
+			Get: []byte("<p>Hello</p>\nbysir"),
 		},
 		{
 			Name: "Jsx Inline",
@@ -197,6 +186,17 @@ const name = 1
 `),
 			Get: []byte(`Hello 1`),
 		},
+		{
+			Name: "Inline2",
+
+			In: []byte(`
+const A = ({name}) => <>Hello {name}</>
+const name = 1
+
+<A name={name}></A>
+`),
+			Get: []byte(`Hello 1`),
+		},
 	}
 
 	for _, c := range cases {
@@ -212,33 +212,59 @@ const name = 1
 }
 
 func TestAssert(t *testing.T) {
-	jx, err := jsx.NewJsx(jsx.Option{
-		SourceCache: nil,
-		Debug:       false,
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+
 	f := memfs.New()
 	file, _ := f.Create("index.tsx")
 	file.Write([]byte(`export default function HelloJSX({name}){ return <>{name}</> }`))
 
 	m := NewGoldMdRender(GoldMdRenderOptions{
-		jsx: jx,
-		fs:  gobilly.NewStdFs(f),
-		assetsUrlProcess: func(s string) string {
+		AssetsUrlProcess: func(s string) string {
 			return "1"
 		},
 	})
 
-	a, _ := m.Render([]byte(`## h2
+	a, _ := m.Render([]byte(`
+import HelloJSX from "./index"
+
+## h2
 ![在 Golang 中尝试“干净架构”](../../static/img/在%20Golang%20中尝试干净架构_1.png)
 ![在 Golang 中尝试“干净架构”](/static/img/在%20Golang%20中尝试干净架构_1.png)
 
 在[文中](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)，他提出的干净架构是这样的：
 
-<HelloJSX></HelloJSX>
+<HelloJSX name="hi"></HelloJSX>
 `))
 	t.Logf("%s", a.Body)
+}
+
+func TestMdToJsx(t *testing.T) {
+	f := memfs.New()
+	file, _ := f.Create("index.mdx")
+	file.Write([]byte(`
+const A = ()=> <> AAA </>
+
+## h1 <A></A>
+`))
+
+	m := NewGoldMdRender(GoldMdRenderOptions{
+		AssetsUrlProcess: func(s string) string {
+			return "1"
+		},
+	})
+
+	a, err := m.Render([]byte(`
+import HelloJSX from "./index"
+
+<HelloJSX>
+  <p></p>
+
+## 123
+
+</HelloJSX>
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%s", a.Body)
+
 }

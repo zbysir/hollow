@@ -1,0 +1,2 @@
+(()=>{var i=document.body,a=document.getElementById("element");function m(e,l){let n=a.getBoundingClientRect(),t=-(l-n.y-n.height/2)/10,o=(e-n.x-n.width/2)/10;console.log("yu",t),t=Math.min(Math.abs(t),10)*(t<0?-1:1),o=Math.min(Math.abs(o),10)*(o<0?-1:1),a.style.transform="rotateX("+t+"deg) rotateY("+o+"deg)"}i.addEventListener("mousemove",e=>{window.requestAnimationFrame(function(){m(e.clientX,e.clientY)})});i.addEventListener("mouseleave",e=>{window.requestAnimationFrame(function(){a.style.transform="rotateX(0) rotateY(0)"})});})();
+//# sourceMappingURL=app.js.map

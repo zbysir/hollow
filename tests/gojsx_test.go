@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"fmt"
+	"github.com/stretchr/testify/assert"
 	jsx "github.com/zbysir/gojsx"
 	"testing"
 )
@@ -15,15 +17,16 @@ func TestGoJsx(t *testing.T) {
 		return
 	}
 
-	v, err := jx.RunJs([]byte(`const A = ({name}) => <>Hello {name}</>
-const B = ({name}) => <p>HH</p>;
+	jsCode := "const c2 = 'bysir';const A = ({name}) => <>Hello {name}</>\nconst B = ({name}) => <p>HH</p>;"
+	jsxCode := "<><A name={<B/>}></A> {c2}</>"
 
-<A name={<B/>}></A>`), jsx.WithTransform(true), jsx.WithRunFileName("index.tsx"))
+	code := fmt.Sprintf("%s;module.exports = %s", jsCode, jsxCode)
+
+	v, err := jx.RunJs([]byte(code), jsx.WithTransform(jsx.TransformerFormatIIFE), jsx.WithFileName("index.tsx"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%+v", v.Export())
 	vd := jsx.VDom(v.Export().(map[string]interface{}))
-	t.Logf("%+v", vd.Render())
 
+	assert.Equal(t, "Hello <p>HH</p> bysir", vd.Render())
 }

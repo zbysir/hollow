@@ -1,2 +1,7 @@
 /* 主题已经包含了 base，项目只需要使用 utilities*/
 @tailwind utilities;
+
+#element{
+    transform-style: preserve-3d;
+    transition: all .1s;
+}

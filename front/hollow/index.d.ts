@@ -6,6 +6,13 @@ export interface Content {
     content?: string
     is_dir: boolean
     children?: Content[]
+    toc?: TocItems[]
+}
+
+export interface TocItems {
+    title: string
+    items?: TocItems[]
+    id: string
 }
 
 export interface getContentOpt {

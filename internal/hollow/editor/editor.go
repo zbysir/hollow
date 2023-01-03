@@ -284,7 +284,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			//ThemeFs: fsTheme,
 		})
 
-		conf, err := b.LoadConfig(false)
+		conf, err := b.LoadConfig()
 		if err != nil {
 			c.Error(err)
 			return

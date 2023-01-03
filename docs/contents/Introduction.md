@@ -5,8 +5,6 @@ desc: Modular building blocks for building collaborative applications like Googl
 sort: 1
 ---
 
-> This documentation website is a work in progress. The best source of information is still the Yjs README and the yjs-demos repository.
-
 Yjs is a high-performance [CRDT](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) for building collaborative applications that sync automatically.
 It exposes its internal CRDT model as shared data types that can be manipulated concurrently. Shared types are similar to common data types like Map and Array. They can be manipulated, fire events when changes happen, and automatically merge without merge conflicts.
 

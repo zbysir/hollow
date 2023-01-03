@@ -1,3 +1,3 @@
 export default function (){
-    return <p>LOGO</p>
+    return <p className="ml-[300px]">LOGO</p>
 }

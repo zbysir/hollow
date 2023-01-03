@@ -1,8 +1,6 @@
 package hollow
 
 import (
-	"bytes"
-	"github.com/PuerkitoBio/goquery"
 	jsx "github.com/zbysir/gojsx"
 	"io/fs"
 	"path/filepath"
@@ -31,82 +29,91 @@ type relativeFs struct {
 	relative string
 }
 
-func RelativeFs(fs fs.FS, relative string) fs.FS {
-	return &relativeFs{
-		sub:      fs,
-		relative: relative,
-	}
-}
-
 func (r *relativeFs) Open(name string) (fs.File, error) {
 	re := filepath.Join(r.relative, name)
 	return r.sub.Open(re)
 }
-func trapBOM(fileBytes []byte) []byte {
-	trimmedBytes := bytes.Trim(fileBytes, "\xef\xbb\xbf")
-	return trimmedBytes
+
+func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
+	walkVDom(dom, func(d jsx.VDom) {
+		i := d["nodeName"]
+		nodeName, _ := i.(string)
+		if nodeName == "img" {
+			attr := d["attributes"].(map[string]interface{})
+			src := attr["src"].(string)
+
+			if filepath.IsAbs(src) {
+			} else {
+				src = filepath.Join(baseDir, src)
+			}
+
+			// 移除 assets 文件夹前缀
+			for _, a := range m.assets {
+				if strings.HasPrefix(src, "/"+a) {
+					src = strings.TrimPrefix(src, "/"+a)
+					break
+				}
+			}
+
+			attr["src"] = src
+		}
+	})
+
+	return
 }
 
 func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
+	e, err := m.jsx.Exec("./"+filePath, nil, jsx.WithFs(f))
+	if err != nil {
+		return Content{}, err
+	}
 	fileDir, name := filepath.Split(filePath)
 	if !strings.HasPrefix(fileDir, "/") {
 		fileDir = "/" + fileDir
 	}
 
+	metai := e.Exports["meta"]
+	meta, _ := metai.(map[string]interface{})
+
+	dom := e.Default.VDom
+	m.replaceImgUrl(dom, fileDir)
+	content := dom.Render()
+
 	ext := filepath.Ext(filePath)
-
-	body, err := fs.ReadFile(f, filePath)
-	if err != nil {
-		return Content{}, err
-	}
-	body = trapBOM(body)
-
-	mdRender := NewGoldMdRender(GoldMdRenderOptions{
-		jsx: m.jsx,
-		fs:  RelativeFs(f, fileDir),
-		assetsUrlProcess: func(p string) string {
-			if filepath.IsAbs(p) {
-			} else {
-				p = filepath.Join(fileDir, p)
-			}
-
-			// 移除 assets 文件夹前缀
-			for _, a := range m.assets {
-				if strings.HasPrefix(p, "/"+a) {
-					p = strings.TrimPrefix(p, "/"+a)
-					break
-				}
-			}
-			return p
-		},
-	})
-
-	mdr, err := mdRender.Render(body)
-	if err != nil {
-		return Content{}, err
-	}
-
-	content := ""
-	if withContent {
-		content = string(mdr.Body)
-	}
+	name = strings.TrimSuffix(name, ext)
 
 	return Content{
 		Name: name,
 		GetContent: func(opt GetContentOpt) string {
-			s := string(mdr.Body)
-			if opt.Pure {
-				d, err := goquery.NewDocumentFromReader(strings.NewReader(s))
-				if err != nil {
-					return err.Error()
-				}
-
-				s = d.Text()
-			}
-			return s
+			return content
 		},
-		Meta:    mdr.Meta,
+		Meta:    meta,
 		Ext:     ext,
 		Content: content,
+		IsDir:   false,
+		Toc:     e.Exports["toc"],
 	}, nil
+}
+
+func walkVDom(v jsx.VDom, fun func(d jsx.VDom)) {
+	// 检查所有 img，如果有相对路径，则替换
+	fun(v)
+	attr := v["attributes"]
+	if attr != nil {
+		attrMap := attr.(map[string]interface{})
+		children := attrMap["children"]
+		switch t := children.(type) {
+		case []interface{}:
+			for _, i := range t {
+				switch t := i.(type) {
+				case map[string]interface{}:
+					walkVDom(t, fun)
+				}
+			}
+		case map[string]interface{}:
+			walkVDom(t, fun)
+
+		}
+	}
+
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/helper/chroot"
-	jsx "github.com/zbysir/gojsx"
+	"github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	git "github.com/zbysir/hollow/internal/pkg/git"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
@@ -24,7 +24,7 @@ type ThemeExport struct {
 }
 
 type ThemeLoader interface {
-	Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error)
+	Load(ctx context.Context, x *gojsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error)
 }
 
 // GitThemeLoader
@@ -40,7 +40,7 @@ func NewGitThemeLoader(asyncTask *asynctask.Manager, path string, cacheFs billy.
 }
 
 // Load 会缓存 fs ，只有当强制刷新时更新
-func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
+func (g *GitThemeLoader) Load(ctx context.Context, x *gojsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
 	fileSys := chroot.New(g.cacheFs, "theme")
 
 	_, err := fileSys.Stat(".git")
@@ -51,6 +51,14 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, ena
 			return ThemeExport{}, nil, nil, err
 		}
 	}
+
+	taskKey := util.MD5(g.path)
+	// 如果有异步任务，则直接显示异步任务
+	task, exist := g.asyncTask.GetTask(taskKey)
+	if exist {
+		return ThemeExport{}, nil, task, nil
+	}
+
 	remote, branch, subPath, err := resolveGitUrl(g.path)
 	if err != nil {
 		return ThemeExport{}, nil, nil, err
@@ -58,7 +66,8 @@ func (g *GitThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, ena
 
 	if refresh {
 		if enableAsync {
-			task, isNew := g.asyncTask.NewTask(util.MD5(g.path))
+
+			task, isNew := g.asyncTask.NewTask(taskKey)
 			if isNew {
 				go func() {
 					var err error
@@ -145,7 +154,7 @@ func NewFsThemeLoader(rootFs fs.FS) *LocalThemeLoader {
 	return &LocalThemeLoader{f: rootFs}
 }
 
-func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
+func (l *LocalThemeLoader) Load(ctx context.Context, x *gojsx.Jsx, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
 	theme, err := execTheme(x, l.f, "index")
 	if err != nil {
 		return ThemeExport{}, nil, nil, err
@@ -154,13 +163,14 @@ func (l *LocalThemeLoader) Load(ctx context.Context, x *jsx.Jsx, refresh bool, e
 	return theme, l.f, nil, nil
 }
 
-func execTheme(x *jsx.Jsx, filesys fs.FS, configFile string) (ThemeExport, error) {
+func execTheme(x *gojsx.Jsx, filesys fs.FS, configFile string) (ThemeExport, error) {
 	envBs, _ := json.Marshal(nil)
 	processCode := fmt.Sprintf("var process = {env: %s}", envBs)
 
 	// 添加 ./ 告知 module 加载项目文件而不是 node_module
 	configFile = "./" + filepath.Clean(configFile)
-	v, err := x.RunJs([]byte(fmt.Sprintf(`%s;require("%v").default`, processCode, configFile)), jsx.WithRunFs(filesys))
+	code := fmt.Sprintf(`%s; module.exports = require("%s").default`, processCode, configFile)
+	v, err := x.RunJs([]byte(code), gojsx.WithFs(filesys), gojsx.WithTransform(gojsx.TransformerFormatIIFE))
 	if err != nil {
 		return ThemeExport{}, fmt.Errorf("ExecTheme '%v' error: %w", configFile, err)
 	}

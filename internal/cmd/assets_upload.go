@@ -24,12 +24,12 @@ var AssetsUpload = &cobra.Command{
 			return err
 		}
 
-		conf, err := b.LoadConfig(true)
+		conf, err := b.LoadConfig()
 		if err != nil {
 			return err
 		}
-		q := qiniu.NewQiniu(conf.Oss.AccessKey, conf.Oss.SecretKey)
-		err = q.Uploader().UploadFs(log.Logger(), conf.Oss.Bucket, "img", os.DirFS("./fe"))
+		q := qiniu.NewQiniu(conf.Hollow.Oss.AccessKey, conf.Hollow.Oss.SecretKey)
+		err = q.Uploader().UploadFs(log.Logger(), conf.Hollow.Oss.Bucket, "img", os.DirFS("./fe"))
 		if err != nil {
 			return err
 		}

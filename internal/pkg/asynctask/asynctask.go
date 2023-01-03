@@ -82,6 +82,17 @@ func (m *Manager) NewTask(key string) (t *Task, isNew bool) {
 	return
 }
 
+func (m *Manager) GetTask(key string) (t *Task, exist bool) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
+	if t, ok := m.tasks[key]; ok {
+		return t, true
+	}
+
+	return
+}
+
 func (m *Manager) AddListener(l Listener) {
 	m.listener = l
 	return
