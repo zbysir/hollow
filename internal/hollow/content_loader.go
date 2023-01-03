@@ -42,7 +42,7 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 			attr := d["attributes"].(map[string]interface{})
 			src := attr["src"].(string)
 
-			if filepath.IsAbs(src) {
+			if filepath.IsAbs(src) || strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 			} else {
 				src = filepath.Join(baseDir, src)
 			}
