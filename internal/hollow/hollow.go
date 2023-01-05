@@ -1,6 +1,7 @@
 package hollow
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -994,6 +995,38 @@ func mapDir(fsys fs.FS, name string, walkDirFn func(path string, d fs.DirEntry) 
 	return ats, nil
 }
 
+func trapBOM(fileBytes []byte) []byte {
+	trimmedBytes := bytes.Trim(fileBytes, "\xef\xbb\xbf")
+	return trimmedBytes
+}
+
+// tryReadMeta 尝试读取 meta
+func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
+	// 读取 metadata
+	body, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), file)
+	if err != nil {
+		return nil
+	}
+
+	body = trapBOM(body)
+
+	if bytes.HasPrefix(body, []byte("---\n")) {
+		bbs := bytes.SplitN(body, []byte("---"), 3)
+		if len(bbs) > 2 {
+			metaByte := bbs[1]
+			var meta = map[string]interface{}{}
+			err = yaml.Unmarshal(metaByte, &meta)
+			if err != nil {
+				return nil
+			}
+
+			return meta
+		}
+	}
+
+	return nil
+}
+
 // getContents 返回 dir 目录下的所有内容
 func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	var blogs ContentTrees
@@ -1047,8 +1080,9 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 
 			blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
 			if err != nil {
-				log.Errorf("load blog (%v) file: %v", path, err)
-				return ContentTree{}, nil
+				err = fmt.Errorf("load blog '%v' error: %w", path, err)
+				log.Errorf("%v", err)
+				return ContentTree{Content: b.newErrorContent(path, err)}, nil
 			}
 			// read meta
 			metaFileName := path + ".yaml"
@@ -1105,26 +1139,34 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	}
 }
 
+func (b *Hollow) newErrorContent(file string, err error) Content {
+	errHtml := fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(err.Error()))
+
+	return Content{
+		Name: "Load error: " + file,
+		GetContent: func(opt GetContentOpt) string {
+			return errHtml
+		},
+		Content: errHtml,
+		Ext:     filepath.Ext(file),
+		Meta:    b.tryReadMeta(file),
+	}
+}
+
 // getContentDetail 返回一个内容
 func (b *Hollow) getContentDetail(path string) Content {
 	ext := filepath.Ext(path)
 	loader, ok := b.getContentLoader(ext)
 	if !ok {
-		log.Warnf("unsupported load '%v' file", ext)
-		return Content{}
+		err := fmt.Errorf("unsupported load '%v' file", ext)
+		log.Warnf("%v", err)
+		return b.newErrorContent(path, err)
 	}
 	blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
 	if err != nil {
-		info := fmt.Sprintf("load file '%v' error: %v", path, err)
-		log.Warnf(info)
-		errHtml := fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(info))
-		return Content{
-			Name: "error page",
-			GetContent: func(opt GetContentOpt) string {
-				return errHtml
-			},
-			Content: errHtml,
-		}
+		err = fmt.Errorf("load file '%v' error: %w", path, err)
+		log.Warnf("%v", err)
+		return b.newErrorContent(path, err)
 	}
 	if !ok {
 		return Content{}
