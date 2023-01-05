@@ -25,12 +25,12 @@ require (
 	github.com/thoas/go-funk v0.9.2
 	github.com/yuin/goldmark v1.5.3
 	github.com/yuin/goldmark-meta v1.1.0
-	github.com/zbysir/gojsx v0.2.9
+	github.com/zbysir/gojsx v0.3.0
 	go.uber.org/zap v1.22.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-//replace github.com/zbysir/gojsx v0.2.8 => /Users/bysir/go_project/bysir/gojsx
+//replace github.com/zbysir/gojsx v0.3.0 => /Users/bysir/go_project/bysir/gojsx
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
