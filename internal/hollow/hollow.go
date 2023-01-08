@@ -223,10 +223,7 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 	var themeFs fs.FS
 	themeModule, themeFs, _, err := themeLoader.Load(ctx, b.jsx, true, false)
 	if err != nil {
-		return err
-	}
-	if err != nil {
-		return err
+		return fmt.Errorf("load theme '%s' error: %w", themeUrl, err)
 	}
 	l := b.log
 	if o.Log != nil {
@@ -471,8 +468,8 @@ func (b *Hollow) LoadConfig() (conf Config, err error) {
 	stdFs := gobilly.NewStdFs(b.SourceFs)
 	_, err = easyfs.GetFile(stdFs, "config.ts")
 	if err == nil {
-		var exports jsx.ModuleExport
-		exports, err = b.jsx.ExecCode("root.js", []byte(fmt.Sprintf("module.exports = require('./config.ts')")), nil, jsx.WithFs(stdFs))
+		var exports *jsx.ModuleExport
+		exports, err = b.jsx.ExecCode([]byte(fmt.Sprintf("module.exports = require('./config.ts')")), jsx.WithFs(stdFs))
 		if err != nil {
 			return
 		}
@@ -622,7 +619,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		var task *asynctask.Task
 		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, refresh, true)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("load theme '%s' error: %w", themeUrl, err)
 		}
 		if task != nil {
 			return task.Key, nil
@@ -948,15 +945,11 @@ func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 }
 
 func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ContentTree, error)) (ContentTrees, error) {
-	_, err := fs.Stat(fsys, root)
+	at, err := mapDir(fsys, root, fn)
 	if err != nil {
-
-	} else {
-		at, err := mapDir(fsys, root, fn)
-		return at, err
+		return nil, err
 	}
-
-	return nil, err
+	return at, err
 }
 
 // walkDir recursively descends path, calling walkDirFn.
@@ -1231,6 +1224,8 @@ func exportGojaValueToString(i interface{}) string {
 	switch t := i.(type) {
 	case goja.Value:
 		return t.String()
+	case string:
+		return t
 	}
 
 	return fmt.Sprintf("%T can't to string", i)

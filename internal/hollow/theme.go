@@ -169,14 +169,14 @@ func execTheme(x *gojsx.Jsx, filesys fs.FS, configFile string) (ThemeExport, err
 
 	// 添加 ./ 告知 module 加载项目文件而不是 node_module
 	configFile = "./" + filepath.Clean(configFile)
-	code := fmt.Sprintf(`%s; module.exports = require("%s").default`, processCode, configFile)
-	v, err := x.RunJs([]byte(code), gojsx.WithFs(filesys), gojsx.WithTransform(gojsx.TransformerFormatIIFE))
+	code := fmt.Sprintf(`%s; module.exports = require("%s")`, processCode, configFile)
+	v, err := x.ExecCode([]byte(code), gojsx.WithFs(filesys))
 	if err != nil {
-		return ThemeExport{}, fmt.Errorf("ExecTheme '%v' error: %w", configFile, err)
+		return ThemeExport{}, err
 	}
 
 	// 直接 export 会导致 function 无法捕获 panic，不好实现
-	raw := exportGojaValue(v).(map[string]interface{})
+	raw := exportGojaValue(v.Default.(gojsx.Any).Any).(map[string]interface{})
 
 	pages := raw["pages"].([]interface{})
 	ps := make(Pages, len(pages))
