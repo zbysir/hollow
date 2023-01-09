@@ -63,7 +63,7 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 }
 
 func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
-	e, err := m.jsx.Exec("./"+filePath, nil, jsx.WithFs(f))
+	e, err := m.jsx.Exec("./"+filePath, jsx.WithFs(f), jsx.WithAutoExecJsx(nil))
 	if err != nil {
 		return Content{}, err
 	}
@@ -75,7 +75,13 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 	metai := e.Exports["meta"]
 	meta, _ := metai.(map[string]interface{})
 
-	dom := e.Default.VDom
+	var dom jsx.VDom
+	switch t := e.Default.(type) {
+	case jsx.VDom:
+		dom = t
+	default:
+		panic(t)
+	}
 	m.replaceImgUrl(dom, fileDir)
 	content := dom.Render()
 
@@ -96,6 +102,9 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 }
 
 func walkVDom(v jsx.VDom, fun func(d jsx.VDom)) {
+	if v == nil {
+		return
+	}
 	// 检查所有 img，如果有相对路径，则替换
 	fun(v)
 	attr := v["attributes"]

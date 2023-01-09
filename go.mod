@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/docker/libkv v0.2.1
-	github.com/dop251/goja v0.0.0-20220815083517-0c74f9139fd6
+	github.com/dop251/goja v0.0.0-20221229151140-b95230a9dbad
 	github.com/dop251/goja_nodejs v0.0.0-20221009164102-3aa5028e57f6
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-git/go-billy/v5 v5.3.1
@@ -20,13 +20,13 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.12.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/tdewolff/parse/v2 v2.6.5
 	github.com/thoas/go-funk v0.9.2
 	github.com/yuin/goldmark v1.5.3
 	github.com/yuin/goldmark-meta v1.1.0
-	github.com/zbysir/gojsx v0.3.1
-	go.uber.org/zap v1.22.0
+	github.com/zbysir/gojsx v0.3.2
+	go.uber.org/zap v1.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
