@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type ContentLoader interface {
@@ -74,6 +75,14 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 
 	metai := e.Exports["meta"]
 	meta, _ := metai.(map[string]interface{})
+
+	for k, v := range meta {
+		switch t := v.(type) {
+		case time.Time:
+			// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式，前端才能处理
+			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+		}
+	}
 
 	var dom jsx.VDom
 	switch t := e.Default.(type) {

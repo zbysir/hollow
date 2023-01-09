@@ -1075,35 +1075,8 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 			if err != nil {
 				err = fmt.Errorf("load blog '%v' error: %w", path, err)
 				log.Errorf("%v", err)
-				return ContentTree{Content: b.newErrorContent(path, err)}, nil
+				blog = b.newErrorContent(path, err)
 			}
-			// read meta
-			metaFileName := path + ".yaml"
-			bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
-			if err != nil {
-				if !errors.Is(err, fs.ErrNotExist) {
-					return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
-				}
-				err = nil
-			} else {
-				var m = map[string]interface{}{}
-				err = yaml.Unmarshal(bs, &m)
-				if err != nil {
-					return ContentTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
-				}
-
-				for k, v := range m {
-					blog.Meta[k] = v
-				}
-			}
-			// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
-			for k, v := range blog.Meta {
-				switch t := v.(type) {
-				case time.Time:
-					blog.Meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
-				}
-			}
-			//log.Infof("bs: %+v", blog)
 
 			return ContentTree{Content: blog}, nil
 		})
@@ -1135,6 +1108,15 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 func (b *Hollow) newErrorContent(file string, err error) Content {
 	errHtml := fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(err.Error()))
 
+	meta := b.tryReadMeta(file)
+	for k, v := range meta {
+		switch t := v.(type) {
+		case time.Time:
+			// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式，前端才能处理
+			meta[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+		}
+	}
+
 	return Content{
 		Name: "Load error: " + file,
 		GetContent: func(opt GetContentOpt) string {
@@ -1142,7 +1124,7 @@ func (b *Hollow) newErrorContent(file string, err error) Content {
 		},
 		Content: errHtml,
 		Ext:     filepath.Ext(file),
-		Meta:    b.tryReadMeta(file),
+		Meta:    meta,
 	}
 }
 
@@ -1160,9 +1142,6 @@ func (b *Hollow) getContentDetail(path string) Content {
 		err = fmt.Errorf("load file '%v' error: %w", path, err)
 		log.Warnf("%v", err)
 		return b.newErrorContent(path, err)
-	}
-	if !ok {
-		return Content{}
 	}
 
 	return blog
