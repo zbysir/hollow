@@ -3,6 +3,7 @@ module github.com/zbysir/hollow
 go 1.18
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/docker/libkv v0.2.1
 	github.com/dop251/goja v0.0.0-20221229151140-b95230a9dbad
 	github.com/gin-gonic/gin v1.8.1
@@ -35,6 +36,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect

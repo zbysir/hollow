@@ -1,6 +1,7 @@
 package hollow
 
 import (
+	"github.com/PuerkitoBio/goquery"
 	jsx "github.com/zbysir/gojsx"
 	"io/fs"
 	"path/filepath"
@@ -23,6 +24,16 @@ func NewMDLoader(assets Assets, jsx *jsx.Jsx) *MDLoader {
 
 type GetContentOpt struct {
 	Pure bool `json:"pure"` // 返回纯文本，一般用于做搜索
+}
+
+func processContent(content string, opt GetContentOpt) string {
+	if opt.Pure {
+		d, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err == nil {
+			content = d.Text()
+		}
+	}
+	return content
 }
 
 type relativeFs struct {
@@ -100,7 +111,7 @@ func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, er
 	return Content{
 		Name: name,
 		GetContent: func(opt GetContentOpt) string {
-			return content
+			return processContent(content, opt)
 		},
 		Meta:    meta,
 		Ext:     ext,
