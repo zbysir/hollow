@@ -30,6 +30,7 @@ func GetFile(fs stdFs.FS, path string) (fi *File, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer nf.Close()
 	finfo, err := nf.Stat()
 	if err != nil {
 		return nil, err

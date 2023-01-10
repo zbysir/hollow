@@ -464,13 +464,29 @@ func loadYamlConfig(body string, expandEnv bool) (con Config, err error) {
 }
 
 // LoadConfig 加载 source 下的 config 文件
-// TODO env
 func (b *Hollow) LoadConfig() (conf Config, err error) {
+	cacheKey := fmt.Sprintf("config")
+	x, ok := b.cache.Get(cacheKey)
+	if ok {
+		return x.(Config), nil
+	}
+	defer func() {
+		if err == nil {
+			b.cache.Add(cacheKey, conf)
+		}
+	}()
+
+	var jsConfigExist = false
+	for _, f := range []string{"config.ts", "config.js"} {
+		_, err := b.SourceFs.Stat(f)
+		if err == nil {
+			jsConfigExist = true
+		}
+	}
 	stdFs := gobilly.NewStdFs(b.SourceFs)
-	_, err = easyfs.GetFile(stdFs, "config.ts")
-	if err == nil {
+	if jsConfigExist {
 		var exports *jsx.ModuleExport
-		exports, err = b.jsx.ExecCode([]byte(fmt.Sprintf("module.exports = require('./config.ts')")), jsx.WithFs(stdFs))
+		exports, err = b.jsx.ExecCode([]byte(fmt.Sprintf("module.exports = require('./config')")), jsx.WithFs(stdFs))
 		if err != nil {
 			return
 		}
@@ -1105,9 +1121,12 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	}
 }
 
-func (b *Hollow) newErrorContent(file string, err error) Content {
-	errHtml := fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(err.Error()))
+func (b *Hollow) newHtmlErrorMsg(err error) string {
+	return fmt.Sprintf("<pre><code>%v</code></pre>", html.EscapeString(err.Error()))
+}
 
+func (b *Hollow) newErrorContent(file string, err error) Content {
+	errHtml := b.newHtmlErrorMsg(err)
 	meta := b.tryReadMeta(file)
 	for k, v := range meta {
 		switch t := v.(type) {
@@ -1160,36 +1179,29 @@ type MdOptions struct {
 	Unwrap bool `json:"unwrap"`
 }
 
-// TODO use jsx ExecCode 代替
 func (b *Hollow) md(str string, options MdOptions) string {
-	md := NewGoldMdRender(GoldMdRenderOptions{
-		JsxRender:        nil,
-		AssetsUrlProcess: nil,
-	})
-	r, err := md.Render([]byte(str))
+	ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.md"), jsx.WithAutoExecJsx(nil))
 	if err != nil {
 		return err.Error()
 	}
-	s := string(r.Body)
-	if options.Unwrap {
+	v := ex.Default.(jsx.VDom)
+	s := v.Render()
+	// 支持处理只有一个 p 的情况，无法处理 <p> 1 </p> <h1> h1 </h1> <p> 2 </p>
+	if options.Unwrap && strings.Count(s, "<p>") == 1 {
 		s = strings.TrimPrefix(s, "<p>")
 		s = strings.TrimSuffix(s, "</p>")
 	}
 	return s
 }
 
-// TODO use jsx ExecCode 代替
 func (b *Hollow) mdx(str string, options MdOptions) string {
-	md := NewGoldMdRender(GoldMdRenderOptions{
-		//JsxRender:        mdxrender.NewJsxRender(b.jsx, gobilly.NewStdFs(b.SourceFs)),
-		AssetsUrlProcess: nil,
-	})
-	r, err := md.Render([]byte(str))
+	ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.mdx"), jsx.WithAutoExecJsx(nil))
 	if err != nil {
 		return err.Error()
 	}
-	s := string(r.Body)
-	if options.Unwrap {
+	v := ex.Default.(jsx.VDom)
+	s := v.Render()
+	if options.Unwrap && strings.Count(s, "<p>") == 1 {
 		s = strings.TrimPrefix(s, "<p>")
 		s = strings.TrimSuffix(s, "</p>")
 	}

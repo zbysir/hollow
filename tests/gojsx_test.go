@@ -22,11 +22,12 @@ func TestGoJsx(t *testing.T) {
 
 	code := fmt.Sprintf("%s;module.exports = %s", jsCode, jsxCode)
 
-	v, err := jx.RunJs([]byte(code), jsx.WithTransform(jsx.TransformerFormatIIFE), jsx.WithFileName("index.tsx"))
+	v, err := jx.ExecCode([]byte(code), jsx.WithFileName("index.tsx"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	vd := jsx.VDom(v.Export().(map[string]interface{}))
+
+	vd := jsx.VDom(v.Exports)
 
 	assert.Equal(t, "Hello <p>HH</p> bysir", vd.Render())
 }

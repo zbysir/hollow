@@ -2,10 +2,6 @@ package tests
 
 import (
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/console"
-	"github.com/dop251/goja_nodejs/require"
-	"github.com/zbysir/hollow/jslib/mdx"
-	"io"
 	"testing"
 )
 
@@ -28,35 +24,11 @@ func TestGetterSetter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vm2 := goja.New()
-	err = vm2.Set("aaaa", o)
+	//vm2 := goja.New()
+	err = vm.Set("aaaa", o)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", o.Export())
-	t.Logf("%+v", vm2.Get("aaa"))
-}
-
-func TestRunMdx(t *testing.T) {
-	vm := goja.New()
-	require.NewRegistry().Enable(vm)
-	console.Enable(vm)
-	f, err := mdx.Dist.Open("dist/index.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	body, err := io.ReadAll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//t.Logf("%s", body)
-	vm.RunString("module = {}")
-	v, err := vm.RunScript("x", string(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Logf("%+v", v.Export())
+	t.Logf("%+v", vm.Get("aaa"))
 }

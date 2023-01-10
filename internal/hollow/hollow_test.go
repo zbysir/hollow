@@ -36,6 +36,20 @@ func TestSource(t *testing.T) {
 	//t.Logf("%s", bs)
 }
 
+func TestMd(t *testing.T) {
+	b, err := NewHollow(Option{
+		SourceFs: osfs.New("./testdata"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	as := b.md("# h1", MdOptions{})
+	t.Logf("%+v", as)
+	as = b.md("123", MdOptions{})
+	t.Logf("%+v", as)
+}
+
 func TestBuildFromFs(t *testing.T) {
 	d, err := db.NewKvDb("./editor/database")
 	if err != nil {
