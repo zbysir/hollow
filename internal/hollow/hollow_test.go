@@ -17,8 +17,8 @@ func TestSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	as := b.getContents("contents", getBlogOption{
-		Tree: false,
+	as := b.getContents(".", getBlogOption{
+		Tree: true,
 	})
 
 	for _, b := range as.List {

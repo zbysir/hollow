@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -112,6 +113,8 @@ type Hollow struct {
 	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 	asyncTask *asynctask.Manager
 	wsHub     *ws.WsHub
+	debug     bool
+	timerDeep int32
 
 	Option
 }
@@ -179,6 +182,7 @@ func NewHollow(o Option) (*Hollow, error) {
 		cache:     cache,
 		asyncTask: asynctask.NewManager(),
 		wsHub:     ws.NewHub(),
+		debug:     os.Getenv("DEBUG") != "",
 	}
 	b.asyncTask.AddListener(func(task *asynctask.Task, event *asynctask.Event) {
 		if event.IsDone {
@@ -605,11 +609,27 @@ func (b *Hollow) prepareThemeUrl(projectTheme string, fixedTheme string) string 
 	return themeUrl
 }
 
+func (b *Hollow) timerStart(span string) func() {
+	if !b.debug {
+		return func() {}
+	}
+	deep := atomic.AddInt32(&b.timerDeep, 1)
+	n := time.Now()
+	fmt.Printf("[timer]%s %s start\n", strings.Repeat(" ", int((deep-1)*2)), span)
+	return func() {
+		tc := time.Since(n)
+		fmt.Printf("[timer]%s %s end %v\n", strings.Repeat(" ", int((deep-1)*2)), span, tc)
+		atomic.AddInt32(&b.timerDeep, -1)
+	}
+}
+
 func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
 	var themeModule ThemeExport
 
 	prepare := func(opt *PrepareOpt) (asyncTaskKey string, err error) {
+		end := b.timerStart("config")
+
 		b.cache.Purge()
 		var projectConf Config
 
@@ -621,6 +641,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 				return "", err
 			}
 		}
+		end()
 
 		refresh := false
 		if opt != nil && opt.NoCache {
@@ -634,10 +655,12 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		}
 		var themeFs fs.FS
 		var task *asynctask.Task
+		end = b.timerStart("theme")
 		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, refresh, true)
 		if err != nil {
 			return "", fmt.Errorf("load theme '%s' error: %w", themeUrl, err)
 		}
+		end()
 		if task != nil {
 			return task.Key, nil
 		}
@@ -653,6 +676,7 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 				fs: http.FS(sub),
 			})
 		}
+
 		for _, dir := range projectConf.Hollow.Assets {
 			sub, err := fs.Sub(gobilly.NewStdFs(b.SourceFs), dir)
 			if err != nil {
@@ -849,8 +873,9 @@ func (b *Hollow) Service(ctx context.Context, o ExecOption, addr string) error {
 	sub, _ := fs.Sub(hollowdev.Dist, "dist")
 	r.StaticFS("/_dev_/static", http.FS(sub))
 	//r.StaticFileFS("/_dev_/index.js", "dist/index.js", http.FS(editor.HollowDevFront))
+	handle := b.ServiceHandle(o)
 	r.NoRoute(func(c *gin.Context) {
-		b.ServiceHandle(o)(c.Writer, c.Request)
+		handle(c.Writer, c.Request)
 	})
 
 	s.Handler("/", r.Handler().ServeHTTP)
@@ -952,7 +977,7 @@ type BlogList struct {
 func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 	c, err := b.LoadConfig()
 	if err != nil {
-		log.Warnf("LoadConfig for getContentLoader error: %v", err)
+		// log.Warnf("LoadConfig for getContentLoader error: %v", err)
 	}
 	switch ext {
 	case ".md", ".mdx":
@@ -961,7 +986,7 @@ func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
 	return nil, false
 }
 
-func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ContentTree, error)) (ContentTrees, error) {
+func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (ContentTree, bool, error)) (ContentTrees, error) {
 	at, err := mapDir(fsys, root, fn)
 	if err != nil {
 		return nil, err
@@ -970,27 +995,26 @@ func MapDir(fsys fs.FS, root string, fn func(path string, d fs.DirEntry) (Conten
 }
 
 // walkDir recursively descends path, calling walkDirFn.
-func mapDir(fsys fs.FS, name string, walkDirFn func(path string, d fs.DirEntry) (ContentTree, error)) ([]ContentTree, error) {
-	dirs, err := fs.ReadDir(fsys, name)
+func mapDir(fsys fs.FS, name string, walkDirFn func(path string, d fs.DirEntry) (ContentTree, bool, error)) ([]ContentTree, error) {
+	items, err := fs.ReadDir(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 	var ats []ContentTree
-	for _, d1 := range dirs {
-		name1 := path.Join(name, d1.Name())
+	for _, item := range items {
+		nextName := path.Join(name, item.Name())
 
-		a, err := walkDirFn(name1, d1)
+		a, ok, err := walkDirFn(nextName, item)
 		if err != nil {
 			return nil, err
 		}
-
-		// 忽略没有名字的文件夹或者文件
-		if a.Name == "" {
+		if !ok {
 			continue
 		}
+
 		var children ContentTrees
-		if d1.IsDir() {
-			children, err = mapDir(fsys, name1, walkDirFn)
+		if item.IsDir() {
+			children, err = mapDir(fsys, nextName, walkDirFn)
 			if err != nil {
 				return nil, err
 			}
@@ -1036,8 +1060,12 @@ func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
 	return nil
 }
 
+//func MapDirGo()
+
 // getContents 返回 dir 目录下的所有内容
 func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
+	end := b.timerStart("getContents")
+	defer end()
 	var blogs ContentTrees
 	//var total int
 	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
@@ -1045,7 +1073,39 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 	if ok {
 		blogs = x.(ContentTrees)
 	} else {
-		ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, error) {
+		contents := sync.Map{}
+		var wg sync.WaitGroup
+		MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
+			if !d.IsDir() {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					ext := filepath.Ext(path)
+					loader, ok := b.getContentLoader(ext)
+					if !ok {
+						return
+					}
+
+					blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
+
+					if err != nil {
+						err = fmt.Errorf("load blog '%v' error: %w", path, err)
+						log.Errorf("%v", err)
+						blog = b.newErrorContent(path, err)
+					}
+
+					contents.Store(path, blog)
+
+					return
+				}()
+			}
+
+			return ContentTree{}, true, nil
+		})
+		wg.Wait()
+
+		ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
 			if d.IsDir() {
 				// read dir meta
 				var mate = map[string]interface{}{}
@@ -1053,13 +1113,13 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 				bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
 				if err != nil {
 					if !errors.Is(err, fs.ErrNotExist) {
-						return ContentTree{}, fmt.Errorf("read meta file error: %w", err)
+						return ContentTree{}, false, fmt.Errorf("read meta file error: %w", err)
 					}
 					err = nil
 				} else {
 					err = yaml.Unmarshal(bs, &mate)
 					if err != nil {
-						return ContentTree{}, fmt.Errorf("unmarshal meta file error: %w", err)
+						return ContentTree{}, false, fmt.Errorf("unmarshal meta file error: %w", err)
 					}
 				}
 				// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
@@ -1078,23 +1138,15 @@ func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
 					Ext:     "",
 					Content: "",
 					IsDir:   true,
-				}}, nil
+				}}, true, nil
 			}
 
-			ext := filepath.Ext(path)
-			loader, ok := b.getContentLoader(ext)
+			i, ok := contents.Load(path)
 			if !ok {
-				return ContentTree{}, nil
+				return ContentTree{}, false, nil
 			}
 
-			blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
-			if err != nil {
-				err = fmt.Errorf("load blog '%v' error: %w", path, err)
-				log.Errorf("%v", err)
-				blog = b.newErrorContent(path, err)
-			}
-
-			return ContentTree{Content: blog}, nil
+			return ContentTree{Content: i.(Content)}, true, nil
 		})
 		if err != nil {
 			log.Warnf("getContents error: %v", err)
