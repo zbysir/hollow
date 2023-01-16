@@ -6,7 +6,10 @@
 
 ## 优化
 - [x] config 支持 js 脚本（部分数据结构，如列表使用 js 能更好表达）
-- [ ] 为 server 命令添加 timer 监控时间。
+- [x] 为 server 命令添加 timer 监控时间。
+- [x] 优化 js 编译、执行缓存
+- [x] 为每次 req 添加上下文，方便添加 cache pre req。
+- [ ] 找到并解决并发执行 panic 的问题
 
 ## 完善主题
 

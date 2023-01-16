@@ -24,7 +24,7 @@ var AssetsUpload = &cobra.Command{
 			return err
 		}
 
-		conf, err := b.LoadConfig()
+		conf, err := b.LoadConfig(hollow.NewRenderContext())
 		if err != nil {
 			return err
 		}

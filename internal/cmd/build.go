@@ -7,7 +7,6 @@ import (
 	"github.com/zbysir/hollow/internal/hollow"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
-	"github.com/zbysir/hollow/internal/pkg/signal"
 )
 
 type BuildParams struct {
@@ -24,20 +23,20 @@ var Build = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		ctx, c := signal.NewContext()
-		defer c()
+		//ctx, c := signal.NewContext()
+		//defer c()
 
 		//gin.SetMode(gin.ReleaseMode)
 		log.Infof("config: %+v", p)
 
-		b, err := hollow.NewHollow(hollow.Option{
+		ho, err := hollow.NewHollow(hollow.Option{
 			SourceFs: osfs.New(p.Source),
 		})
 		if err != nil {
 			return err
 		}
 
-		err = b.Build(ctx, p.Output, hollow.ExecOption{IsDev: true})
+		err = ho.Build(hollow.NewRenderContext(), p.Output, hollow.ExecOption{IsDev: true})
 		if err != nil {
 			return err
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/gookit/color"
 	"github.com/gorilla/websocket"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	jsx "github.com/zbysir/gojsx"
 	hollowdev "github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
@@ -25,6 +25,7 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/http_file_server"
 	"github.com/zbysir/hollow/internal/pkg/httpsrv"
 	"github.com/zbysir/hollow/internal/pkg/log"
+	"github.com/zbysir/hollow/internal/pkg/timetrack"
 	"github.com/zbysir/hollow/internal/pkg/ws"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -39,7 +40,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -110,13 +110,33 @@ func (p Page) Render() (string, error) {
 type Hollow struct {
 	jsx       *jsx.Jsx
 	log       *zap.SugaredLogger
-	cache     *lru.Cache // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 	asyncTask *asynctask.Manager
 	wsHub     *ws.WsHub
 	debug     bool
 	timerDeep int32
 
 	Option
+}
+
+type RenderContext struct {
+	cache *lru.Cache[string, interface{}] // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
+	timer *timetrack.TimeTracker
+	debug bool
+}
+
+func (b *RenderContext) timerStart(span string) func() {
+	if !b.debug {
+		return func() {}
+	}
+	return b.timer.Start(span)
+}
+
+func NewRenderContext() *RenderContext {
+	c, _ := lru.New[string, interface{}](100)
+	return &RenderContext{
+		cache: c,
+		timer: &timetrack.TimeTracker{},
+	}
 }
 
 type Option struct {
@@ -132,28 +152,6 @@ func (f StdFileSystem) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
-type MemJsxCache struct {
-	m *sync.Map
-}
-
-func NewMemJsxCache() *MemJsxCache {
-	return &MemJsxCache{m: &sync.Map{}}
-}
-
-func (m *MemJsxCache) Get(key string) (f *jsx.Source, exist bool, err error) {
-	i, ok := m.m.Load(key)
-	if !ok {
-		return nil, false, nil
-	}
-
-	return i.(*jsx.Source), true, nil
-}
-
-func (m *MemJsxCache) Set(key string, f *jsx.Source) (err error) {
-	m.m.Store(key, f)
-	return nil
-}
-
 func NewHollow(o Option) (*Hollow, error) {
 	if o.SourceFs == nil {
 		o.SourceFs = osfs.New(".")
@@ -164,22 +162,16 @@ func NewHollow(o Option) (*Hollow, error) {
 
 	var err error
 	jx, err := jsx.NewJsx(jsx.Option{
-		SourceCache: NewMemJsxCache(),
-		Debug:       false,
+		Debug: false,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	cache, err := lru.New(100)
-	if err != nil {
-		return nil, err
-	}
 	b := &Hollow{
 		jsx:       jx,
 		Option:    o,
 		log:       log.Logger(),
-		cache:     cache,
 		asyncTask: asynctask.NewManager(),
 		wsHub:     ws.NewHub(),
 		debug:     os.Getenv("DEBUG") != "",
@@ -192,14 +184,6 @@ func NewHollow(o Option) (*Hollow, error) {
 		}
 	})
 
-	jx.RegisterModule("@bysir/hollow", map[string]interface{}{
-		"getContents":      b.getContents,
-		"getConfig":        b.getConfig,
-		"getContentDetail": b.getContentDetail,
-		"md":               b.md,
-		"mdx":              b.mdx,
-	})
-
 	return b, nil
 }
 
@@ -210,25 +194,41 @@ type ExecOption struct {
 }
 
 // Build 生成静态源文件
-func (b *Hollow) Build(ctx context.Context, distPath string, o ExecOption) error {
+func (b *Hollow) Build(ctx *RenderContext, distPath string, o ExecOption) error {
 	return b.BuildToFs(ctx, osfs.New(distPath), o)
 }
 
-func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
+func (b *Hollow) loadTheme(ctx *RenderContext, url string, refresh bool, enableAsync bool) (ThemeExport, fs.FS, *asynctask.Task, error) {
+	themeLoader, err := b.getThemeLoader(url)
+	if err != nil {
+		return ThemeExport{}, nil, nil, err
+	}
+
+	themeModule, themeFs, task, err := themeLoader.Load(ctx, b.jsx, refresh, enableAsync, jsx.WithNativeModule("@bysir/hollow", map[string]interface{}{
+		"getContents":      b.getContents(ctx),
+		"getConfig":        b.getConfig(ctx),
+		"getContentDetail": b.getContentDetail(ctx),
+		"md":               b.md(ctx),
+		"mdx":              b.mdx(ctx),
+	}))
+	if err != nil {
+		return ThemeExport{}, nil, nil, fmt.Errorf("load theme '%s' error: %w", url, err)
+	}
+
+	return themeModule, themeFs, task, nil
+}
+
+func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(ctx)
 	if err != nil {
 		return err
 	}
 	themeUrl := b.prepareThemeUrl(conf.Hollow.Theme, b.FixedTheme)
-	themeLoader, err := b.GetThemeLoader(themeUrl)
+
+	themeModule, themeFs, _, err := b.loadTheme(ctx, themeUrl, true, false)
 	if err != nil {
 		return err
-	}
-	var themeFs fs.FS
-	themeModule, themeFs, _, err := themeLoader.Load(ctx, b.jsx, true, false)
-	if err != nil {
-		return fmt.Errorf("load theme '%s' error: %w", themeUrl, err)
 	}
 	l := b.log
 	if o.Log != nil {
@@ -285,13 +285,13 @@ func (b *Hollow) BuildToFs(ctx context.Context, dst billy.Filesystem, o ExecOpti
 	return nil
 }
 
-func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o ExecOption) error {
+func (b *Hollow) BuildAndPublish(ctx *RenderContext, dst billy.Filesystem, o ExecOption) error {
 	err := b.BuildToFs(ctx, dst, o)
 	if err != nil {
 		return err
 	}
 
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func (b *Hollow) BuildAndPublish(ctx context.Context, dst billy.Filesystem, o Ex
 }
 
 func (b *Hollow) PushProject(o ExecOption) error {
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(NewRenderContext())
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func (b *Hollow) PushProject(o ExecOption) error {
 }
 
 func (b *Hollow) PullProject(o ExecOption) error {
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(NewRenderContext())
 	if err != nil {
 		return err
 	}
@@ -468,15 +468,15 @@ func loadYamlConfig(body string, expandEnv bool) (con Config, err error) {
 }
 
 // LoadConfig 加载 source 下的 config 文件
-func (b *Hollow) LoadConfig() (conf Config, err error) {
+func (b *Hollow) LoadConfig(ctx *RenderContext) (conf Config, err error) {
 	cacheKey := fmt.Sprintf("config")
-	x, ok := b.cache.Get(cacheKey)
+	x, ok := ctx.cache.Get(cacheKey)
 	if ok {
 		return x.(Config), nil
 	}
 	defer func() {
 		if err == nil {
-			b.cache.Add(cacheKey, conf)
+			ctx.cache.Add(cacheKey, conf)
 		}
 	}()
 
@@ -540,11 +540,11 @@ func prepareThemeUrl(url string, defaultProtocol string) string {
 	}
 }
 
-// GetThemeLoader 返回主题加载器，支持以下协议的地址。
+// getThemeLoader 返回主题加载器，支持以下协议的地址。
 // https:// : git
 // file:// : relative or absolute path, e.g. file://usr/bysir/xx , file://./bysir/xx
 // source:// : relative path of source fs
-func (b *Hollow) GetThemeLoader(url string) (ThemeLoader, error) {
+func (b *Hollow) getThemeLoader(url string) (ThemeLoader, error) {
 	switch {
 	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
 		return NewGitThemeLoader(b.asyncTask, url, b.CacheFs), nil
@@ -609,31 +609,16 @@ func (b *Hollow) prepareThemeUrl(projectTheme string, fixedTheme string) string 
 	return themeUrl
 }
 
-func (b *Hollow) timerStart(span string) func() {
-	if !b.debug {
-		return func() {}
-	}
-	deep := atomic.AddInt32(&b.timerDeep, 1)
-	n := time.Now()
-	fmt.Printf("[timer]%s %s start\n", strings.Repeat(" ", int((deep-1)*2)), span)
-	return func() {
-		tc := time.Since(n)
-		fmt.Printf("[timer]%s %s end %v\n", strings.Repeat(" ", int((deep-1)*2)), span, tc)
-		atomic.AddInt32(&b.timerDeep, -1)
-	}
-}
-
 func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, request *http.Request) {
 	var assetsHandler http.Handler
 	var themeModule ThemeExport
 
-	prepare := func(opt *PrepareOpt) (asyncTaskKey string, err error) {
-		end := b.timerStart("config")
+	prepare := func(ctx *RenderContext, opt *PrepareOpt) (asyncTaskKey string, err error) {
+		end := ctx.timerStart("config")
 
-		b.cache.Purge()
 		var projectConf Config
 
-		projectConf, err = b.LoadConfig()
+		projectConf, err = b.LoadConfig(ctx)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 
@@ -649,16 +634,12 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 		}
 
 		themeUrl := b.prepareThemeUrl(projectConf.Hollow.Theme, b.FixedTheme)
-		themeLoader, err := b.GetThemeLoader(themeUrl)
-		if err != nil {
-			return "", err
-		}
 		var themeFs fs.FS
 		var task *asynctask.Task
-		end = b.timerStart("theme")
-		themeModule, themeFs, task, err = themeLoader.Load(context.Background(), b.jsx, refresh, true)
+		end = ctx.timerStart("theme")
+		themeModule, themeFs, task, err = b.loadTheme(ctx, themeUrl, refresh, true)
 		if err != nil {
-			return "", fmt.Errorf("load theme '%s' error: %w", themeUrl, err)
+			return "", err
 		}
 		end()
 		if task != nil {
@@ -693,7 +674,8 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 
 	// 不是 dev 环境只会加载一次主题，而不是每次刷新页面都加载
 	if !o.IsDev {
-		task, err := prepare(nil)
+		ctx := NewRenderContext()
+		task, err := prepare(ctx, nil)
 		if err != nil {
 			return func(writer http.ResponseWriter, request *http.Request) {
 				handleError(err, writer, request)
@@ -710,11 +692,13 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 	return func(writer http.ResponseWriter, request *http.Request) {
 		reqPath := strings.Trim(request.URL.Path, "/")
 
+		ctx := NewRenderContext()
+
 		if o.IsDev {
 			opt := PrepareOpt{
 				NoCache: request.Header.Get("Cache-Control") == "no-cache",
 			}
-			task, err := prepare(&opt)
+			task, err := prepare(ctx, &opt)
 			if err != nil {
 				handleError(err, writer, request)
 				return
@@ -749,19 +733,19 @@ var upgrader = websocket.Upgrader{
 
 // DevService 运行前端开发逻辑，如 yarn dev
 func (b *Hollow) DevService(ctx context.Context) error {
-	config, err := b.LookupConfig()
+	conf, err := b.LookupConfig(NewRenderContext())
 	if err != nil {
 		return err
 	}
 
 	var wg sync.WaitGroup
 
-	if config.ThemePath != "" {
+	if conf.ThemePath != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			ok, err := b.checkPackageJsonScript(config.ThemePath, "dev")
+			ok, err := b.checkPackageJsonScript(conf.ThemePath, "dev")
 			if err != nil {
 				panic(err)
 			}
@@ -771,20 +755,20 @@ func (b *Hollow) DevService(ctx context.Context) error {
 
 			name := "Theme "
 			col := color.Green
-			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%s] [%s]", name, config.ThemePath)))
-			err = b.runDevServer(ctx, name, col, config.ThemePath)
+			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%s] [%s]", name, conf.ThemePath)))
+			err = b.runDevServer(ctx, name, col, conf.ThemePath)
 			if err != nil {
 				log.Errorf(col.Render(fmt.Sprintf("RunDevServer [%v] error: %v", name, err)))
 			}
 		}()
 	}
 
-	if config.SourcePath != "" && config.ThemePath != config.SourcePath {
+	if conf.SourcePath != "" && conf.ThemePath != conf.SourcePath {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			ok, err := b.checkPackageJsonScript(config.SourcePath, "dev")
+			ok, err := b.checkPackageJsonScript(conf.SourcePath, "dev")
 			if err != nil {
 				panic(err)
 			}
@@ -794,9 +778,9 @@ func (b *Hollow) DevService(ctx context.Context) error {
 
 			name := "Source"
 			col := color.Magenta
-			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%v] [%v]", name, config.SourcePath)))
+			log.Infof(col.Render(fmt.Sprintf("Running dev service for [%v] [%v]", name, conf.SourcePath)))
 
-			err = b.runDevServer(ctx, name, col, config.SourcePath)
+			err = b.runDevServer(ctx, name, col, conf.SourcePath)
 			if err != nil {
 				log.Errorf(col.Render(fmt.Sprintf("RunDevServer [%v] error: %v", name, err)))
 			}
@@ -974,8 +958,8 @@ type BlogList struct {
 	List  []ContentTree `json:"list"`
 }
 
-func (b *Hollow) getContentLoader(ext string) (l ContentLoader, ok bool) {
-	c, err := b.LoadConfig()
+func (b *Hollow) getContentLoader(ctx *RenderContext, ext string) (l ContentLoader, ok bool) {
+	c, err := b.LoadConfig(ctx)
 	if err != nil {
 		// log.Warnf("LoadConfig for getContentLoader error: %v", err)
 	}
@@ -1063,113 +1047,117 @@ func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
 //func MapDirGo()
 
 // getContents 返回 dir 目录下的所有内容
-func (b *Hollow) getContents(dir string, opt getBlogOption) BlogList {
-	end := b.timerStart("getContents")
-	defer end()
-	var blogs ContentTrees
-	//var total int
-	cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
-	x, ok := b.cache.Get(cacheKey)
-	if ok {
-		blogs = x.(ContentTrees)
-	} else {
-		contents := sync.Map{}
-		var wg sync.WaitGroup
-		MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
-			if !d.IsDir() {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOption) BlogList {
+	return func(dir string, opt getBlogOption) BlogList {
+		end := ctx.timerStart("getContents")
+		defer end()
+		var blogs ContentTrees
+		//var total int
+		cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
 
-					ext := filepath.Ext(path)
-					loader, ok := b.getContentLoader(ext)
-					if !ok {
+		// cache 在多个请求中被公用，在并发情况下不能正常工作。
+		x, ok := ctx.cache.Get(cacheKey)
+		if ok {
+			blogs = x.(ContentTrees)
+		} else {
+			contents := sync.Map{}
+			var wg sync.WaitGroup
+			MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
+				if !d.IsDir() {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+
+						ext := filepath.Ext(path)
+						loader, ok := b.getContentLoader(ctx, ext)
+						if !ok {
+							return
+						}
+
+						blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
+
+						if err != nil {
+							err = fmt.Errorf("load blog '%v' error: %w", path, err)
+							log.Errorf("%v", err)
+							blog = b.newErrorContent(path, err)
+						}
+
+						contents.Store(path, blog)
+
 						return
-					}
-
-					blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
-
-					if err != nil {
-						err = fmt.Errorf("load blog '%v' error: %w", path, err)
-						log.Errorf("%v", err)
-						blog = b.newErrorContent(path, err)
-					}
-
-					contents.Store(path, blog)
-
-					return
-				}()
-			}
-
-			return ContentTree{}, true, nil
-		})
-		wg.Wait()
-
-		ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
-			if d.IsDir() {
-				// read dir meta
-				var mate = map[string]interface{}{}
-				metaFileName := filepath.Join(path, "meta.yaml")
-				bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
-				if err != nil {
-					if !errors.Is(err, fs.ErrNotExist) {
-						return ContentTree{}, false, fmt.Errorf("read meta file error: %w", err)
-					}
-					err = nil
-				} else {
-					err = yaml.Unmarshal(bs, &mate)
-					if err != nil {
-						return ContentTree{}, false, fmt.Errorf("unmarshal meta file error: %w", err)
-					}
+					}()
 				}
-				// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
-				for k, v := range mate {
-					switch t := v.(type) {
-					case time.Time:
-						mate[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+
+				return ContentTree{}, true, nil
+			})
+			wg.Wait()
+
+			ts, err := MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
+				if d.IsDir() {
+					// read dir meta
+					var mate = map[string]interface{}{}
+					metaFileName := filepath.Join(path, "meta.yaml")
+					bs, err := fs.ReadFile(gobilly.NewStdFs(b.SourceFs), metaFileName)
+					if err != nil {
+						if !errors.Is(err, fs.ErrNotExist) {
+							return ContentTree{}, false, fmt.Errorf("read meta file error: %w", err)
+						}
+						err = nil
+					} else {
+						err = yaml.Unmarshal(bs, &mate)
+						if err != nil {
+							return ContentTree{}, false, fmt.Errorf("unmarshal meta file error: %w", err)
+						}
 					}
+					// 格式化为 Mon Jan 02 2006 15:04:05 GMT-0700 (MST) 格式
+					for k, v := range mate {
+						switch t := v.(type) {
+						case time.Time:
+							mate[k] = t.Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
+						}
+					}
+					return ContentTree{Content: Content{
+						Name: d.Name(),
+						GetContent: func(opt GetContentOpt) string {
+							return ""
+						},
+						Meta:    mate,
+						Ext:     "",
+						Content: "",
+						IsDir:   true,
+					}}, true, nil
 				}
-				return ContentTree{Content: Content{
-					Name: d.Name(),
-					GetContent: func(opt GetContentOpt) string {
-						return ""
-					},
-					Meta:    mate,
-					Ext:     "",
-					Content: "",
-					IsDir:   true,
-				}}, true, nil
+
+				i, ok := contents.Load(path)
+				if !ok {
+					return ContentTree{}, false, nil
+				}
+
+				return ContentTree{Content: i.(Content)}, true, nil
+			})
+			if err != nil {
+				log.Warnf("getContents error: %v", err)
+				return BlogList{}
 			}
 
-			i, ok := contents.Load(path)
-			if !ok {
-				return ContentTree{}, false, nil
+			if !opt.Tree {
+				ts = ts.Flat(false)
 			}
 
-			return ContentTree{Content: i.(Content)}, true, nil
-		})
-		if err != nil {
-			log.Warnf("getContents error: %v", err)
-			return BlogList{}
+			blogs = ts
+			ctx.cache.Add(cacheKey, blogs)
 		}
 
-		if !opt.Tree {
-			ts = ts.Flat(false)
+		if opt.Sort != nil {
+			blogs.Sort(opt.Sort)
 		}
 
-		blogs = ts
-		b.cache.Add(cacheKey, blogs)
-	}
+		blogs = blogs.Filter(opt.Filter)
 
-	if opt.Sort != nil {
-		blogs.Sort(opt.Sort)
-	}
-
-	blogs = blogs.Filter(opt.Filter)
-
-	return BlogList{
-		Total: 0,
-		List:  blogs,
+		return BlogList{
+			Total: 0,
+			List:  blogs,
+		}
 	}
 }
 
@@ -1200,64 +1188,73 @@ func (b *Hollow) newErrorContent(file string, err error) Content {
 }
 
 // getContentDetail 返回一个内容
-func (b *Hollow) getContentDetail(path string) Content {
-	ext := filepath.Ext(path)
-	loader, ok := b.getContentLoader(ext)
-	if !ok {
-		err := fmt.Errorf("unsupported load '%v' file", ext)
-		log.Warnf("%v", err)
-		return b.newErrorContent(path, err)
-	}
-	blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
-	if err != nil {
-		err = fmt.Errorf("load file '%v' error: %w", path, err)
-		log.Warnf("%v", err)
-		return b.newErrorContent(path, err)
-	}
+func (b *Hollow) getContentDetail(ctx *RenderContext) func(path string) Content {
+	return func(path string) Content {
+		ext := filepath.Ext(path)
+		loader, ok := b.getContentLoader(ctx, ext)
+		if !ok {
+			err := fmt.Errorf("unsupported load '%v' file", ext)
+			log.Warnf("%v", err)
+			return b.newErrorContent(path, err)
+		}
+		blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
+		if err != nil {
+			err = fmt.Errorf("load file '%v' error: %w", path, err)
+			log.Warnf("%v", err)
+			return b.newErrorContent(path, err)
+		}
 
-	return blog
+		return blog
+	}
 }
 
 // getConfig config.yml 下的 theme_config 字段
-func (b *Hollow) getConfig() interface{} {
-	c, err := b.LoadConfig()
-	if err != nil {
-		log.Warnf("LoadConfig for js error: %v", err)
+func (b *Hollow) getConfig(ctx *RenderContext) func() interface{} {
+	return func() interface{} {
+		c, err := b.LoadConfig(ctx)
+		if err != nil {
+			log.Warnf("LoadConfig for js error: %v", err)
+		}
+		return c.Theme
 	}
-	return c.Theme
 }
 
 type MdOptions struct {
 	Unwrap bool `json:"unwrap"`
 }
 
-func (b *Hollow) md(str string, options MdOptions) string {
-	ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.md"), jsx.WithAutoExecJsx(nil))
-	if err != nil {
-		return err.Error()
+func (b *Hollow) md(ctx *RenderContext) func(str string, options MdOptions) string {
+	return func(str string, options MdOptions) string {
+		ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.md"), jsx.WithAutoExecJsx(nil))
+		if err != nil {
+			return err.Error()
+		}
+		v := ex.Default.(jsx.VDom)
+		s := v.Render()
+		// 支持处理只有一个 p 的情况，无法处理 <p> 1 </p> <h1> h1 </h1> <p> 2 </p>
+		if options.Unwrap && strings.Count(s, "<p>") == 1 {
+			s = strings.TrimPrefix(s, "<p>")
+			s = strings.TrimSuffix(s, "</p>")
+		}
+		return s
 	}
-	v := ex.Default.(jsx.VDom)
-	s := v.Render()
-	// 支持处理只有一个 p 的情况，无法处理 <p> 1 </p> <h1> h1 </h1> <p> 2 </p>
-	if options.Unwrap && strings.Count(s, "<p>") == 1 {
-		s = strings.TrimPrefix(s, "<p>")
-		s = strings.TrimSuffix(s, "</p>")
-	}
-	return s
 }
 
-func (b *Hollow) mdx(str string, options MdOptions) string {
-	ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.mdx"), jsx.WithAutoExecJsx(nil))
-	if err != nil {
-		return err.Error()
+func (b *Hollow) mdx(ctx *RenderContext) func(str string, options MdOptions) string {
+	return func(str string, options MdOptions) string {
+		ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.mdx"), jsx.WithAutoExecJsx(nil))
+		if err != nil {
+			return err.Error()
+		}
+		v := ex.Default.(jsx.VDom)
+		s := v.Render()
+		if options.Unwrap && strings.Count(s, "<p>") == 1 {
+			s = strings.TrimPrefix(s, "<p>")
+			s = strings.TrimSuffix(s, "</p>")
+		}
+		return s
 	}
-	v := ex.Default.(jsx.VDom)
-	s := v.Render()
-	if options.Unwrap && strings.Count(s, "<p>") == 1 {
-		s = strings.TrimPrefix(s, "<p>")
-		s = strings.TrimSuffix(s, "</p>")
-	}
-	return s
+
 }
 
 type LookupConfig struct {
@@ -1266,10 +1263,10 @@ type LookupConfig struct {
 }
 
 // LookupConfig 返回配置信息
-func (b *Hollow) LookupConfig() (LookupConfig, error) {
+func (b *Hollow) LookupConfig(ctx *RenderContext) (LookupConfig, error) {
 	sourcePath := b.SourceFs.Root()
 
-	conf, err := b.LoadConfig()
+	conf, err := b.LoadConfig(ctx)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 		} else {

@@ -284,7 +284,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			//ThemeFs: fsTheme,
 		})
 
-		conf, err := b.LoadConfig()
+		conf, err := b.LoadConfig(hollow.NewRenderContext())
 		if err != nil {
 			c.Error(err)
 			return
@@ -533,7 +533,7 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 			hollowLog.Infof("start publish")
 
 			dst := memfs.New()
-			err = b.BuildAndPublish(context.Background(), dst, hollow.ExecOption{
+			err = b.BuildAndPublish(hollow.NewRenderContext(), dst, hollow.ExecOption{
 				Log: logWs,
 			})
 			if err != nil {
