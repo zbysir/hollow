@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func DeclareFlag(c *cobra.Command, name string, shorthand string, defaultVal any, usage string) {
+func DeclareFlag(v *viper.Viper, c *cobra.Command, name string, shorthand string, defaultVal any, usage string) {
 	flags := c.PersistentFlags()
 
 	switch defaultVal := defaultVal.(type) {
@@ -15,19 +15,19 @@ func DeclareFlag(c *cobra.Command, name string, shorthand string, defaultVal any
 		flags.StringP(name, shorthand, defaultVal, usage)
 	}
 
-	err := viper.BindPFlag(name, flags.Lookup(name))
+	err := v.BindPFlag(name, flags.Lookup(name))
 	if err != nil {
 		panic(err)
 	}
 }
 
-func GetAll() map[string]interface{} {
-	return viper.AllSettings()
+func GetAll(v *viper.Viper) map[string]interface{} {
+	return v.AllSettings()
 }
 
-func Get[T any]() (T, error) {
+func Get[T any](v *viper.Viper) (T, error) {
 	var t T
-	err := viper.Unmarshal(&t, func(config *mapstructure.DecoderConfig) {
+	err := v.Unmarshal(&t, func(config *mapstructure.DecoderConfig) {
 		config.TagName = "json"
 	})
 	if err != nil {

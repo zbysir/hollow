@@ -4,18 +4,12 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"sync"
 	"testing"
 )
 
 func TestNewMDLoader(t *testing.T) {
-	jx, err := jsx.NewJsx(jsx.Option{
-		SourceCache: nil,
-		Debug:       false,
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+
 	f := memfs.New()
 	file, _ := f.Create("index.mdx")
 	file.Write([]byte(`---
@@ -30,11 +24,30 @@ const A = ()=> <> AAA </>
 
 `))
 
-	m := NewMDLoader(Assets{"statics"}, jx)
-	x, err := m.Load(gobilly.NewStdFs(f), "index.mdx", false)
+	jx, err := jsx.NewJsx(jsx.Option{
+		SourceCache: nil,
+		Debug:       false,
+		Fs:          gobilly.NewStdFs(f),
+	})
 	if err != nil {
 		t.Fatal(err)
+		return
 	}
 
-	t.Logf("%+v", x.Content)
+	m := NewMDLoader(Assets{"statics"}, jx, nil)
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			_, err := m.Load("index.mdx", false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		}()
+	}
+
+	wg.Wait()
 }

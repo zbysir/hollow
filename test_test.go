@@ -41,7 +41,7 @@ func TestBuildAndPublish(t *testing.T) {
 	}
 
 	dst := memfs.New()
-	err = b.BuildAndPublish(context.Background(), dst, hollow.ExecOption{
+	err = b.BuildAndPublish(hollow.NewRenderContext(), dst, hollow.ExecOption{
 		Log: log.New(log.Options{
 			IsDev:         false,
 			DisableCaller: true,
@@ -58,13 +58,13 @@ func TestBuildAndPublish(t *testing.T) {
 
 func TestBuild(t *testing.T) {
 	b, err := hollow.NewHollow(hollow.Option{
-		SourceFs: osfs.New("./workspace"),
+		SourceFs: osfs.New("/Users/bysir/goproj/bysir/zbysir.github.io"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.Build(context.Background(), "./.dist", hollow.ExecOption{
+	err = b.Build(hollow.NewRenderContext(), "./.dist", hollow.ExecOption{
 		Log:   nil,
 		IsDev: false,
 	})

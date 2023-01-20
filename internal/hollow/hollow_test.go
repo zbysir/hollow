@@ -1,23 +1,23 @@
 package hollow
 
 import (
-	"context"
 	"fmt"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/hollow/internal/pkg/db"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
+	"sync"
 	"testing"
 )
 
 func TestSource(t *testing.T) {
 	b, err := NewHollow(Option{
-		SourceFs: osfs.New("./testdata"),
+		SourceFs: osfs.New("/Users/bysir/goproj/bysir/zbysir.github.io"),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	as := b.getContents(".", getBlogOption{
+	as := b.getContents(NewRenderContext())("./contents", getBlogOption{
 		Tree: true,
 	})
 
@@ -36,6 +36,30 @@ func TestSource(t *testing.T) {
 	//t.Logf("%s", bs)
 }
 
+func TestSource2(t *testing.T) {
+	b, err := NewHollow(Option{
+		SourceFs: osfs.New("/Users/bysir/goproj/bysir/zbysir.github.io"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	context := NewRenderContext()
+	contents := b.getContents(context)
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			contents("./contents", getBlogOption{
+				Tree: false,
+			})
+		}()
+	}
+	wg.Wait()
+}
+
 func TestMd(t *testing.T) {
 	b, err := NewHollow(Option{
 		SourceFs: osfs.New("./testdata"),
@@ -44,9 +68,9 @@ func TestMd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	as := b.md("# h1", MdOptions{})
+	as := b.md(NewRenderContext())("# h1", MdOptions{})
 	t.Logf("%+v", as)
-	as = b.md("123", MdOptions{})
+	as = b.md(NewRenderContext())("123", MdOptions{})
 	t.Logf("%+v", as)
 }
 
@@ -66,7 +90,7 @@ func TestBuildFromFs(t *testing.T) {
 		SourceFs: fs,
 	})
 
-	err = b.Build(context.Background(), "docs", ExecOption{
+	err = b.Build(NewRenderContext(), "docs", ExecOption{
 		//Out: &WsSink{hub: hub},
 	})
 	if err != nil {

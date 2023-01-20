@@ -10,16 +10,17 @@ import (
 )
 
 type ContentLoader interface {
-	Load(fs fs.FS, filePath string, withContent bool) (Content, error)
+	Load(filePath string, withContent bool) (Content, error)
 }
 
 type MDLoader struct {
 	assets Assets
 	jsx    *jsx.Jsx
+	module map[string]map[string]interface{}
 }
 
-func NewMDLoader(assets Assets, jsx *jsx.Jsx) *MDLoader {
-	return &MDLoader{assets: assets, jsx: jsx}
+func NewMDLoader(assets Assets, jsx *jsx.Jsx, module map[string]map[string]interface{}) *MDLoader {
+	return &MDLoader{assets: assets, jsx: jsx, module: module}
 }
 
 type GetContentOpt struct {
@@ -74,8 +75,15 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 	return
 }
 
-func (m *MDLoader) Load(f fs.FS, filePath string, withContent bool) (Content, error) {
-	e, err := m.jsx.Exec("./"+filePath, jsx.WithFs(f), jsx.WithAutoExecJsx(nil))
+func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
+	var os = []jsx.OptionExec{
+		jsx.WithAutoExecJsx(nil),
+	}
+
+	for p, v := range m.module {
+		os = append(os, jsx.WithNativeModule(p, v))
+	}
+	e, err := m.jsx.Exec("./"+filePath, os...)
 	if err != nil {
 		return Content{}, err
 	}

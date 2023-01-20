@@ -20,74 +20,77 @@ type ServerParams struct {
 	Cache   string `json:"cache"`
 }
 
-var Server = &cobra.Command{
-	Use:   "server",
-	Short: "preview your website",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		viper.AutomaticEnv()
-		p, err := config.Get[ServerParams]()
-		if err != nil {
-			return err
-		}
-		ctx, c := signal.NewContext()
-		defer c()
+func Server() *cobra.Command {
+	v := viper.New()
+	v.AutomaticEnv()
 
-		//gin.SetMode(gin.ReleaseMode)
-		log.Infof("config: %+v", p)
-
-		var cacheFs billy.Filesystem
-		switch p.Cache {
-		case "memory":
-			cacheFs = memfs.New()
-		default:
-			cacheFs = osfs.New(p.Cache)
-		}
-
-		h, err := hollow.NewHollow(hollow.Option{
-			SourceFs:   osfs.New(p.Source),
-			FixedTheme: p.Theme,
-			CacheFs:    cacheFs,
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			addr := p.Address
-			log.Infof("listening %v", addr)
-			err = h.Service(ctx, hollow.ExecOption{
-				Log:   nil,
-				IsDev: true,
-			}, addr)
-
+	cmd := &cobra.Command{
+		Use:   "server",
+		Short: "preview your website",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p, err := config.Get[ServerParams](v)
 			if err != nil {
-
-				panic(err)
+				return err
 			}
-		}()
+			ctx, c := signal.NewContext()
+			defer c()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+			//gin.SetMode(gin.ReleaseMode)
+			log.Infof("config: %+v", p)
 
-			err = h.DevService(ctx)
+			var cacheFs billy.Filesystem
+			switch p.Cache {
+			case "memory":
+				cacheFs = memfs.New()
+			default:
+				cacheFs = osfs.New(p.Cache)
+			}
+
+			h, err := hollow.NewHollow(hollow.Option{
+				SourceFs:   osfs.New(p.Source),
+				FixedTheme: p.Theme,
+				CacheFs:    cacheFs,
+			})
 			if err != nil {
 				panic(err)
 			}
-		}()
 
-		wg.Wait()
-		return nil
-	},
-}
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 
-func init() {
-	config.DeclareFlag(Server, "address", "a", ":9400", "server listen address")
-	config.DeclareFlag(Server, "source", "s", ".", "source file dir")
-	config.DeclareFlag(Server, "theme", "t", "", "specify theme")
-	config.DeclareFlag(Server, "cache", "c", "memory", "cache file path, default in memory")
+				addr := p.Address
+				log.Infof("listening %v", addr)
+				err = h.Service(ctx, hollow.ExecOption{
+					Log:   nil,
+					IsDev: true,
+				}, addr)
+
+				if err != nil {
+
+					panic(err)
+				}
+			}()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				err = h.DevService(ctx)
+				if err != nil {
+					panic(err)
+				}
+			}()
+
+			wg.Wait()
+			return nil
+		},
+	}
+
+	config.DeclareFlag(v, cmd, "address", "a", ":9400", "server listen address")
+	config.DeclareFlag(v, cmd, "source", "s", ".", "source file dir")
+	config.DeclareFlag(v, cmd, "theme", "t", "", "specify theme")
+	config.DeclareFlag(v, cmd, "cache", "c", "memory", "cache file path, default in memory")
+	return cmd
 }

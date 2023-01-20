@@ -8,9 +8,11 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "hollow",
-	Short: "hollow",
-	Long:  `hollow`,
+	Use:           "hollow",
+	Short:         "hollow",
+	Long:          `hollow`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func init() {
@@ -19,10 +21,10 @@ func init() {
 }
 
 func init() {
-	rootCmd.AddCommand(cmd.Editor)
-	rootCmd.AddCommand(cmd.Server)
-	rootCmd.AddCommand(cmd.Build)
-	rootCmd.AddCommand(cmd.Version("v0.2.7"))
+	rootCmd.AddCommand(cmd.Editor())
+	rootCmd.AddCommand(cmd.Server())
+	rootCmd.AddCommand(cmd.Build())
+	rootCmd.AddCommand(cmd.Version("v0.2.8"))
 }
 
 func main() {

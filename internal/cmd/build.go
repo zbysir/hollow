@@ -11,41 +11,44 @@ import (
 
 type BuildParams struct {
 	Output string `json:"output"`
-	Source string `json:"source"`
+	Source string `json:"source2"`
 }
 
-var Build = &cobra.Command{
-	Use:   "build",
-	Short: "build your website",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		viper.AutomaticEnv()
-		p, err := config.Get[BuildParams]()
-		if err != nil {
-			return err
-		}
-		//ctx, c := signal.NewContext()
-		//defer c()
+func Build() *cobra.Command {
+	v := viper.New()
+	v.AutomaticEnv()
 
-		//gin.SetMode(gin.ReleaseMode)
-		log.Infof("config: %+v", p)
+	cmd := &cobra.Command{
+		Use:   "build",
+		Short: "build your website",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p, err := config.Get[BuildParams](v)
+			if err != nil {
+				return err
+			}
+			//ctx, c := signal.NewContext()
+			//defer c()
 
-		ho, err := hollow.NewHollow(hollow.Option{
-			SourceFs: osfs.New(p.Source),
-		})
-		if err != nil {
-			return err
-		}
+			//gin.SetMode(gin.ReleaseMode)
+			log.Infof("config: %+v", p)
 
-		err = ho.Build(hollow.NewRenderContext(), p.Output, hollow.ExecOption{IsDev: true})
-		if err != nil {
-			return err
-		}
+			ho, err := hollow.NewHollow(hollow.Option{
+				SourceFs: osfs.New(p.Source),
+			})
+			if err != nil {
+				return err
+			}
 
-		return nil
-	},
-}
+			err = ho.Build(hollow.NewRenderContext(), p.Output, hollow.ExecOption{IsDev: true})
+			if err != nil {
+				return err
+			}
 
-func init() {
-	config.DeclareFlag(Build, "output", "o", "./dist", "output dir")
-	config.DeclareFlag(Build, "source", "s", ".", "source file dir")
+			return nil
+		},
+	}
+
+	config.DeclareFlag(v, cmd, "output", "o", "./dist", "output dir")
+	config.DeclareFlag(v, cmd, "source", "s", ".", "source file dir")
+	return cmd
 }

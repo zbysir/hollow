@@ -14,7 +14,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2"
-	jsx "github.com/zbysir/gojsx"
+	gojsx "github.com/zbysir/gojsx"
 	hollowdev "github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/config"
@@ -62,23 +62,23 @@ func (p Page) GetPath() string {
 	return pa
 }
 
-func tryToVDom(i interface{}) jsx.VDom {
+func tryToVDom(i interface{}) gojsx.VDom {
 	switch t := i.(type) {
 	case map[string]interface{}:
 		return t
 	}
 
-	return jsx.VDom{}
+	return gojsx.VDom{}
 }
 
-func (p Page) GetComponent() (jsx.VDom, error) {
-	var v jsx.VDom
+func (p Page) GetComponent() (gojsx.VDom, error) {
+	var v gojsx.VDom
 	switch t := p["component"].(type) {
 	case *goja.Object:
-		c, ok := jsx.AssertFunction(t)
+		c, ok := gojsx.AssertFunction(t)
 		if ok {
 			// for: component: () => Index(props)
-			val, err := c(nil)
+			val, err := c(goja.Null())
 			if err != nil {
 				return v, err
 			}
@@ -88,6 +88,10 @@ func (p Page) GetComponent() (jsx.VDom, error) {
 			v = tryToVDom(t.Export())
 		}
 		return v, nil
+		//case map[string]interface{}:
+		//	// for: component: Index(props)
+		//	v = tryToVDom(t)
+		//	return v, nil
 	}
 
 	return v, fmt.Errorf("uncased value type: %T", p["component"])
@@ -108,12 +112,15 @@ func (p Page) Render() (string, error) {
 }
 
 type Hollow struct {
-	jsx       *jsx.Jsx
-	log       *zap.SugaredLogger
-	asyncTask *asynctask.Manager
-	wsHub     *ws.WsHub
-	debug     bool
-	timerDeep int32
+	jsx         *gojsx.Jsx
+	log         *zap.SugaredLogger
+	asyncTask   *asynctask.Manager
+	wsHub       *ws.WsHub
+	debug       bool
+	sourceStdFs fs.FS
+
+	// gojsx 使用了 fs 地址作为缓存 key，这里也缓存上 ThemeLoader 固定 fs 对象地址。
+	themeLoaderCache *lru.Cache[string, ThemeLoader]
 
 	Option
 }
@@ -160,22 +167,29 @@ func NewHollow(o Option) (*Hollow, error) {
 		o.CacheFs = memfs.New()
 	}
 
+	stdFs := gobilly.NewStdFs(o.SourceFs)
+
 	var err error
-	jx, err := jsx.NewJsx(jsx.Option{
+	jsx, err := gojsx.NewJsx(gojsx.Option{
 		Debug: false,
+		Fs:    stdFs,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	c, _ := lru.New[string, ThemeLoader](100)
 	b := &Hollow{
-		jsx:       jx,
-		Option:    o,
-		log:       log.Logger(),
-		asyncTask: asynctask.NewManager(),
-		wsHub:     ws.NewHub(),
-		debug:     os.Getenv("DEBUG") != "",
+		jsx:              jsx,
+		Option:           o,
+		log:              log.Logger(),
+		asyncTask:        asynctask.NewManager(),
+		wsHub:            ws.NewHub(),
+		debug:            os.Getenv("DEBUG") != "",
+		sourceStdFs:      stdFs,
+		themeLoaderCache: c,
 	}
+
 	b.asyncTask.AddListener(func(task *asynctask.Task, event *asynctask.Event) {
 		if event.IsDone {
 			b.wsHub.Close(task.Key)
@@ -204,7 +218,8 @@ func (b *Hollow) loadTheme(ctx *RenderContext, url string, refresh bool, enableA
 		return ThemeExport{}, nil, nil, err
 	}
 
-	themeModule, themeFs, task, err := themeLoader.Load(ctx, b.jsx, refresh, enableAsync, jsx.WithNativeModule("@bysir/hollow", map[string]interface{}{
+	//log.Infof("-------- loadTheme -------")
+	themeModule, themeFs, task, err := themeLoader.Load(ctx, refresh, enableAsync, gojsx.WithNativeModule("@bysir/hollow", map[string]interface{}{
 		"getContents":      b.getContents(ctx),
 		"getConfig":        b.getConfig(ctx),
 		"getContentDetail": b.getContentDetail(ctx),
@@ -222,7 +237,7 @@ func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOptio
 	start := time.Now()
 	conf, err := b.LoadConfig(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("LoadConfig error: %w", err)
 	}
 	themeUrl := b.prepareThemeUrl(conf.Hollow.Theme, b.FixedTheme)
 
@@ -238,11 +253,11 @@ func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOptio
 	l = l.Named("[Build]\t")
 
 	for i, p := range themeModule.Pages {
+		name := p.GetPath()
 		body, err := p.Render()
 		if err != nil {
-			return err
+			return fmt.Errorf("render page '%v' error: %w", name, err)
 		}
-		name := p.GetPath()
 		var distFile string
 
 		// 如果有扩展名，则说明是文件
@@ -469,7 +484,7 @@ func loadYamlConfig(body string, expandEnv bool) (con Config, err error) {
 
 // LoadConfig 加载 source 下的 config 文件
 func (b *Hollow) LoadConfig(ctx *RenderContext) (conf Config, err error) {
-	cacheKey := fmt.Sprintf("config")
+	cacheKey := fmt.Sprintf("LoadConfig")
 	x, ok := ctx.cache.Get(cacheKey)
 	if ok {
 		return x.(Config), nil
@@ -487,10 +502,9 @@ func (b *Hollow) LoadConfig(ctx *RenderContext) (conf Config, err error) {
 			jsConfigExist = true
 		}
 	}
-	stdFs := gobilly.NewStdFs(b.SourceFs)
 	if jsConfigExist {
-		var exports *jsx.ModuleExport
-		exports, err = b.jsx.ExecCode([]byte(fmt.Sprintf("module.exports = require('./config')")), jsx.WithFs(stdFs))
+		var exports *gojsx.ModuleExport
+		exports, err = b.jsx.ExecCode([]byte(fmt.Sprintf("module.exports = require('./config')")))
 		if err != nil {
 			return
 		}
@@ -504,7 +518,7 @@ func (b *Hollow) LoadConfig(ctx *RenderContext) (conf Config, err error) {
 		return
 	}
 
-	f, err := easyfs.GetFile(stdFs, "config.yml")
+	f, err := easyfs.GetFile(b.sourceStdFs, "config.yml")
 	if err != nil {
 		return
 	}
@@ -545,9 +559,17 @@ func prepareThemeUrl(url string, defaultProtocol string) string {
 // file:// : relative or absolute path, e.g. file://usr/bysir/xx , file://./bysir/xx
 // source:// : relative path of source fs
 func (b *Hollow) getThemeLoader(url string) (ThemeLoader, error) {
+	v, ok := b.themeLoaderCache.Get(url)
+	if ok {
+		return v, nil
+	}
+
+	log.Infof("new ThemeLoader %v", url)
+
+	var tl ThemeLoader
 	switch {
 	case strings.HasPrefix(url, "http://"), strings.HasPrefix(url, "https://"):
-		return NewGitThemeLoader(b.asyncTask, url, b.CacheFs), nil
+		tl = NewGitThemeLoader(b.asyncTask, url, b.CacheFs)
 	case strings.HasPrefix(url, "file://"):
 		pa := strings.TrimPrefix(url, "file://")
 		if strings.HasPrefix(pa, ".") {
@@ -556,17 +578,19 @@ func (b *Hollow) getThemeLoader(url string) (ThemeLoader, error) {
 			// 绝对路径
 			pa = "/" + pa
 		}
-		return NewFsThemeLoader(gobilly.NewStdFs(osfs.New(pa))), nil
+		tl = NewFsThemeLoader(gobilly.NewStdFs(osfs.New(pa)))
 	case strings.HasPrefix(url, "source://"):
 		pa := strings.TrimPrefix(url, "source://")
 		subFs, err := b.SourceFs.Chroot(pa)
 		if err != nil {
 			return nil, err
 		}
-		return NewFsThemeLoader(gobilly.NewStdFs(subFs)), nil
+		tl = NewFsThemeLoader(gobilly.NewStdFs(subFs))
 	default:
 		return nil, fmt.Errorf("unsupported protocol, url: %v", url)
 	}
+	b.themeLoaderCache.Add(url, tl)
+	return tl, nil
 }
 
 func handleAsyncTask(task string, name string, writer http.ResponseWriter, request *http.Request) {
@@ -965,7 +989,15 @@ func (b *Hollow) getContentLoader(ctx *RenderContext, ext string) (l ContentLoad
 	}
 	switch ext {
 	case ".md", ".mdx":
-		return NewMDLoader(c.Hollow.Assets, b.jsx), true
+		return NewMDLoader(c.Hollow.Assets, b.jsx, map[string]map[string]interface{}{
+			"@bysir/hollow": {
+				"getContents":      b.getContents(ctx),
+				"getConfig":        b.getConfig(ctx),
+				"getContentDetail": b.getContentDetail(ctx),
+				"md":               b.md(ctx),
+				"mdx":              b.mdx(ctx),
+			},
+		}), true
 	}
 	return nil, false
 }
@@ -1049,43 +1081,48 @@ func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
 // getContents 返回 dir 目录下的所有内容
 func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOption) BlogList {
 	return func(dir string, opt getBlogOption) BlogList {
+		ctx = NewRenderContext()
 		end := ctx.timerStart("getContents")
 		defer end()
 		var blogs ContentTrees
 		//var total int
-		cacheKey := fmt.Sprintf("blog:%v%v", dir, opt)
+		cacheKey := fmt.Sprintf("getContents:%v%v", dir, opt)
 
-		// cache 在多个请求中被公用，在并发情况下不能正常工作。
 		x, ok := ctx.cache.Get(cacheKey)
 		if ok {
 			blogs = x.(ContentTrees)
 		} else {
 			contents := sync.Map{}
 			var wg sync.WaitGroup
+			c := make(chan bool, 1)
 			MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
 				if !d.IsDir() {
 					wg.Add(1)
-					go func() {
-						defer wg.Done()
 
-						ext := filepath.Ext(path)
-						loader, ok := b.getContentLoader(ctx, ext)
-						if !ok {
-							return
-						}
-
-						blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, false)
-
-						if err != nil {
-							err = fmt.Errorf("load blog '%v' error: %w", path, err)
-							log.Errorf("%v", err)
-							blog = b.newErrorContent(path, err)
-						}
-
-						contents.Store(path, blog)
-
-						return
+					c <- true
+					defer func() {
+						<-c
+						wg.Done()
 					}()
+
+					ext := filepath.Ext(path)
+					loader, ok := b.getContentLoader(ctx, ext)
+					if !ok {
+						return ContentTree{}, true, nil
+					}
+
+					blog, err := loader.Load(path, false)
+
+					if err != nil {
+						err = fmt.Errorf("load blog '%v' error: %w", path, err)
+						log.Warnf("%v", err)
+						blog = b.newErrorContent(path, err)
+					}
+
+					contents.Store(path, blog)
+
+					return ContentTree{}, true, nil
+
 				}
 
 				return ContentTree{}, true, nil
@@ -1129,11 +1166,11 @@ func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOpt
 				}
 
 				i, ok := contents.Load(path)
-				if !ok {
-					return ContentTree{}, false, nil
+				if ok {
+					return ContentTree{Content: i.(Content)}, true, nil
 				}
 
-				return ContentTree{Content: i.(Content)}, true, nil
+				return ContentTree{}, false, nil
 			})
 			if err != nil {
 				log.Warnf("getContents error: %v", err)
@@ -1145,7 +1182,7 @@ func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOpt
 			}
 
 			blogs = ts
-			ctx.cache.Add(cacheKey, blogs)
+			//ctx.cache.Add(cacheKey, blogs)
 		}
 
 		if opt.Sort != nil {
@@ -1197,7 +1234,7 @@ func (b *Hollow) getContentDetail(ctx *RenderContext) func(path string) Content 
 			log.Warnf("%v", err)
 			return b.newErrorContent(path, err)
 		}
-		blog, err := loader.Load(gobilly.NewStdFs(b.SourceFs), path, true)
+		blog, err := loader.Load(path, true)
 		if err != nil {
 			err = fmt.Errorf("load file '%v' error: %w", path, err)
 			log.Warnf("%v", err)
@@ -1225,11 +1262,11 @@ type MdOptions struct {
 
 func (b *Hollow) md(ctx *RenderContext) func(str string, options MdOptions) string {
 	return func(str string, options MdOptions) string {
-		ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.md"), jsx.WithAutoExecJsx(nil))
+		ex, err := b.jsx.ExecCode([]byte(str), gojsx.WithFileName("root.md"), gojsx.WithAutoExecJsx(nil))
 		if err != nil {
 			return err.Error()
 		}
-		v := ex.Default.(jsx.VDom)
+		v := ex.Default.(gojsx.VDom)
 		s := v.Render()
 		// 支持处理只有一个 p 的情况，无法处理 <p> 1 </p> <h1> h1 </h1> <p> 2 </p>
 		if options.Unwrap && strings.Count(s, "<p>") == 1 {
@@ -1242,11 +1279,11 @@ func (b *Hollow) md(ctx *RenderContext) func(str string, options MdOptions) stri
 
 func (b *Hollow) mdx(ctx *RenderContext) func(str string, options MdOptions) string {
 	return func(str string, options MdOptions) string {
-		ex, err := b.jsx.ExecCode([]byte(str), jsx.WithFs(gobilly.NewStdFs(b.SourceFs)), jsx.WithFileName("root.mdx"), jsx.WithAutoExecJsx(nil))
+		ex, err := b.jsx.ExecCode([]byte(str), gojsx.WithFileName("root.mdx"), gojsx.WithAutoExecJsx(nil))
 		if err != nil {
 			return err.Error()
 		}
-		v := ex.Default.(jsx.VDom)
+		v := ex.Default.(gojsx.VDom)
 		s := v.Render()
 		if options.Unwrap && strings.Count(s, "<p>") == 1 {
 			s = strings.TrimPrefix(s, "<p>")

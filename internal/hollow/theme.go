@@ -23,7 +23,7 @@ type ThemeExport struct {
 }
 
 type ThemeLoader interface {
-	Load(ctx *RenderContext, x *gojsx.Jsx, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error)
+	Load(ctx *RenderContext, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error)
 }
 
 // GitThemeLoader
@@ -39,7 +39,7 @@ func NewGitThemeLoader(asyncTask *asynctask.Manager, path string, cacheFs billy.
 }
 
 // Load 会缓存 fs ，只有当强制刷新时更新
-func (g *GitThemeLoader) Load(ctx *RenderContext, x *gojsx.Jsx, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error) {
+func (g *GitThemeLoader) Load(ctx *RenderContext, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error) {
 	fileSys := chroot.New(g.cacheFs, "theme")
 
 	_, err := fileSys.Stat(".git")
@@ -116,8 +116,15 @@ func (g *GitThemeLoader) Load(ctx *RenderContext, x *gojsx.Jsx, refresh bool, en
 		return ThemeExport{}, nil, nil, err
 	}
 	f := gobilly.NewStdFs(subFs)
-	jsxOpts = append(jsxOpts, gojsx.WithFs(f))
-	theme, err := execTheme(x, filepath.Join("index"), jsxOpts...)
+
+	jsx, err := gojsx.NewJsx(gojsx.Option{
+		Fs: f,
+	})
+	if err != nil {
+		return ThemeExport{}, nil, nil, err
+	}
+
+	theme, err := execTheme(jsx, filepath.Join("index"), jsxOpts...)
 	if err != nil {
 		return ThemeExport{}, nil, nil, err
 	}
@@ -153,9 +160,14 @@ func NewFsThemeLoader(rootFs fs.FS) *LocalThemeLoader {
 	return &LocalThemeLoader{f: rootFs}
 }
 
-func (l *LocalThemeLoader) Load(ctx *RenderContext, x *gojsx.Jsx, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error) {
-	jsxOpts = append(jsxOpts, gojsx.WithFs(l.f))
-	theme, err := execTheme(x, "index", jsxOpts...)
+func (l *LocalThemeLoader) Load(ctx *RenderContext, refresh bool, enableAsync bool, jsxOpts ...gojsx.OptionExec) (ThemeExport, fs.FS, *asynctask.Task, error) {
+	jsx, err := gojsx.NewJsx(gojsx.Option{
+		Fs: l.f,
+	})
+	if err != nil {
+		return ThemeExport{}, nil, nil, err
+	}
+	theme, err := execTheme(jsx, "index", jsxOpts...)
 	if err != nil {
 		return ThemeExport{}, nil, nil, err
 	}
