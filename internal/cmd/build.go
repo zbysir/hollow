@@ -11,7 +11,7 @@ import (
 
 type BuildParams struct {
 	Output string `json:"output"`
-	Source string `json:"source2"`
+	Source string `json:"source"`
 }
 
 func Build() *cobra.Command {
