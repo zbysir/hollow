@@ -15,5 +15,5 @@ export const theme = {
         icon: 'GitHub',
     }],
     home_page: 'pages/home.mdx',
-    assets: ['/index.css', './app.js']
+    assets: ['/index.css', '/app.js']
 }
