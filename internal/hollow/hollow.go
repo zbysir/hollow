@@ -103,6 +103,8 @@ func (p Page) Render() (string, error) {
 		if err != nil {
 			return "", err
 		}
+
+		replaceAttrDot(vd)
 		return vd.Render(), nil
 	} else if p["body"] != nil {
 		return exportGojaValueToString(p["body"]), nil

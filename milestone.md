@@ -10,10 +10,11 @@
 - [x] 优化 js 编译、执行缓存
 - [x] 为每次 req 添加上下文，方便添加 cache pre req。
 - [ ] 找到并解决并发执行 panic 的问题
+- [ ] 支持图片放在 contents 下，解析 md 时自动收集依赖并复制到 statics 下
 
 ## 完善主题
 
-- [ ] 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html 
+- [ ] 为 hollow 写一个操作手册主题，抄袭：https://docs.yjs.dev/ | https://nacos.io/en-us/index.html | https://traefik.io/
 - [x] 实现模糊搜索，React 与 https://github.com/krisk/Fuse
 
 ## 扩展

@@ -75,6 +75,21 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 	return
 }
 
+func replaceAttrDot(dom jsx.VDom) {
+	walkVDom(dom, func(d jsx.VDom) {
+		attr := d["attributes"].(map[string]interface{})
+		for k, v := range attr {
+			if strings.Contains(k, "__") {
+				delete(attr, k)
+				attr[strings.ReplaceAll(k, "__", ".")] = v
+			}
+		}
+
+	})
+
+	return
+}
+
 func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 	var os = []jsx.OptionExec{
 		jsx.WithAutoExecJsx(nil),
