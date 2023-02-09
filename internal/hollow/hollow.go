@@ -105,6 +105,7 @@ func (p Page) Render() (string, error) {
 		}
 
 		replaceAttrDot(vd)
+
 		return vd.Render(), nil
 	} else if p["body"] != nil {
 		return exportGojaValueToString(p["body"]), nil
@@ -131,6 +132,8 @@ type RenderContext struct {
 	cache *lru.Cache[string, interface{}] // 缓存耗时操作与多次调用的数据，如获取 config、blog 文件夹，加速多个页面渲染相同数据的情况。
 	timer *timetrack.TimeTracker
 	debug bool
+	data  sync.Map
+	lock  sync.Mutex
 }
 
 func (b *RenderContext) timerStart(span string) func() {
@@ -140,11 +143,36 @@ func (b *RenderContext) timerStart(span string) func() {
 	return b.timer.Start(span)
 }
 
+func (b *RenderContext) GetDataAll(f func(key, value any) bool) {
+	b.data.Range(f)
+}
+func (b *RenderContext) GetData(key string) []interface{} {
+	i, ok := b.data.Load(key)
+	if ok {
+		return i.([]interface{})
+	}
+
+	return nil
+}
+
+func (b *RenderContext) Save(k string, v interface{}) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	exist, ok := b.data.Load(k)
+	if ok {
+		b.data.Store(k, append(exist.([]interface{}), v))
+	} else {
+		b.data.Store(k, []interface{}{v})
+	}
+}
+
 func NewRenderContext() *RenderContext {
 	c, _ := lru.New[string, interface{}](100)
 	return &RenderContext{
 		cache: c,
 		timer: &timetrack.TimeTracker{},
+		debug: false,
+		data:  sync.Map{},
 	}
 }
 
@@ -266,7 +294,7 @@ func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOptio
 		if filepath.Ext(name) != "" {
 			distFile = name
 		} else {
-			// 存入文件夹
+			// 否则存入文件夹
 			distFile = filepath.Join(name, "index.html")
 		}
 
@@ -291,11 +319,21 @@ func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOptio
 	}
 
 	for _, a := range conf.Hollow.Assets {
-		err = copyDir(a, "", gobilly.NewStdFs(b.SourceFs), dst)
+		err = copyDir(a, "", b.sourceStdFs, dst)
 		if err != nil {
 			return err
 		}
 		l.Infof("Copy assets: %v ", a)
+	}
+
+	// copy assets in content
+	a := ctx.GetData("assets")
+	for _, a := range a {
+		for _, a := range a.(Assets) {
+			if err = copyFile(a, filepath.Join("__source", a), b.sourceStdFs, dst); err != nil {
+				log.Warnf("exportFile error: %s", err)
+			}
+		}
 	}
 
 	l.Infof("Done in %v", time.Now().Sub(start))
@@ -694,6 +732,12 @@ func (b *Hollow) ServiceHandle(o ExecOption) func(writer http.ResponseWriter, re
 			})
 		}
 
+		// for file on source content
+		dirs = append(dirs, &DirFs{
+			stripPrefix: "__source",
+			fs:          http.FS(gobilly.NewStdFs(b.SourceFs)),
+		})
+
 		assetsHandler = http_file_server.FileServer(dirs)
 		return "", nil
 	}
@@ -916,6 +960,8 @@ type Content struct {
 	Content    string                         `json:"content"`
 	IsDir      bool                           `json:"is_dir"`
 	Toc        interface{}                    `json:"toc"`
+
+	Assets Assets `json:"-"` // 文章中使用到的图片路径，base on content，需要复制到 statics
 }
 
 type ContentTree struct {
@@ -1083,7 +1129,7 @@ func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
 // getContents 返回 dir 目录下的所有内容
 func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOption) BlogList {
 	return func(dir string, opt getBlogOption) BlogList {
-		ctx = NewRenderContext()
+		//ctx = NewRenderContext()
 		end := ctx.timerStart("getContents")
 		defer end()
 		var blogs ContentTrees
@@ -1096,7 +1142,7 @@ func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOpt
 		} else {
 			contents := sync.Map{}
 			var wg sync.WaitGroup
-			c := make(chan bool, 1)
+			c := make(chan bool, 20)
 			MapDir(gobilly.NewStdFs(b.SourceFs), dir, func(path string, d fs.DirEntry) (ContentTree, bool, error) {
 				if !d.IsDir() {
 					wg.Add(1)
@@ -1119,6 +1165,11 @@ func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOpt
 						err = fmt.Errorf("load blog '%v' error: %w", path, err)
 						log.Warnf("%v", err)
 						blog = b.newErrorContent(path, err)
+					}
+
+					if len(blog.Assets) > 0 {
+						//log.Warnf("assets: %v", blog.Assets)
+						ctx.Save("assets", blog.Assets)
 					}
 
 					contents.Store(path, blog)

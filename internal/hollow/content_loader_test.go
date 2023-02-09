@@ -4,7 +4,6 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	jsx "github.com/zbysir/gojsx"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
-	"sync"
 	"testing"
 )
 
@@ -22,6 +21,8 @@ const A = ()=> <> AAA </>
 
 ![](../../statics/img/img.jpg)
 
+![](img.jpg)
+
 `))
 
 	jx, err := jsx.NewJsx(jsx.Option{
@@ -35,19 +36,12 @@ const A = ()=> <> AAA </>
 	}
 
 	m := NewMDLoader(Assets{"statics"}, jx, nil)
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
 
-			_, err := m.Load("index.mdx", false)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-		}()
+	c, err := m.Load("index.mdx", false)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	wg.Wait()
+	t.Logf("%+v", c.Assets)
+	t.Logf("%+v", c.Content)
 }

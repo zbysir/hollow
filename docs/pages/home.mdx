@@ -15,63 +15,65 @@ const changelogs = [
   }
 ]
 
-  <>
-    <div className="space-y-16 md:space-y-28">
-      <section className="mt-4">
-        <div className="flex flex-col md:flex-row  items-center">
-          <div className="flex-1">
-            <h1 className="text-5xl font-bold" id="">
-              {meta.logo}
-            </h1>
-            <div className="text-5xl font-bold pt-8">
-              让搭建博客更自由、简单。
-            </div>
-            <div className="text-2xl font-bold pt-8 opacity-75">
-              由 Golang 与 Jsx 驱动，极少概念，不设框架。
-            </div>
-            <div className="font-bold pt-8">
-              <a href={"/docs"}><button className="btn btn-primary shadow-lg shadow-primary/50">开始使用</button></a>
-            </div>
-
+<>
+  <div className="space-y-16 md:space-y-28">
+    <section className="mt-8">
+      <div className="flex flex-col md:flex-row  items-center">
+        <div className="flex-1">
+          <h1 className="text-5xl font-bold" id="">
+            {meta.logo}
+          </h1>
+          <div className="text-5xl font-bold pt-8">
+            让搭建博客更自由、简单。
           </div>
-          <div className="flex-1 hidden md:flex items-center justify-center">
-            <div
-              className="flex items-center justify-center aspect-square rounded-full   shadow shadow-primary/50 w-3/5">
-              <div className="aspect-square rounded-full   shadow shadow-primary/50  w-3/4"></div>
-            </div>
+          <div className="text-2xl font-bold pt-8 opacity-75">
+            由 Golang 与 Jsx 驱动，极少概念，不设框架。
+          </div>
+          <div className="font-bold pt-8">
+            <a href={"/docs"}>
+              <button className="btn btn-primary shadow-lg shadow-primary/50">开始使用</button>
+            </a>
+          </div>
+
+        </div>
+        <div className="flex-1 hidden md:flex items-center justify-center">
+          <div
+            className="flex items-center justify-center aspect-square rounded-full   shadow shadow-primary/50 w-3/5">
+            <div className="aspect-square rounded-full   shadow shadow-primary/50  w-3/4"></div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section>
-        <h2 className="text-center text-5xl font-bold pb-12 md:pb-24">
-          主要特性
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:px-12">
-          <IntroBox title={"使用 Golang 语言构建"} desc={"使用你最喜欢的后端语言，安装、部署、生成网站都极快。"}></IntroBox>
-          <IntroBox title={"使用 JSX/TSX 驱动"} desc={"享受现代的前端语言，却感受不到编译时间"}></IntroBox>
-          <IntroBox title={"使用 Markdown 语言创作你的内容，同时支持 Mdx"}
-                    desc={"Mdx 同样也是一个伟大的发明，Hollow 支持它！"}></IntroBox>
-          <IntroBox title={"极少的概念，不设框架"} desc={"开发主题就像开发任何的程序一样自由"}></IntroBox>
-          <IntroBox title={"一键更换主题，无需下载"}
-                    desc={"你只需要指定 Url，如 https://github.com/zbysir/hollow-theme/hollow"}></IntroBox>
-        </div>
-      </section>
-      {false ? <section>
-        <h2 className="text-center text-5xl font-bold pb-12 md:pb-24">
-          重要更新
-        </h2>
-        <div>
-          <ul>
-            {changelogs.map(i =>
-              <li>
-                {i.time}|                {i.msgs}
-              </li>
-            )}
-          </ul>
-        </div>
-      </section>:null}
+    <section>
+      <h2 className="text-center text-5xl font-bold pb-12 md:pb-24">
+        主要特性
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:px-12">
+        <IntroBox title={"使用 Golang 语言构建"} desc={"使用你最喜欢的后端语言，安装、部署、生成网站都极快。"}></IntroBox>
+        <IntroBox title={"使用 JSX/TSX 驱动"} desc={"享受现代的前端语言，却感受不到编译时间"}></IntroBox>
+        <IntroBox title={"使用 Markdown 语言创作你的内容，同时支持 Mdx"}
+                  desc={"Mdx 同样也是一个伟大的发明，Hollow 支持它！"}></IntroBox>
+        <IntroBox title={"极少的概念，不设框架"} desc={"开发主题就像开发任何的程序一样自由"}></IntroBox>
+        <IntroBox title={"一键更换主题，无需下载"}
+                  desc={"你只需要指定 Git 仓库 Url，如 https://github.com/zbysir/hollow-theme/hollow，Hollow 会自动下载并应用主题"}></IntroBox>
+      </div>
+    </section>
+    {false ? <section>
+      <h2 className="text-center text-5xl font-bold pb-12 md:pb-24">
+        重要更新
+      </h2>
+      <div>
+        <ul>
+          {changelogs.map(i =>
+            <li>
+              {i.time}| {i.msgs}
+            </li>
+          )}
+        </ul>
+      </div>
+    </section> : null}
 
-    </div>
-  </>
+  </div>
+</>
 

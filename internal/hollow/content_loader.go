@@ -47,7 +47,7 @@ func (r *relativeFs) Open(name string) (fs.File, error) {
 	return r.sub.Open(re)
 }
 
-func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
+func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) (as Assets) {
 	walkVDom(dom, func(d jsx.VDom) {
 		i := d["nodeName"]
 		nodeName, _ := i.(string)
@@ -60,12 +60,18 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 				src = filepath.Join(baseDir, src)
 			}
 
+			var inAssets bool
 			// 移除 assets 文件夹前缀
 			for _, a := range m.assets {
 				if strings.HasPrefix(src, "/"+a) {
 					src = strings.TrimPrefix(src, "/"+a)
+					inAssets = true
 					break
 				}
+			}
+			if !inAssets {
+				as = append(as, src)
+				src = filepath.Join("/__source", src)
 			}
 
 			attr["src"] = src
@@ -75,6 +81,7 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) {
 	return
 }
 
+// replaceAttrDot 替换 __ 为 .
 func replaceAttrDot(dom jsx.VDom) {
 	walkVDom(dom, func(d jsx.VDom) {
 		attr := d["attributes"].(map[string]interface{})
@@ -84,7 +91,6 @@ func replaceAttrDot(dom jsx.VDom) {
 				attr[strings.ReplaceAll(k, "__", ".")] = v
 			}
 		}
-
 	})
 
 	return
@@ -125,7 +131,7 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 	default:
 		panic(t)
 	}
-	m.replaceImgUrl(dom, fileDir)
+	assets := m.replaceImgUrl(dom, fileDir)
 	content := dom.Render()
 
 	ext := filepath.Ext(filePath)
@@ -141,6 +147,7 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 		Content: content,
 		IsDir:   false,
 		Toc:     e.Exports["toc"],
+		Assets:  assets,
 	}, nil
 }
 
