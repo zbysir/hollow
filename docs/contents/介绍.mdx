@@ -5,22 +5,21 @@ desc: 让构建博客更自由
 sort: 1
 ---
 
-Hollow 是一个快速、自由的静态博客生成器。
+欢迎了解 Hollow，Hollow 是一个极简、自由的静态网站生成器。你几乎不用学习 Hollow 创造的概念，会 Jsx 与 Js 即可生成网站。
 
 # 特性
-
-- **支持部署到服务器，提供 Web UI 管理文章**
-  - 在任何地方（如手机上）管理你的文章
-  - 云端文件也支持提交到 Git 上，不怕文件丢失
-- **Js 驱动**
+- **Golang 与 Js 驱动**
   - **支持 Js/Ts 作为配置文件（yaml 也支持）**
   - **使用 Jsx/Tsx 作为主题模板开发语言**
-- 主题开发没有限制，极少概念，代码即所得。
+- 主题开发没有限制，代码即所得。
 - **支持 [MDX](https://mdxjs.com/packages/mdx/)**
 - 快速：生成 1000 篇页面只需要 2s (虽然没什么用)
+- **支持部署到服务器，提供 Web UI 管理文章**
+- 在任何地方（如手机上）管理你的文章
+- 云端文件支持同步到 Git 上，不怕文件丢失
 
 # 适用于
- - "想要从零开发主题、网站，但不想学习框架概念" 的人
+ - "想要从零开发主题、网站，但不愿被框架限制" 的人
  - "需要使用 Web UI 写作" 的人
 
 # Hollow 世界观
@@ -63,3 +62,28 @@ export default {
     ],
 }
 ```
+
+当然这个简单的主题通常是不够用的，这里只是介绍下开发主题足够简单，有关开发主题的详细文档可查看：[主题开发](/docs/theme-dev)。
+
+# 文章管理
+和大多数博客生成器一样，你可以使用 Markdown 语法来编写文章，除了 Markdown 语法，[MDX](https://mdxjs.com/packages/mdx/) 语法 Hollow 也借鉴了过来，不过由于 MDX 十分复杂，Hollow 只实现了子集。
+
+一个 md/mdx 例子文件如下：
+```markdown
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+
+export let A = (src)=> {return <img src={src}>}
+
+# Title
+
+<A src="./jpg"></A>
+```
+
+其中 meta 完全由主题而不是 Hollow 指定，你可以翻阅主题文档来查看其支持的 meta。
+
+详细内容请看：[管理文章](/docs/write-contents) 章节

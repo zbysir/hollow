@@ -2,7 +2,8 @@
   "scripts": {
     "dev": "node ./build.js",
     "build": "MODE=prod node ./build.js",
-    "preview": "hollow server"
+    "preview": "hollow server",
+    "preview_local": "hollow server -t file://Users/bysir/front/bysir/hollow-theme/compass"
   },
   "dependencies": {
     "@deanc/esbuild-plugin-postcss": "^1.0.2",

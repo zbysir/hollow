@@ -24,13 +24,12 @@ require (
 	github.com/tdewolff/parse/v2 v2.6.5
 	github.com/thoas/go-funk v0.9.2
 	github.com/yuin/goldmark v1.5.3
-	github.com/yuin/goldmark-meta v1.1.0
-	github.com/zbysir/gojsx v0.4.1
+	github.com/zbysir/gojsx v0.4.2
 	go.uber.org/zap v1.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-//replace github.com/zbysir/gojsx v0.4.0 => /Users/bysir/go_project/bysir/gojsx
+//replace github.com/zbysir/gojsx v0.4.2 => /Users/bysir/go_project/bysir/gojsx
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
@@ -76,6 +75,7 @@ require (
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
+	github.com/yuin/goldmark-meta v1.1.0 // indirect
 	go.abhg.dev/goldmark/toc v0.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect

@@ -1,0 +1,75 @@
+---
+title: 编写文章
+desc:
+slug: write-contents
+sort: 2
+---
+
+# Meta
+对于文章源属性的管理都存储在 Meta 定义中，比如排序，路径。
+
+meta 以 yaml 格式定义在 Md 文件头部。
+```
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+```
+
+meta 完全由主题定义，通常使用 title / desc / slug / sort 字段来定义常用属性。
+
+# 内容
+你可以使用 md 或者 mdx 语法编写内容，如果你不熟悉他们，可以查看下面这些文档：
+- [Markdown 官方教程](https://markdown.com.cn/)
+- [@mdx-js/mdx | MDX](https://mdxjs.com/packages/mdx/)
+
+一个例子如下：
+```
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+
+## Histories
+- 2020.01.01 我诞生啦
+- 2021.01.01 发布稳定版本
+```
+
+
+如果你使用 Mdx，你还可以引入其他文件、定义组件来复用逻辑：
+```
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+
+import Footer form "./footer.md"
+export const Item = ({title})=> <li>{title}</li>
+
+## Histories
+<>
+  {histories.map(i => <Item title={i.title}>)}
+</>
+
+<Footer/>
+```
+
+# FAQ
+
+## 关于 mdx
+Hollow 实现了 [MDX](https://mdxjs.com/packages/mdx/) 子集，不保证行为完全一致，如果遇到任何问题，推荐回退使用 md 格式来编写文章，并在此提 [Issue](https://github.com/zbysir/gojsx/issues)。
+
+### 自定义 ID
+
+通常使用下面的语法来指定 Heading 的 id，但这在正宗的 mdx 语法中是不支持的，相关 [Issue](https://github.com/mdx-js/mdx/issues/1279)，但在 Hollow 中能够正常运行。
+```
+# Heading {#id}
+```
+
+这是因为 Hollow 实现的 Mdx 渲染器和官方实现原理不同，对于一些边缘问题的处理行为也不一致。
