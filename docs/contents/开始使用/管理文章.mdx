@@ -5,7 +5,7 @@ slug: write-contents
 sort: 2
 ---
 
-# Meta
+# Meta {#meta}
 对于文章源属性的管理都存储在 Meta 定义中，比如排序，路径。
 
 meta 以 yaml 格式定义在 Md 文件头部。
@@ -20,7 +20,7 @@ sort: 1
 
 meta 完全由主题定义，通常使用 title / desc / slug / sort 字段来定义常用属性。
 
-# 内容
+# 内容 {#内容}
 你可以使用 md 或者 mdx 语法编写内容，如果你不熟悉他们，可以查看下面这些文档：
 - [Markdown 官方教程](https://markdown.com.cn/)
 - [@mdx-js/mdx | MDX](https://mdxjs.com/packages/mdx/)
@@ -60,7 +60,24 @@ export const Item = ({title})=> <li>{title}</li>
 <Footer/>
 ```
 
-# FAQ
+# 引用图片 {#引用图片}
+在 md 文件中，你可以使用 `![](img.png)` 语法来引用图片，图片文件应该也放在 content 目录下，可以和 md 文件同级，也可以放在子目录下。 如下
+
+```treeview
+./
+└── contents/
+    ├── imgs/
+    │   └── img1.png
+    └── hello.md
+```
+
+```
+## 引用图片
+![](imgs/img1.png)
+```
+
+
+# FAQ {#faq}
 
 ## 关于 mdx
 Hollow 实现了 [MDX](https://mdxjs.com/packages/mdx/) 子集，不保证行为完全一致，如果遇到任何问题，推荐回退使用 md 格式来编写文章，并在此提 [Issue](https://github.com/zbysir/gojsx/issues)。
