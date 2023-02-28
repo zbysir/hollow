@@ -36,7 +36,7 @@ func TestSource(t *testing.T) {
 	//t.Logf("%s", bs)
 }
 
-func TestSource2(t *testing.T) {
+func TestSourceParallel(t *testing.T) {
 	b, err := NewHollow(Option{
 		SourceFs: osfs.New("/Users/bysir/goproj/bysir/zbysir.github.io"),
 	})
@@ -58,6 +58,21 @@ func TestSource2(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestBuiltin(t *testing.T) {
+	b, err := NewHollow(Option{
+		SourceFs: osfs.New("./testdata"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	context := NewRenderContext()
+	contents := b.builtinAssert(context)
+
+	s := contents("./b/b1.mdx")
+	t.Logf("%s", s)
 }
 
 func TestMd(t *testing.T) {

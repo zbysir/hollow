@@ -78,15 +78,15 @@ export const Item = ({title})=> <li>{title}</li>
 ![](img2.png)
 ```
 
-## H1 or H2
+### H1 or H2
 [按照规范](https://learn.microsoft.com/en-us/contribute/markdown-reference#headings) 一个 Markdown 文件只应该有一个 H1，但是一些主题会自动在头部添加大标题，所以一般情况下你不应该是用 H1，而是使用 H2。
 
-# FAQ {#faq}
+## FAQ {#faq}
 
-## 关于 mdx
+### 关于 mdx
 Hollow 实现了 [MDX](https://mdxjs.com/packages/mdx/) 子集，不保证行为完全一致，如果遇到任何问题，推荐回退使用 md 格式来编写文章，并在此提 [Issue](https://github.com/zbysir/gojsx/issues)。
 
-### 自定义 ID
+#### 自定义 ID
 
 通常使用下面的语法来指定 Heading 的 id，但这在正宗的 mdx 语法中是不支持的，相关 [Issue](https://github.com/mdx-js/mdx/issues/1279)，但在 Hollow 中能够正常运行。
 ```

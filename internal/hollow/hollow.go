@@ -1315,15 +1315,15 @@ func (b *Hollow) builtinAssert(ctx *RenderContext) func(file string) interface{}
 	return func(file string) interface{} {
 		fi, err := easyfs.GetFile(b.sourceStdFs, file)
 		if err != nil {
-			return nil
+			return fmt.Sprintf("console.error('%v')", err)
 		}
 
 		tc, err := gojsx.NewEsBuildTransform(gojsx.EsBuildTransformOptions{}).Transform(file, []byte(fi.Body), gojsx.TransformerFormatIIFE)
 		if err != nil {
-			return err
+			return fmt.Sprintf("console.error('%v')", err)
 		}
 
-		return tc
+		return string(tc)
 	}
 }
 
