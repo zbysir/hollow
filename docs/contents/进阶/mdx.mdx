@@ -1,0 +1,25 @@
+---
+title: MDX 更多使用方法
+slug: advance/mdx
+sort: 1
+---
+
+## '@bysir/hollow' in MDX {#hollowinmdx}
+在 mdx 中，你也可以使用 hollow 包，比如你可以读取某个目录下的所有文章，把它们放在同一个页面，这将能更灵活的管理你的文章。
+
+下面是在 MDX 文件中使用 hollow 的示例代码：
+```markdown
+import hollow from "@bysir/hollow";
+
+<>
+  {hollow.getContents('./contents/2023/一百个为什么').list.map(i=>{
+    return <>
+      <h2>{i.meta?.title}</h2>
+      <Tags tags={i.meta?.tags}/>
+      <div dangerouslySetInnerHTML={{__html: i.content}}></div>
+    </>
+  })}
+</>
+```
+
+不过需要注意：传递给 'getContents' 的路径是基于项目根目录的。

@@ -4,6 +4,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	jsx "github.com/zbysir/gojsx"
 	"io/fs"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -55,8 +56,12 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) (as Assets) {
 			attr := d["attributes"].(map[string]interface{})
 			src := attr["src"].(string)
 
-			if filepath.IsAbs(src) || strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
-			} else {
+			isOut := strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://")
+			if isOut {
+				return
+			}
+
+			if !filepath.IsAbs(src) {
 				src = filepath.Join(baseDir, src)
 			}
 
@@ -70,6 +75,7 @@ func (m *MDLoader) replaceImgUrl(dom jsx.VDom, baseDir string) (as Assets) {
 				}
 			}
 			if !inAssets {
+				src, _ = url.PathUnescape(src)
 				as = append(as, src)
 				src = filepath.Join("/__source", src)
 			}

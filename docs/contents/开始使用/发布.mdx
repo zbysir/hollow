@@ -5,7 +5,7 @@ slug: publish
 sort: 3
 ---
 
-# 手动部署
+## 手动部署
 
 通过 hollow build 指令可以生成静态网站到 `dist` 目录下
 ```shell
@@ -21,7 +21,7 @@ docker run -v ${PWD}:/source bysir/hollow:master build -o /source/dist -t https:
 
 随后将 `dist` 中的所有文件部署到 Github page 上就完成了。
 
-# 使用 Github Action 发布 {#githubaction}
+## 使用 Github Action 发布 {#githubaction}
 如果你的源文件托管在 Github 上，并且网站也想发布在 Github page 上，那么使用 Github Action 发布网站是最佳选择。
 
 在 项目根目录下新建 .github/workflows/hollow.yaml，内容如下

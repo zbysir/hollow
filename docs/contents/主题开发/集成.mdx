@@ -5,7 +5,7 @@ slug: integrated
 sort: 2
 ---
 
-# 与 Tailwind css 一起使用
+## 与 Tailwind css 一起使用
 推荐使用 [esbuild](https://esbuild.github.io/) 来打包程序。这是一个集成了 tailwind css 的配置文件
 
 ```javascript
@@ -54,17 +54,17 @@ esbuild
 
 你可能需要学习一点 esbuild，不用担心，它很简单。
 
-# 和 React 一起使用
+## 和 React 一起使用
 虽然 Hollow 使用 Jsx 语法声明的组件和 React 可以公用，但我不建议这样做，
 因为 Hollow（Server Side）和 React(Font Side) 是两个不同运行时，公用组件必须是一个存函数组件，不能依赖其他库，这可能会导致在构思公用组件的时候心智负担很大。
 
-# 与 Alpine.js 一起使用
+## 与 Alpine.js 一起使用
 
 相比使用 React 作为前端框架，Alpine.js 与 Hollow 更合适。
 
 Hollow 给 jsx 添加了一些扩展语法来满足与 Alpine.js 一起使用
 
-### x-on:click.stop
+#### x-on:click.stop
 
 在 jsx 中，标签不支持 `:` 与 `.` 等特殊字符，对于 `:` Hollow 已经做了兼容，无需你关心，但你必须使用 `__`(两个下划线) 来代替 `.`, 一个正确的指令是这样的：`x-on:click__stop`
 

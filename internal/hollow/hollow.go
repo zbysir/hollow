@@ -14,7 +14,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2"
-	gojsx "github.com/zbysir/gojsx"
+	"github.com/zbysir/gojsx"
 	hollowdev "github.com/zbysir/hollow/front/hollow-dev"
 	"github.com/zbysir/hollow/internal/pkg/asynctask"
 	"github.com/zbysir/hollow/internal/pkg/config"
@@ -249,13 +249,7 @@ func (b *Hollow) loadTheme(ctx *RenderContext, url string, refresh bool, enableA
 	}
 
 	//log.Infof("-------- loadTheme -------")
-	themeModule, themeFs, task, err := themeLoader.Load(ctx, refresh, enableAsync, gojsx.WithNativeModule("@bysir/hollow", map[string]interface{}{
-		"getContents":      b.getContents(ctx),
-		"getConfig":        b.getConfig(ctx),
-		"getContentDetail": b.getContentDetail(ctx),
-		"md":               b.md(ctx),
-		"mdx":              b.mdx(ctx),
-	}))
+	themeModule, themeFs, task, err := themeLoader.Load(ctx, refresh, enableAsync, gojsx.WithNativeModule("@bysir/hollow", b.ExportFunc(ctx)))
 	if err != nil {
 		return ThemeExport{}, nil, nil, fmt.Errorf("load theme '%s' error: %w", url, err)
 	}
@@ -972,7 +966,7 @@ type ContentTree struct {
 type ContentTrees []ContentTree
 
 func (cs ContentTrees) Sort(f func(a, b interface{}) bool) {
-	sort.Slice(cs, func(i, j int) bool {
+	sort.SliceStable(cs, func(i, j int) bool {
 		return f(cs[i], cs[j])
 	})
 
@@ -1038,13 +1032,8 @@ func (b *Hollow) getContentLoader(ctx *RenderContext, ext string) (l ContentLoad
 	switch ext {
 	case ".md", ".mdx":
 		return NewMDLoader(c.Hollow.Assets, b.jsx, map[string]map[string]interface{}{
-			"@bysir/hollow": {
-				"getContents":      b.getContents(ctx),
-				"getConfig":        b.getConfig(ctx),
-				"getContentDetail": b.getContentDetail(ctx),
-				"md":               b.md(ctx),
-				"mdx":              b.mdx(ctx),
-			},
+			// 在 mdx 中，也可以使用 hollow
+			"@bysir/hollow": b.ExportFunc(ctx),
 		}), true
 	}
 	return nil, false
@@ -1124,7 +1113,16 @@ func (b *Hollow) tryReadMeta(file string) map[string]interface{} {
 	return nil
 }
 
-//func MapDirGo()
+func (b *Hollow) ExportFunc(ctx *RenderContext) map[string]interface{} {
+	return map[string]interface{}{
+		"getContents":      b.getContents(ctx),
+		"builtinAssert":    b.builtinAssert(ctx),
+		"getConfig":        b.getConfig(ctx),
+		"getContentDetail": b.getContentDetail(ctx),
+		"md":               b.md(ctx),
+		"mdx":              b.mdx(ctx),
+	}
+}
 
 // getContents 返回 dir 目录下的所有内容
 func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOption) BlogList {
@@ -1235,14 +1233,17 @@ func (b *Hollow) getContents(ctx *RenderContext) func(dir string, opt getBlogOpt
 			}
 
 			blogs = ts
+			// 暂时不缓存
 			//ctx.cache.Add(cacheKey, blogs)
+		}
+
+		if opt.Filter != nil {
+			blogs = blogs.Filter(opt.Filter)
 		}
 
 		if opt.Sort != nil {
 			blogs.Sort(opt.Sort)
 		}
-
-		blogs = blogs.Filter(opt.Filter)
 
 		return BlogList{
 			Total: 0,
@@ -1306,6 +1307,23 @@ func (b *Hollow) getConfig(ctx *RenderContext) func() interface{} {
 			log.Warnf("LoadConfig for js error: %v", err)
 		}
 		return c.Theme
+	}
+}
+
+// builtinAssert 返回 js/css 文件编译之后内容
+func (b *Hollow) builtinAssert(ctx *RenderContext) func(file string) interface{} {
+	return func(file string) interface{} {
+		fi, err := easyfs.GetFile(b.sourceStdFs, file)
+		if err != nil {
+			return nil
+		}
+
+		tc, err := gojsx.NewEsBuildTransform(gojsx.EsBuildTransformOptions{}).Transform(file, []byte(fi.Body), gojsx.TransformerFormatIIFE)
+		if err != nil {
+			return err
+		}
+
+		return tc
 	}
 }
 
