@@ -953,7 +953,7 @@ type Content struct {
 	Ext        string                         `json:"ext"`
 	Content    string                         `json:"content"`
 	IsDir      bool                           `json:"is_dir"`
-	Toc        interface{}                    `json:"toc"`
+	Toc        []*TocItem                     `json:"toc"`
 
 	Assets Assets `json:"-"` // 文章中使用到的图片路径，base on content，需要复制到 statics
 }

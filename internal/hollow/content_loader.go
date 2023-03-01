@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -138,6 +139,11 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 		panic(t)
 	}
 	assets := m.replaceImgUrl(dom, fileDir)
+
+	tocItem, err := toc(dom)
+	if err != nil {
+		return Content{}, err
+	}
 	content := dom.Render()
 
 	ext := filepath.Ext(filePath)
@@ -152,33 +158,127 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 		Ext:     ext,
 		Content: content,
 		IsDir:   false,
-		Toc:     e.Exports["toc"],
+		Toc:     tocItem,
 		Assets:  assets,
 	}, nil
 }
 
-func walkVDom(v jsx.VDom, fun func(d jsx.VDom)) {
+type TocItem struct {
+	Title string     `json:"title"`
+	Items []*TocItem `json:"items"`
+	Id    string     `json:"id"`
+}
+
+func lookupMapI(m map[string]interface{}, keys ...string) (interface{}, bool) {
+	var c interface{} = m
+	for _, k := range keys {
+		mm, ok := c.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+
+		i, ok := mm[k]
+		if !ok {
+			return nil, false
+		}
+
+		c = i
+	}
+
+	return c, true
+
+}
+
+// lookupMap({a: {b: 1}}, "a", "b") => 1
+func lookupMap[T any](m map[string]interface{}, keys ...string) (t T, b bool) {
+	r, ok := lookupMapI(m, keys...)
+	if ok {
+		if m, ok := r.(T); ok {
+			return m, true
+		}
+	}
+	return t, false
+}
+
+func toc(d jsx.VDom) ([]*TocItem, error) {
+	appendChild := func(n *TocItem) *TocItem {
+		child := new(TocItem)
+		n.Items = append(n.Items, child)
+		return child
+	}
+
+	lastChild := func(n *TocItem) *TocItem {
+		if len(n.Items) > 0 {
+			return n.Items[len(n.Items)-1]
+		}
+		return appendChild(n)
+	}
+
+	var root TocItem
+
+	stack := []*TocItem{&root}
+
+	walkVDom(d, func(n jsx.VDom) {
+		tag := n["nodeName"].(string)
+
+		var level int64
+		switch tag {
+		case "h1", "h2", "h3", "h4", "h5", "h6":
+			level, _ = strconv.ParseInt(strings.TrimPrefix(tag, "h"), 10, 64)
+		}
+		if level == 0 {
+			return
+		}
+
+		for len(stack) < int(level) {
+			parent := stack[len(stack)-1]
+			stack = append(stack, lastChild(parent))
+		}
+
+		for len(stack) > int(level) {
+			stack = stack[:len(stack)-1]
+		}
+
+		parent := stack[len(stack)-1]
+		target := lastChild(parent)
+		if len(target.Title) > 0 || len(target.Items) > 0 {
+			target = appendChild(parent)
+		}
+
+		c, _ := lookupMap[interface{}](n, "attributes", "children")
+		if c != nil {
+			r := jsx.Render(c)
+			target.Title = strings.TrimSpace(r)
+		}
+		id, ok := lookupMap[string](n, "attributes", "id")
+		if ok {
+			target.Id = id
+		}
+	})
+
+	return root.Items, nil
+}
+
+func walkVDom(v interface{}, fun func(d jsx.VDom)) {
 	if v == nil {
 		return
 	}
-	// 检查所有 img，如果有相对路径，则替换
-	fun(v)
-	attr := v["attributes"]
-	if attr != nil {
-		attrMap := attr.(map[string]interface{})
-		children := attrMap["children"]
-		switch t := children.(type) {
-		case []interface{}:
-			for _, i := range t {
-				switch t := i.(type) {
-				case map[string]interface{}:
-					walkVDom(t, fun)
-				}
-			}
-		case map[string]interface{}:
-			walkVDom(t, fun)
 
+	var c interface{}
+	switch t := v.(type) {
+	case map[string]interface{}:
+		fun(t)
+		c, _ = lookupMapI(t, "attributes", "children")
+	case jsx.VDom:
+		fun(t)
+		c, _ = lookupMapI(t, "attributes", "children")
+	case []interface{}:
+		for _, i := range t {
+			walkVDom(i, fun)
 		}
 	}
 
+	if c != nil {
+		walkVDom(c, fun)
+	}
 }
