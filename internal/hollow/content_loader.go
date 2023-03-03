@@ -139,6 +139,7 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 		panic(t)
 	}
 	assets := m.replaceImgUrl(dom, fileDir)
+	replaceAttrDot(dom)
 
 	tocItem, err := toc(dom)
 	if err != nil {
@@ -186,7 +187,6 @@ func lookupMapI(m map[string]interface{}, keys ...string) (interface{}, bool) {
 	}
 
 	return c, true
-
 }
 
 // lookupMap({a: {b: 1}}, "a", "b") => 1
