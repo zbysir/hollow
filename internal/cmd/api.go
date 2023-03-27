@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thoas/go-funk"
-	"github.com/zbysir/hollow/internal/hollow/editor"
+	"github.com/zbysir/hollow/internal/hollow/api"
 	"github.com/zbysir/hollow/internal/pkg/config"
 	"github.com/zbysir/hollow/internal/pkg/log"
 	"github.com/zbysir/hollow/internal/pkg/signal"
@@ -40,9 +40,9 @@ func Api() *cobra.Command {
 			//gin.SetMode(gin.ReleaseMode)
 			log.Infof("config: %+v", p)
 
-			e := editor.NewEditor(func(pid int64) (billy.Filesystem, error) {
+			e := api.NewEditor(func(pid int64) (billy.Filesystem, error) {
 				return osfs.New(p.Source), nil
-			}, editor.Config{
+			}, api.Config{
 				PreviewDomain: p.PreviewDomain,
 				Secret:        p.Secret,
 			})
