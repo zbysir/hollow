@@ -12,23 +12,23 @@ import (
 	"github.com/zbysir/hollow/internal/pkg/signal"
 )
 
-type EditorParams struct {
+type ApiParams struct {
 	Address       string `json:"address"`
 	Source        string `json:"source"`
 	PreviewDomain string `json:"preview_domain"`
 	Secret        string `json:"secret"`
 }
 
-func Editor() *cobra.Command {
+func Api() *cobra.Command {
 	v := viper.New()
 	v.AutomaticEnv()
 
 	cmd := &cobra.Command{
-		Use:   "editor",
-		Short: "editor start a web service",
+		Use:   "api",
+		Short: "api start a api service",
 		//Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			p, err := config.Get[EditorParams](v)
+			p, err := config.Get[ApiParams](v)
 			if err != nil {
 				return err
 			}

@@ -1,17 +1,32 @@
 package editor
 
 import (
-	"context"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/stretchr/testify/assert"
+	"github.com/zbysir/hollow/internal/pkg/signal"
+	"sync"
 	"testing"
 )
 
 func TestEditor(t *testing.T) {
-	e := NewEditor(nil, Config{PreviewDomain: "abc"})
-	err := e.Run(context.Background(), ":9091")
-	if err != nil {
-		t.Fatal(err)
-	}
+	e := NewEditor(func(pid int64) (billy.Filesystem, error) {
+		return osfs.New("./testdata"), nil
+	}, Config{PreviewDomain: "preview.blog.bysir.top", Secret: ""})
+
+	ctx, c := signal.NewContext()
+	defer c()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := e.Run(ctx, ":9091")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	wg.Wait()
 }
 
 func TestMatchPreviewDomain(t *testing.T) {

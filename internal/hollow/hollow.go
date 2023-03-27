@@ -257,6 +257,22 @@ func (b *Hollow) loadTheme(ctx *RenderContext, url string, refresh bool, enableA
 	return themeModule, themeFs, task, nil
 }
 
+func (b *Hollow) RenderFile(path string) (c Content, err error) {
+	ctx := NewRenderContext()
+
+	l, ok := b.getContentLoader(ctx, filepath.Ext(path))
+	if !ok {
+		err = fmt.Errorf("not support file type: %s", filepath.Ext(path))
+		return
+	}
+
+	c, err = l.Load(path, false)
+	if err != nil {
+		return
+	}
+	return
+}
+
 func (b *Hollow) BuildToFs(ctx *RenderContext, dst billy.Filesystem, o ExecOption) error {
 	start := time.Now()
 	conf, err := b.LoadConfig(ctx)
@@ -956,6 +972,18 @@ type Content struct {
 	Toc        []*TocItem                     `json:"toc"`
 
 	Assets Assets `json:"-"` // 文章中使用到的图片路径，base on content，需要复制到 statics
+}
+
+func (c Content) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"assets":  c.Assets,
+		"meta":    c.Meta,
+		"toc":     c.Toc,
+		"ext":     c.Ext,
+		"name":    c.Name,
+		"is_dir":  c.IsDir,
+		"content": c.Content,
+	})
 }
 
 type ContentTree struct {

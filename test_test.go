@@ -2,17 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/zbysir/hollow/internal/hollow"
-	"github.com/zbysir/hollow/internal/hollow/editor"
 	"github.com/zbysir/hollow/internal/pkg/db"
 	"github.com/zbysir/hollow/internal/pkg/gobilly"
 	"github.com/zbysir/hollow/internal/pkg/log"
-	"github.com/zbysir/hollow/internal/pkg/signal"
 	"net/http"
-	"sync"
 	"testing"
 )
 
@@ -93,26 +89,6 @@ func TestServiceDbFs(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func TestEditor(t *testing.T) {
-	e := editor.NewEditor(func(pid int64) (billy.Filesystem, error) {
-		return osfs.New("./workspace"), nil
-	}, editor.Config{PreviewDomain: "preview.blog.bysir.top"})
-
-	ctx, c := signal.NewContext()
-	defer c()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := e.Run(ctx, ":9091")
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	wg.Wait()
 }
 
 func TestFile(t *testing.T) {

@@ -31,11 +31,13 @@ import (
 	"time"
 )
 
-// Editor 是编辑器，提供以下功能：
-// - web ui 编辑文章
-//  - 上传文件到本地或 OSS
+// Api 暴露 api，提供以下功能：
+// - 管理文章
+//   - 上传文件到本地或 OSS
+//
 // - 实时预览文章
-type Editor struct {
+// - 多项目管理
+type Api struct {
 	hub              *ws.WsHub
 	projectFsFactory FsFactory
 	config           Config
@@ -51,9 +53,9 @@ type FsFactory func(pid int64) (billy.Filesystem, error)
 func NewEditor(
 	projectFsFactory FsFactory,
 	config Config,
-) *Editor {
+) *Api {
 	hub := ws.NewHub()
-	return &Editor{
+	return &Api{
 		hub:              hub,
 		projectFsFactory: projectFsFactory,
 		config:           config,
@@ -70,6 +72,11 @@ type deleteFileParams struct {
 	IsDir     bool   `form:"is_dir"`
 	Path      string `form:"path"`
 	Bucket    string `form:"bucket"`
+	ProjectId int64  `form:"project_id"`
+}
+
+type previewFileParams struct {
+	Path      string `form:"path"`
 	ProjectId int64  `form:"project_id"`
 }
 
@@ -142,6 +149,11 @@ func ErrorHandler() gin.HandlerFunc {
 var AuthErr = errors.New("need login")
 
 func Auth(secret string) gin.HandlerFunc {
+	if secret == "" {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
 	return func(c *gin.Context) {
 		t, _ := c.Cookie("token")
 		if t == "" {
@@ -167,13 +179,13 @@ var upgrader = websocket.Upgrader{
 }
 
 // 一个项目可以有多个 FS，比如存储源文件，比如存储主题
-func (a *Editor) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
+func (a *Api) projectFs(pid int64, bucket string) (billy.Filesystem, error) {
 	return a.projectFsFactory(pid)
 
 }
 
 // localhost:9090/api/file/tree
-func (a *Editor) Run(ctx context.Context, addr string) (err error) {
+func (a *Api) Run(ctx context.Context, addr string) (err error) {
 	if !config.IsDebug() {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -592,6 +604,31 @@ func (a *Editor) Run(ctx context.Context, addr string) (err error) {
 		c.JSON(200, key)
 	})
 
+	// 预览文件
+	apiAuth.GET("/preview", func(c *gin.Context) {
+		var p previewFileParams
+		err = c.Bind(&p)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		fsSource, err := a.projectFsFactory(0)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		b, err := hollow.NewHollow(hollow.Option{
+			SourceFs: fsSource,
+		})
+
+		content, err := b.RenderFile(p.Path)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		c.JSON(200, content)
+	})
 	apiAuth.POST("/push", func(c *gin.Context) {
 		//fsTheme, err := a.projectFs(0, "theme")
 		//if err != nil {

@@ -21,10 +21,10 @@ func init() {
 }
 
 func init() {
-	rootCmd.AddCommand(cmd.Editor())
+	rootCmd.AddCommand(cmd.Api())
 	rootCmd.AddCommand(cmd.Server())
 	rootCmd.AddCommand(cmd.Build())
-	rootCmd.AddCommand(cmd.Version("v0.2.10"))
+	rootCmd.AddCommand(cmd.Version("v0.3.3"))
 }
 
 func main() {

@@ -24,7 +24,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.6.5
 	github.com/thoas/go-funk v0.9.2
 	github.com/yuin/goldmark v1.5.3
-	github.com/zbysir/gojsx v0.4.3
+	github.com/zbysir/gojsx v0.4.6
 	go.uber.org/zap v1.17.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -76,6 +76,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	github.com/yuin/goldmark-meta v1.1.0 // indirect
+	go.abhg.dev/goldmark/mermaid v0.4.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect

@@ -68,7 +68,6 @@ func Server() *cobra.Command {
 				}, addr)
 
 				if err != nil {
-
 					panic(err)
 				}
 			}()

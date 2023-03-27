@@ -1,0 +1,89 @@
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+
+## 创建一个主题
+最简单的主题只有一个文件，即 `index.tsx`，下面是一个例子：
+
+```javascript
+import {Content, getContents} from "@bysir/hollow"
+
+let contents = getContents('contents').list;
+
+function Index(props) {
+  return <html lang="zh" class="dark">
+  <head>
+    <meta charSet="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{props.title || 'UnTitled'}</title>
+  </head>
+  <body className="">
+  <div>
+    {props.children}
+  </div>
+
+  </body>
+  </html>
+}
+
+export default {
+    pages: [
+        {
+            path: '',
+            component: () => {
+                return <Index title={"Hi!"}> I am hollow </Index>
+            },
+        },
+        ...contents.map(b => {
+            return {
+                path: b.meta?.slug || b.name,
+                component: () =>
+                    <Index title={"Hi! - "+ b.meta?.title}>
+                        <div> {b.content} </div>
+                    </Index>
+            }
+        }),
+    ],
+}
+```
+
+这个主题包含一个内容是 "I am hollow" 的首页，并将 `contents` 目录下读取得到的所有 md 文件渲染为页面。
+
+这个主题足够简单，不过通常是不够用的，它没有抽象组件、没有 css、没有静态文件。别急我们马上加强它。
+
+## 读取文章内容 {#get-content}
+使用 hollow.getContents(path) 方法可以获取指定目录下的所有文章内容
+
+### 读取 Meta {#meta}
+
+meta 以 yaml 格式定义在 Md 文件头部。
+```
+---
+title: 开发主题
+desc:
+slug: theme-dev
+sort: 1
+---
+```
+你可以使用 ['getContents'](/docs/hollow-api#getContents) 返回的 &lt;Content>.meta 来获得 meta，这完全是自定义的，不过为了用户方便迁移到其他主题，推荐使用 title / desc / slug / sort 字段来定义常用属性。
+
+更多 Api：[HollowApi](/docs/hollow-api)
+
+## 拆分多文件
+和一个常见的前端项目一样，你可以使用 ESM(ECMAScript Module) 语法导入任何文件。
+
+## 添加静态文件
+
+在 index.tsx 文件中导出 assets 属性即可将静态文件复制到输出目录下。
+```
+export default {
+    pages: [...],
+    // 将 statics 文件下所有内容 copy 到 dist 下
+    assets: ['statics'],
+}
+```
+
+
