@@ -181,3 +181,46 @@ func TestToc2(t *testing.T) {
   h1
 `, str)
 }
+
+func TestToc3(t *testing.T) {
+	d := jsx.VDom{
+		"nodeName": "div",
+		"attributes": map[string]interface{}{
+			"children": []interface{}{
+
+				map[string]interface{}{
+					"nodeName": "h2",
+					"attributes": map[string]interface{}{
+						"children": "h2",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h3",
+					"attributes": map[string]interface{}{
+						"children": "h3",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h2",
+					"attributes": map[string]interface{}{
+						"children": "h2",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h4",
+					"attributes": map[string]interface{}{
+						"children": "h4",
+					},
+				},
+			},
+		},
+	}
+	toc := generateTOC(d)
+	str := toc.Dump(0)
+	assert.Equal(t, `
+  h2
+    h3
+  h2
+    h4
+`, str)
+}

@@ -165,14 +165,16 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 }
 
 type TocItem struct {
-	Title string     `json:"title,omitempty"`
-	Items []*TocItem `json:"items,omitempty"`
-	Id    string     `json:"id,omitempty"`
-	level int
+	Title  string     `json:"title,omitempty"`
+	Items  []*TocItem `json:"items,omitempty"`
+	Id     string     `json:"id,omitempty"`
+	level  int
+	parent *TocItem
 }
 
 func (n *TocItem) AddChild(child *TocItem) {
 	n.Items = append(n.Items, child)
+	child.parent = n
 }
 
 func (n *TocItem) Dump(deep int) string {
@@ -218,8 +220,7 @@ func lookupMap[T any](m map[string]interface{}, keys ...string) (t T, b bool) {
 
 func generateTOC(d jsx.VDom) *TocItem {
 	root := &TocItem{}
-	currentNodes := make([]*TocItem, 1)
-	currentNodes[0] = root
+	parent := root
 	walkVDom(d, func(n jsx.VDom) {
 		tag := n["nodeName"].(string)
 
@@ -244,24 +245,13 @@ func generateTOC(d jsx.VDom) *TocItem {
 		}
 		node.level = level
 
-		if level >= len(currentNodes) {
-			last := currentNodes[len(currentNodes)-1]
-			// 当小于才算子级，否则是平级
-			if last.level < level {
-				parent := last
-				parent.AddChild(node)
-				currentNodes = append(currentNodes, node)
-			} else {
-				parent := currentNodes[len(currentNodes)-2]
-				parent.AddChild(node)
-				currentNodes[len(currentNodes)-1] = node
-			}
-		} else {
-			parent := currentNodes[level-1]
-			parent.AddChild(node)
-			currentNodes[level] = node
+		// 找到父级
+		for parent.parent != nil && parent.level >= level {
+			parent = parent.parent
 		}
 
+		parent.AddChild(node)
+		parent = node
 	})
 
 	return root
