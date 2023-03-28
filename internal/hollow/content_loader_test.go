@@ -93,5 +93,91 @@ const contents = [{meta: {title:"h2"}}]
 	}
 
 	bs, _ := json.Marshal(c.Toc)
-	assert.Equal(t, string(bs), `[{"title":"h1  AAA","items":[{"title":"h2","items":null,"id":"h2"}],"id":"h1-aa"}]`)
+	assert.Equal(t, `[{"title":"h1  AAA","items":[{"title":"h2","id":"h2"}],"id":"h1-aa"}]`, string(bs))
+}
+
+func TestToc2(t *testing.T) {
+	d := jsx.VDom{
+		"nodeName": "div",
+		"attributes": map[string]interface{}{
+			"children": []interface{}{
+
+				map[string]interface{}{
+					"nodeName": "h3",
+					"attributes": map[string]interface{}{
+						"children": "h3",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h3",
+					"attributes": map[string]interface{}{
+						"children": "h3",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h1",
+					"attributes": map[string]interface{}{
+						"children": "h1",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h2",
+					"attributes": map[string]interface{}{
+						"children": "h2",
+					},
+				},
+
+				map[string]interface{}{
+					"nodeName": "h4",
+					"attributes": map[string]interface{}{
+						"children": "h4",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h3",
+					"attributes": map[string]interface{}{
+						"children": "h3",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h3",
+					"attributes": map[string]interface{}{
+						"children": "h3",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h4",
+					"attributes": map[string]interface{}{
+						"children": "h4",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h2",
+					"attributes": map[string]interface{}{
+						"children": "h2",
+					},
+				},
+				map[string]interface{}{
+					"nodeName": "h1",
+					"attributes": map[string]interface{}{
+						"children": "h1",
+					},
+				},
+			},
+		},
+	}
+	toc := generateTOC(d)
+	str := toc.Dump(0)
+	assert.Equal(t, `
+  h3
+  h3
+  h1
+    h2
+      h4
+      h3
+      h3
+        h4
+    h2
+  h1
+`, str)
 }

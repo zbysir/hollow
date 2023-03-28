@@ -141,7 +141,7 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 	assets := m.replaceImgUrl(dom, fileDir)
 	replaceAttrDot(dom)
 
-	tocItem, err := toc(dom)
+	tocItem := generateTOC(dom)
 	if err != nil {
 		return Content{}, err
 	}
@@ -159,15 +159,31 @@ func (m *MDLoader) Load(filePath string, withContent bool) (Content, error) {
 		Ext:     ext,
 		Content: content,
 		IsDir:   false,
-		Toc:     tocItem,
+		Toc:     tocItem.Items,
 		Assets:  assets,
 	}, nil
 }
 
 type TocItem struct {
-	Title string     `json:"title"`
-	Items []*TocItem `json:"items"`
-	Id    string     `json:"id"`
+	Title string     `json:"title,omitempty"`
+	Items []*TocItem `json:"items,omitempty"`
+	Id    string     `json:"id,omitempty"`
+	level int
+}
+
+func (n *TocItem) AddChild(child *TocItem) {
+	n.Items = append(n.Items, child)
+}
+
+func (n *TocItem) Dump(deep int) string {
+	var sb strings.Builder
+	sb.WriteString(strings.Repeat(" ", deep*2))
+	sb.WriteString(n.Title)
+	sb.WriteString("\n")
+	for _, c := range n.Items {
+		sb.WriteString(c.Dump(deep + 1))
+	}
+	return sb.String()
 }
 
 func lookupMapI(m map[string]interface{}, keys ...string) (interface{}, bool) {
@@ -200,63 +216,55 @@ func lookupMap[T any](m map[string]interface{}, keys ...string) (t T, b bool) {
 	return t, false
 }
 
-func toc(d jsx.VDom) ([]*TocItem, error) {
-	appendChild := func(n *TocItem) *TocItem {
-		child := new(TocItem)
-		n.Items = append(n.Items, child)
-		return child
-	}
-
-	lastChild := func(n *TocItem) *TocItem {
-		if len(n.Items) > 0 {
-			return n.Items[len(n.Items)-1]
-		}
-		return appendChild(n)
-	}
-
-	var root TocItem
-
-	stack := []*TocItem{&root}
-
+func generateTOC(d jsx.VDom) *TocItem {
+	root := &TocItem{}
+	currentNodes := make([]*TocItem, 1)
+	currentNodes[0] = root
 	walkVDom(d, func(n jsx.VDom) {
 		tag := n["nodeName"].(string)
 
-		var level int64
+		var level int
 		switch tag {
 		case "h1", "h2", "h3", "h4", "h5", "h6":
-			level, _ = strconv.ParseInt(strings.TrimPrefix(tag, "h"), 10, 64)
+			leveli, _ := strconv.ParseInt(strings.TrimPrefix(tag, "h"), 10, 64)
+			level = int(leveli)
 		}
 		if level == 0 {
 			return
 		}
 
-		for len(stack) < int(level) {
-			parent := stack[len(stack)-1]
-			stack = append(stack, lastChild(parent))
-		}
-
-		for len(stack) > int(level) {
-			stack = stack[:len(stack)-1]
-		}
-
-		parent := stack[len(stack)-1]
-		target := lastChild(parent)
-		if len(target.Title) > 0 || len(target.Items) > 0 {
-			target = appendChild(parent)
-		}
-
-		c, _ := lookupMap[interface{}](n, "attributes", "children")
-		if c != nil {
-			r := jsx.Render(c)
-			target.Title = strings.TrimSpace(r)
+		node := &TocItem{}
+		children, _ := lookupMap[interface{}](n, "attributes", "children")
+		if children != nil {
+			node.Title = strings.TrimSpace(jsx.Render(children))
 		}
 		id, ok := lookupMap[string](n, "attributes", "id")
 		if ok {
-			target.Id = id
+			node.Id = id
 		}
+		node.level = level
+
+		if level >= len(currentNodes) {
+			last := currentNodes[len(currentNodes)-1]
+			// 当小于才算子级，否则是平级
+			if last.level < level {
+				parent := last
+				parent.AddChild(node)
+				currentNodes = append(currentNodes, node)
+			} else {
+				parent := currentNodes[len(currentNodes)-2]
+				parent.AddChild(node)
+				currentNodes[len(currentNodes)-1] = node
+			}
+		} else {
+			parent := currentNodes[level-1]
+			parent.AddChild(node)
+			currentNodes[level] = node
+		}
+
 	})
 
-	return root.Items, nil
+	return root
 }
 
 func walkVDom(v interface{}, fun func(d jsx.VDom)) {
