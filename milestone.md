@@ -33,6 +33,7 @@
       loader（做到 gojsx 里），支持 import A from "a.mdx"。
     - 只处理 markdown 中的 jsx block。更快的性能，但是如果要处理 {}, inline 的语法会特别麻烦。不适用。
 - [ ] i18n 支持 (参考 hugo 方案：https://gohugo.io/content-management/static-files/)
+- [ ] 额外的图形支持：https://d2lang.com/tour/intro Golang 预处理图形。
 
 ## 发布
 
